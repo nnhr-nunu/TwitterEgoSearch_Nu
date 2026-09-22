@@ -36,9 +36,6 @@ export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
           <Label htmlFor="latest" className="cursor-pointer">
             {config.latest ? t("latest") : t("top")}
           </Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {config.latest ? "f=live" : "top"}
-          </p>
         </div>
         <Switch
           id="latest"

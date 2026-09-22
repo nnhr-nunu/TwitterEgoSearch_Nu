@@ -1,6 +1,6 @@
 "use client";
 
-import { BirdIcon, CopyIcon, SearchIcon, UsersIcon } from "lucide-react";
+import { BirdIcon, CopyIcon, SearchIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FilterPanel } from "@/components/filter-panel";
@@ -9,17 +9,10 @@ import { LiveResults } from "@/components/live-results";
 import { MuteAccounts } from "@/components/mute-accounts";
 import { PresetBar } from "@/components/preset-bar";
 import { ProfileFields } from "@/components/profile-fields";
-import { QuoteTweetFields } from "@/components/quote-tweet-fields";
-import { SearchScope } from "@/components/search-scope";
-import { SharePanel } from "@/components/share-panel";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   cloneConfig,
   createDefaultConfig,
@@ -123,14 +116,6 @@ export function SearchApp() {
   const peopleOk = canSearchPeople(config);
   const showLive = postsOk;
 
-  const shareUrl = ready
-    ? `${window.location.origin}${window.location.pathname}${
-        serializeSearchParams(config, locale).toString()
-          ? `?${serializeSearchParams(config, locale).toString()}`
-          : ""
-      }`
-    : "";
-
   function patch(next: Partial<SearchConfig>) {
     setConfig((current) => ({ ...current, ...next }));
   }
@@ -152,52 +137,40 @@ export function SearchApp() {
   return (
     <div className="min-h-screen bg-background pb-28 md:pb-10">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-primary">
-                <BirdIcon className="size-7" aria-hidden />
-                <p className="text-xs font-semibold tracking-[0.18em] uppercase">Twitter</p>
-              </div>
-              <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                {t("title")}
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {t("tagline")}
-              </p>
+        <div className="mx-auto flex max-w-2xl items-start justify-between gap-3 px-4 py-6 sm:px-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-primary">
+              <BirdIcon className="size-7" aria-hidden />
+              <p className="text-xs font-semibold tracking-[0.18em] uppercase">Twitter</p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-            >
-              {t("language")}
-            </Button>
+            <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              {t("title")}
+            </h1>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
+          >
+            {t("language")}
+          </Button>
         </div>
       </header>
 
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
         {showLive ? (
-          <LiveResults url={liveUrl} autoOpen={autoOpenLive} t={t} />
-        ) : (
-          <Card className="border-primary/30 bg-secondary" data-testid="onboarding">
-            <CardHeader>
-              <CardTitle>{t("onboardingTitle")}</CardTitle>
-              <CardDescription className="text-pretty text-foreground/80">
-                {t("onboardingBody")}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
+          <LiveResults
+            url={liveUrl}
+            peopleUrl={peopleUrl}
+            peopleOk={peopleOk}
+            autoOpen={autoOpenLive}
+            t={t}
+          />
+        ) : null}
 
         <Card>
-          <CardHeader className="border-b">
-            <CardTitle>{t("profile")}</CardTitle>
-            <CardDescription>{t("profileHint")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-6">
             <KeywordEditor
               keywords={config.keywords}
               honorifics={config.honorifics}
@@ -205,12 +178,19 @@ export function SearchApp() {
               onHonorificsChange={(honorifics) => patch({ honorifics })}
               t={t}
             />
-            <ProfileFields
-              handle={config.handle}
-              onHandleChange={(handle) => patch({ handle })}
-              t={t}
-            />
-            <SearchScope config={config} onChange={patch} t={t} />
+            <ProfileFields config={config} onChange={patch} t={t} />
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
+              <Label htmlFor="media-only" className="cursor-pointer">
+                {t("media")}
+              </Label>
+              <Switch
+                id="media-only"
+                checked={config.mediaOnly}
+                onCheckedChange={(checked) => patch({ mediaOnly: checked })}
+                aria-label={t("media")}
+                data-testid="media-only"
+              />
+            </div>
             {showLive ? (
               <MuteAccounts
                 handles={config.mutedHandles}
@@ -230,10 +210,13 @@ export function SearchApp() {
                   {postsOk ? (
                     <a href={liveUrl} target="_blank" rel="noopener noreferrer" data-testid="first-live-open">
                       <SearchIcon data-icon="inline-start" />
-                      {t("nextStep")}
+                      {t("searchPosts")}
                     </a>
                   ) : (
-                    t("nextStep")
+                    <>
+                      <SearchIcon data-icon="inline-start" />
+                      {t("searchPosts")}
+                    </>
                   )}
                 </Button>
                 {!postsOk ? (
@@ -247,7 +230,9 @@ export function SearchApp() {
         <details className="rounded-xl border border-border bg-card" data-testid="advanced">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden">
             {t("advanced")}
-            <span aria-hidden className="text-muted-foreground">▾</span>
+            <span aria-hidden className="text-muted-foreground">
+              ▾
+            </span>
           </summary>
           <div className="space-y-6 border-t border-border px-4 py-4">
             {!showLive ? (
@@ -258,25 +243,6 @@ export function SearchApp() {
               />
             ) : null}
             <FilterPanel config={config} onChange={patch} t={t} />
-            <div className="space-y-2">
-              <p className="text-sm font-medium">{t("searchPeople")}</p>
-              <p className="text-xs text-muted-foreground">{t("peopleSearchHint")}</p>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!peopleOk}
-                asChild={peopleOk}
-              >
-                {peopleOk ? (
-                  <a href={peopleUrl} target="_blank" rel="noopener noreferrer">
-                    <UsersIcon data-icon="inline-start" />
-                    {t("searchPeople")}
-                  </a>
-                ) : (
-                  t("searchPeople")
-                )}
-              </Button>
-            </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">{t("generated")}</p>
               <pre
@@ -296,13 +262,6 @@ export function SearchApp() {
                 {t("copyQuery")}
               </Button>
             </div>
-            <SharePanel shareUrl={shareUrl} t={t} onCopy={copyText} />
-            <details className="rounded-lg border border-dashed border-border p-3">
-              <summary className="cursor-pointer text-sm font-medium">{t("quoteAdvanced")}</summary>
-              <div className="mt-3">
-                <QuoteTweetFields t={t} />
-              </div>
-            </details>
             <PresetBar
               config={config}
               presets={presets}
@@ -326,17 +285,14 @@ export function SearchApp() {
               }}
               t={t}
             />
-            <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setConfig(createOwnerSampleConfig())}
-              >
-                {t("loadSample")}
-              </Button>
-              <p className="text-xs text-muted-foreground">{t("sampleHint")}</p>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setConfig(createOwnerSampleConfig())}
+            >
+              {t("loadSample")}
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -349,19 +305,15 @@ export function SearchApp() {
         </details>
       </main>
 
-      <p className="mx-auto max-w-2xl px-4 pb-6 text-center text-xs text-muted-foreground sm:px-6">
-        {t("footer")}
-      </p>
-
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 backdrop-blur md:hidden">
         <Button type="button" className="h-11 w-full" disabled={!postsOk} asChild={postsOk}>
           {postsOk ? (
             <a href={liveUrl} target="_blank" rel="noopener noreferrer">
               <SearchIcon data-icon="inline-start" />
-              {t("nextStep")}
+              {t("searchPosts")}
             </a>
           ) : (
-            t("nextStep")
+            t("searchPosts")
           )}
         </Button>
       </div>

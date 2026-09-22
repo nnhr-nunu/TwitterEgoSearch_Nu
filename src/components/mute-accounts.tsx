@@ -33,10 +33,7 @@ export function MuteAccounts({ handles, onChange, t }: MuteAccountsProps) {
 
   return (
     <div className="space-y-3">
-      <div className="space-y-1">
-        <Label htmlFor="mute-input">{t("muteAccounts")}</Label>
-        <p className="text-xs text-muted-foreground">{t("muteHint")}</p>
-      </div>
+      <Label htmlFor="mute-input">{t("muteAccounts")}</Label>
       <div className="flex gap-2">
         <Input
           id="mute-input"

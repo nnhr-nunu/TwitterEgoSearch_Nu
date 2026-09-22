@@ -42,27 +42,26 @@ export function KeywordEditor({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
+      <div className="space-y-2">
         <Label htmlFor="keyword-input">{t("keywords")}</Label>
-        <p className="text-xs text-muted-foreground">{t("keywordsHint")}</p>
-      </div>
-      <div className="flex gap-2">
-        <Input
-          id="keyword-input"
-          value={draft}
-          placeholder={t("keywordPlaceholder")}
-          className="h-10 text-base md:text-sm"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addKeyword();
-            }
-          }}
-        />
-        <Button type="button" variant="secondary" className="h-10" onClick={addKeyword}>
-          {t("addKeyword")}
-        </Button>
+        <div className="flex gap-2">
+          <Input
+            id="keyword-input"
+            value={draft}
+            placeholder={t("keywordPlaceholder")}
+            className="h-10 text-base md:text-sm"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addKeyword();
+              }
+            }}
+          />
+          <Button type="button" variant="secondary" className="h-10" onClick={addKeyword}>
+            {t("addKeyword")}
+          </Button>
+        </div>
       </div>
       {keywords.length === 0 ? null : (
         <ul className="flex flex-wrap gap-2" data-testid="keyword-list">
@@ -87,7 +86,6 @@ export function KeywordEditor({
 
       <div className="space-y-2">
         <p className="text-sm font-medium">{t("honorifics")}</p>
-        <p className="text-xs text-muted-foreground">{t("honorificsHint")}</p>
         <div className="flex flex-wrap gap-2" data-testid="honorific-toggles" role="group" aria-label={t("honorifics")}>
           {HONORIFIC_CATALOG.map((item) => {
             const on = honorifics.includes(item.id);
@@ -114,7 +112,6 @@ export function KeywordEditor({
       {terms.length === 0 ? null : (
         <div className="space-y-2" data-testid="search-words">
           <p className="text-sm font-medium">{t("searchWords")}</p>
-          <p className="text-xs text-muted-foreground">{t("searchWordsHint")}</p>
           <ul className="flex flex-wrap gap-2">
             {terms.map((term) => {
               const derived = isDerivedHonorific(term, keywords, honorifics);
