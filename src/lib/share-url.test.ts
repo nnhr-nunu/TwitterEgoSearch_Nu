@@ -1,24 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultConfig } from "./defaults";
+import { createDefaultConfig, hydrateConfig } from "./defaults";
 import { parseSearchParams, serializeSearchParams } from "./share-url";
 import { parseStatusUrl, tweetIntentUrl } from "./tweet-intent";
 
 describe("share url", () => {
   it("round-trips a custom config", () => {
-    const config = {
+    const config = hydrateConfig({
       ...createDefaultConfig(),
       handle: "example_user",
+      handles: ["example_user"],
       displayName: "Example",
       keywords: ["alpha", "beta"],
+      filterKeywords: ["art"],
       wrapQuotes: false,
       excludeOwn: false,
       fromSelf: true,
       mediaOnly: true,
       latest: false,
-      since: "2026-01-01",
-      until: "2026-02-01",
+      sort: "likes",
       mutedHandles: ["spam_bot", "noise_acc"],
-    };
+      mutedKeywords: ["ad"],
+    });
     const params = serializeSearchParams(config, "en");
     const parsed = parseSearchParams(params);
     expect(parsed.found).toBe(true);
@@ -30,8 +32,10 @@ describe("share url", () => {
     const parsed = parseSearchParams("");
     expect(parsed.found).toBe(false);
     expect(parsed.config.handle).toBe("");
+    expect(parsed.config.handles).toEqual([]);
     expect(parsed.config.keywords).toEqual([]);
     expect(parsed.config.mediaOnly).toBe(true);
+    expect(parsed.config.sort).toBe("latest");
     expect(parsed.config.honorifics).toEqual(["san", "chan", "sama"]);
     expect(parsed.locale).toBe("ja");
   });
@@ -42,11 +46,11 @@ describe("share url", () => {
   });
 
   it("round-trips muted accounts as repeated mute params", () => {
-    const config = {
+    const config = hydrateConfig({
       ...createDefaultConfig(),
       keywords: ["alpha"],
       mutedHandles: ["spam_bot", "noise_acc"],
-    };
+    });
     const params = serializeSearchParams(config, "ja");
     expect(params.getAll("mute")).toEqual(["spam_bot", "noise_acc"]);
     const parsed = parseSearchParams(params);

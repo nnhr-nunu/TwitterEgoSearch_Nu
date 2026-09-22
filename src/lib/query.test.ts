@@ -9,6 +9,7 @@ import {
   canSearchPosts,
   orGroup,
   quoteTerm,
+  sortParamOf,
 } from "./query";
 
 describe("quoteTerm", () => {
@@ -61,6 +62,7 @@ describe("buildPostsQuery", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
       handle: "https://x.com/nnhr_nunu",
+      handles: ["https://x.com/nnhr_nunu"],
       keywords: ["test"],
       wrapQuotes: false,
     });
@@ -93,6 +95,41 @@ describe("buildPostsQuery", () => {
     expect(query.match(/-from:nnhr_nunu/g)).toHaveLength(1);
   });
 
+  it("excludes every own @id with -from:", () => {
+    const query = buildPostsQuery({
+      ...createOwnerSampleConfig(),
+      handle: "alice",
+      handles: ["alice", "alice_alt"],
+      keywords: ["たろう"],
+      honorifics: [],
+      wrapQuotes: false,
+      mediaOnly: false,
+      mutedHandles: [],
+      since: "",
+      until: "",
+    });
+    expect(query).toContain("-from:alice");
+    expect(query).toContain("-from:alice_alt");
+  });
+
+  it("ANDs filter keywords and minuses muted keywords", () => {
+    const query = buildPostsQuery({
+      ...createOwnerSampleConfig(),
+      keywords: ["たろう"],
+      honorifics: [],
+      wrapQuotes: true,
+      mediaOnly: false,
+      filterKeywords: ["イラスト"],
+      mutedKeywords: ["広告"],
+      mutedHandles: [],
+      since: "",
+      until: "",
+    });
+    expect(query).toContain('"たろう"');
+    expect(query).toContain('"イラスト"');
+    expect(query).toContain('-"広告"');
+  });
+
   it("keeps muted -from: even when exclude-own is off", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
@@ -121,6 +158,8 @@ describe("buildPostsQuery", () => {
       keywords: [],
       fromSelf: true,
       mediaOnly: false,
+      since: "",
+      until: "",
     };
     expect(canSearchPosts(config)).toBe(true);
     expect(buildPostsQuery(config)).toBe("from:nnhr_nunu");
@@ -141,10 +180,12 @@ describe("buildPostsQuery", () => {
     const config = {
       ...createOwnerSampleConfig(),
       handle: "",
+      handles: [],
       keywords: ["たろう"],
       honorifics: ["san"] as HonorificId[],
       excludeOwn: true,
       mediaOnly: false,
+      mutedHandles: [],
     };
     expect(canSearchPosts(config)).toBe(true);
     const query = buildPostsQuery(config);
@@ -161,10 +202,14 @@ describe("people and urls", () => {
     expect(buildPeopleQuery(createOwnerSampleConfig())).not.toContain("from:");
   });
 
-  it("uses f=live for latest posts and f=user for people", () => {
-    expect(buildSearchUrl("ぬぬはら", "posts", true)).toContain("f=live");
-    expect(buildSearchUrl("ぬぬはら", "people", true)).toContain("f=user");
-    expect(buildSearchUrl("ぬぬはら", "posts", false)).not.toContain("f=");
+  it("maps sorts onto X search tabs without inventing operators", () => {
+    expect(sortParamOf("latest")).toBe("live");
+    expect(sortParamOf("likes")).toBe("top");
+    expect(sortParamOf("oldest")).toBeNull();
+    expect(buildSearchUrl("ぬぬはら", "posts", "latest")).toContain("f=live");
+    expect(buildSearchUrl("ぬぬはら", "posts", "likes")).toContain("f=top");
+    expect(buildSearchUrl("ぬぬはら", "posts", "oldest")).not.toMatch(/[?&]f=/);
+    expect(buildSearchUrl("ぬぬはら", "people", "latest")).toContain("f=user");
   });
 
   it("blocks empty people search", () => {
