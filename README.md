@@ -1,6 +1,6 @@
-# エゴサ
+# エゴサ支援ツール
 
-Twitter の検索 URL を組み立ててワンクリックで開く静的 Web アプリです。検索 API もログインも使いません。
+Twitter / X の検索 URL を組み立ててワンクリックで開く静的 Web アプリです。検索 API もログインも使いません。
 
 ## 必要環境
 
@@ -38,9 +38,9 @@ NEXT_PUBLIC_BASE_PATH=/TwitterEgoSearch_Nu npm run build
 
 ---
 
-# Ego Search
+# Ego-search helper
 
-Static web app that builds Twitter search URLs. No search API and no login.
+Static web app that builds Twitter / X search URLs. No search API and no login.
 
 ```bash
 npm install

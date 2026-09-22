@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "エゴサ",
-  description: "Twitterの検索URLを組み立ててワンクリックで開くエゴサツール。ログインもAPIも不要です。",
+  title: "エゴサ支援ツール",
+  description: "Twitter / X の検索URLを組み立ててワンクリックで開くエゴサ支援ツール。ログインもAPIも不要です。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
