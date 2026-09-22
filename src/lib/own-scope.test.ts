@@ -7,7 +7,9 @@ describe("own scope", () => {
     for (const scope of ["others", "everyone", "self"] as const) {
       const patch = patchOwnScope(scope);
       expect(patch.fromSelf && patch.excludeOwn).toBe(false);
-      expect(ownScopeOf({ ...createDefaultConfig(), handle: "user", ...patch })).toBe(scope);
+      expect(
+        ownScopeOf({ ...createDefaultConfig(), handle: "user", handles: ["user"], ...patch }),
+      ).toBe(scope);
     }
   });
 
@@ -16,6 +18,7 @@ describe("own scope", () => {
       ownScopeOf({
         ...createDefaultConfig(),
         handle: "",
+        handles: [],
         excludeOwn: true,
         fromSelf: false,
       }),
