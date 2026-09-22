@@ -15,6 +15,7 @@ export function applyFilterPreset(
     return {
       ...base,
       latest: true,
+      sort: "latest",
       mediaOnly: true,
       fromSelf: false,
       excludeOwn: true,
@@ -31,6 +32,7 @@ export function applyFilterPreset(
   return {
     ...base,
     latest: true,
+    sort: "latest",
     mediaOnly: false,
     fromSelf: false,
     excludeOwn: true,
@@ -92,10 +94,16 @@ function normalizeForCompare(config: SearchConfig): SearchConfig {
   return {
     ...hydrated,
     handle: hydrated.handle.trim(),
+    handles: [...hydrated.handles],
     displayName: hydrated.displayName.trim(),
     keywords: hydrated.keywords.map((keyword) => keyword.trim()).filter(Boolean),
+    filterKeywords: [...hydrated.filterKeywords],
     mutedHandles: uniqueHandles(hydrated.mutedHandles),
+    mutedKeywords: [...hydrated.mutedKeywords],
     honorifics: [...hydrated.honorifics],
+    sort: hydrated.sort,
+    aroundDate: hydrated.aroundDate,
+    dateSpan: hydrated.dateSpan,
     since: hydrated.since.trim(),
     until: hydrated.until.trim(),
   };

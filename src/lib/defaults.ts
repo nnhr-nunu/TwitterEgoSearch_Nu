@@ -7,7 +7,7 @@ export const OWNER_HANDLE = "nnhr_nunu";
 export const OWNER_DISPLAY_NAME = "ぬぬはら";
 export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 
-export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾈﾈ🫀"] as const;
+export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾇﾇ🫀"] as const;
 
 const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 const SORTS: ResultSort[] = ["latest", "oldest", "likes"];
