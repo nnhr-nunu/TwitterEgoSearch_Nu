@@ -1,12 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { daysAgoIso } from "@/lib/dates";
+import { windowAround } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
-import type { SearchConfig } from "@/lib/types";
+import type { DateSpanId, SearchConfig } from "@/lib/types";
 
 type FilterPanelProps = {
   config: SearchConfig;
@@ -14,14 +13,32 @@ type FilterPanelProps = {
   t: (key: MessageKey) => string;
 };
 
+const SPANS: { id: DateSpanId; label: MessageKey }[] = [
+  { id: "7", label: "span7" },
+  { id: "14", label: "span14" },
+  { id: "month", label: "spanMonth" },
+  { id: "quarter", label: "spanQuarter" },
+];
+
 export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
+  function setAroundDate(aroundDate: string) {
+    const { since, until } = windowAround(aroundDate, config.dateSpan);
+    onChange({ aroundDate, since, until });
+  }
+
+  function setSpan(dateSpan: DateSpanId) {
+    const { since, until } = windowAround(config.aroundDate, dateSpan);
+    onChange({ dateSpan, since, until });
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="wrap-quotes" className="cursor-pointer">
             {t("wrapQuotes")}
           </Label>
+          <p className="text-sm text-muted-foreground">{t("wrapQuotesHelp")}</p>
         </div>
         <Switch
           id="wrap-quotes"
@@ -31,81 +48,42 @@ export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
-        <div className="min-w-0">
-          <Label htmlFor="latest" className="cursor-pointer">
-            {config.latest ? t("latest") : t("top")}
-          </Label>
-        </div>
-        <Switch
-          id="latest"
-          checked={config.latest}
-          onCheckedChange={(checked) => onChange({ latest: checked })}
-          aria-label={t("latest")}
+      <div className="space-y-2">
+        <Label htmlFor="around-date">{t("aroundDate")}</Label>
+        <Input
+          id="around-date"
+          type="date"
+          value={config.aroundDate}
+          className="h-10"
+          data-testid="around-date"
+          onChange={(event) => setAroundDate(event.target.value)}
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="since">{t("since")}</Label>
-          <Input
-            id="since"
-            type="date"
-            value={config.since}
-            className="h-10"
-            data-testid="since-date"
-            onChange={(event) => onChange({ since: event.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="until">{t("until")}</Label>
-          <Input
-            id="until"
-            type="date"
-            value={config.until}
-            className="h-10"
-            data-testid="until-date"
-            onChange={(event) => onChange({ until: event.target.value })}
-          />
-        </div>
-      </div>
-
-      {config.since || config.until ? (
-        <p className="text-sm text-foreground" data-testid="date-range-summary">
-          {config.since || "—"} → {config.until || t("dateRangeOpen")}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          data-testid="since-last-7"
-          aria-pressed={config.since === daysAgoIso(7) && !config.until}
-          onClick={() => onChange({ since: daysAgoIso(7), until: "" })}
-        >
-          {t("last7")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          data-testid="since-last-30"
-          aria-pressed={config.since === daysAgoIso(30) && !config.until}
-          onClick={() => onChange({ since: daysAgoIso(30), until: "" })}
-        >
-          {t("last30")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          data-testid="clear-dates"
-          onClick={() => onChange({ since: "", until: "" })}
-        >
-          {t("clearDates")}
-        </Button>
+      <div
+        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1 sm:grid-cols-4"
+        role="radiogroup"
+        aria-label={t("aroundDate")}
+        data-testid="date-span"
+      >
+        {SPANS.map((option) => {
+          const selected = config.dateSpan === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              data-testid={`date-span-${option.id}`}
+              className={`rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:text-sm ${
+                selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+              }`}
+              onClick={() => setSpan(option.id)}
+            >
+              {t(option.label)}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
