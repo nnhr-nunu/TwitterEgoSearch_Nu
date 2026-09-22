@@ -4,7 +4,7 @@ import type { SearchConfig } from "./types";
 export const LIVE_TAB_SESSION_KEY = "egosearch-nu:live-tab";
 
 export function buildLivePostsUrl(config: SearchConfig): string {
-  return buildSearchUrl(buildPostsQuery(config), "posts", true);
+  return buildSearchUrl(buildPostsQuery(config), "posts", config.sort ?? (config.latest ? "latest" : "likes"));
 }
 
 export function maybeOpenLiveTab(url: string): "opened" | "blocked" | "skipped" {

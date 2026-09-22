@@ -1,8 +1,8 @@
-import { normalizeHandle } from "./handle";
+import { uniqueHandles } from "./handle";
 import type { OwnScope, SearchConfig } from "./types";
 
 export function hasSearchHandle(config: SearchConfig): boolean {
-  return Boolean(normalizeHandle(config.handle));
+  return uniqueHandles([...(config.handles ?? []), config.handle ?? ""]).length > 0;
 }
 
 export function ownScopeOf(config: SearchConfig): OwnScope {
