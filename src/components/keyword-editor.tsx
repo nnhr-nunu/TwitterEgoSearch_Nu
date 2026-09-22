@@ -1,11 +1,6 @@
 "use client";
 
-import { XIcon } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ChipInput } from "@/components/chip-input";
 import {
   expandSearchTerms,
   HONORIFIC_CATALOG,
@@ -14,6 +9,7 @@ import {
 } from "@/lib/honorifics";
 import type { MessageKey } from "@/lib/i18n";
 import type { HonorificId } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
 
 type KeywordEditorProps = {
   keywords: string[];
@@ -30,59 +26,20 @@ export function KeywordEditor({
   onHonorificsChange,
   t,
 }: KeywordEditorProps) {
-  const [draft, setDraft] = useState("");
   const terms = expandSearchTerms(keywords, honorifics);
-
-  function addKeyword() {
-    const next = draft.trim();
-    if (!next) return;
-    if (!keywords.includes(next)) onChange([...keywords, next]);
-    setDraft("");
-  }
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="keyword-input">{t("keywords")}</Label>
-        <div className="flex gap-2">
-          <Input
-            id="keyword-input"
-            value={draft}
-            placeholder={t("keywordPlaceholder")}
-            className="h-10 text-base md:text-sm"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addKeyword();
-              }
-            }}
-          />
-          <Button type="button" variant="secondary" className="h-10" onClick={addKeyword}>
-            {t("addKeyword")}
-          </Button>
-        </div>
-      </div>
-      {keywords.length === 0 ? null : (
-        <ul className="flex flex-wrap gap-2" data-testid="keyword-list">
-          {keywords.map((keyword) => (
-            <li key={keyword}>
-              <Badge variant="secondary" className="h-7 gap-1 pr-1 text-sm">
-                <span className="max-w-48 truncate">{keyword}</span>
-                <button
-                  type="button"
-                  className="rounded-full p-0.5 hover:bg-foreground/10"
-                  aria-label={`${t("deletePreset")}: ${keyword}`}
-                  data-testid="remove-keyword"
-                  onClick={() => onChange(keywords.filter((item) => item !== keyword))}
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ChipInput
+        id="keyword-input"
+        label={t("keywords")}
+        placeholder={t("keywordPlaceholder")}
+        values={keywords}
+        onChange={onChange}
+        addLabel={t("addKeyword")}
+        savedToast={t("savedToast")}
+        testId="keyword"
+      />
 
       <div className="space-y-2">
         <p className="text-sm font-medium">{t("honorifics")}</p>
