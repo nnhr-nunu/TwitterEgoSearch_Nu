@@ -21,7 +21,7 @@ export function SearchScope({ config, onChange, t }: SearchScopeProps) {
 
   return (
     <div
-      className="grid gap-2 rounded-xl border border-border bg-background p-1 sm:grid-cols-3"
+      className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1"
       role="radiogroup"
       aria-label={t("ownScope")}
       data-testid="own-scope"
@@ -35,7 +35,7 @@ export function SearchScope({ config, onChange, t }: SearchScopeProps) {
             role="radio"
             aria-checked={selected}
             data-testid={`own-scope-${option.id}`}
-            className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+            className={`rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:px-3 sm:text-sm ${
               selected
                 ? "bg-primary text-primary-foreground"
                 : "text-foreground hover:bg-muted"
