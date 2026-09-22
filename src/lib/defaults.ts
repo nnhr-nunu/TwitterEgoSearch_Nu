@@ -1,12 +1,16 @@
+import { windowAround, todayIso, isIsoDate } from "./dates";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
-import type { HonorificId, SearchConfig } from "./types";
+import type { DateSpanId, HonorificId, ResultSort, SearchConfig } from "./types";
 
 export const OWNER_HANDLE = "nnhr_nunu";
 export const OWNER_DISPLAY_NAME = "ぬぬはら";
 export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 
-export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾇﾇ\u{1FAC0}"] as const;
+export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾈﾈ🫀"] as const;
+
+const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
+const SORTS: ResultSort[] = ["latest", "oldest", "likes"];
 
 function readHonorifics(parsed: Partial<SearchConfig> & { honorifics?: unknown }): HonorificId[] {
   const raw = parsed.honorifics;
@@ -18,26 +22,68 @@ function readHonorifics(parsed: Partial<SearchConfig> & { honorifics?: unknown }
   return [...DEFAULT_HONORIFIC_IDS];
 }
 
+function readHandles(parsed: Partial<SearchConfig>): string[] {
+  if (Array.isArray(parsed.handles)) {
+    return uniqueHandles(parsed.handles.filter((item): item is string => typeof item === "string"));
+  }
+  if (typeof parsed.handle === "string" && parsed.handle.trim()) {
+    return uniqueHandles([parsed.handle]);
+  }
+  return [];
+}
+
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function readSort(parsed: Partial<SearchConfig>): ResultSort {
+  if (parsed.sort && SORTS.includes(parsed.sort)) return parsed.sort;
+  if (parsed.latest === false) return "likes";
+  return "latest";
+}
+
+function readSpan(value: unknown): DateSpanId {
+  if (typeof value === "string" && DATE_SPANS.includes(value as DateSpanId)) {
+    return value as DateSpanId;
+  }
+  return "7";
+}
+
+function withDateWindow(config: SearchConfig): SearchConfig {
+  const aroundDate = isIsoDate(config.aroundDate) ? config.aroundDate : todayIso();
+  const { since, until } = windowAround(aroundDate, config.dateSpan);
+  return { ...config, aroundDate, since, until };
+}
+
 export function createDefaultConfig(): SearchConfig {
-  return {
+  const handles: string[] = [];
+  return withDateWindow({
     handle: "",
+    handles,
     displayName: "",
     keywords: [],
+    filterKeywords: [],
     mutedHandles: [],
+    mutedKeywords: [],
     honorifics: [...DEFAULT_HONORIFIC_IDS],
     wrapQuotes: true,
     excludeOwn: true,
     fromSelf: false,
     mediaOnly: true,
     latest: true,
+    sort: "latest",
+    aroundDate: todayIso(),
+    dateSpan: "7",
     since: "",
     until: "",
-  };
+  });
 }
 
 export function createOwnerSampleConfig(): SearchConfig {
-  return {
+  return hydrateConfig({
     handle: OWNER_HANDLE,
+    handles: [OWNER_HANDLE],
     displayName: OWNER_DISPLAY_NAME,
     keywords: [...OWNER_KEYWORDS],
     mutedHandles: [],
@@ -46,49 +92,65 @@ export function createOwnerSampleConfig(): SearchConfig {
     excludeOwn: true,
     fromSelf: false,
     mediaOnly: true,
+    sort: "latest",
     latest: true,
-    since: "",
-    until: "",
-  };
+  });
 }
 
 export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined): SearchConfig {
   const defaults = createDefaultConfig();
   if (!parsed || typeof parsed !== "object") return defaults;
-  return {
-    handle: typeof parsed.handle === "string" ? parsed.handle : defaults.handle,
+  const handles = readHandles(parsed);
+  const sort = readSort(parsed);
+  const aroundDate =
+    typeof parsed.aroundDate === "string" && isIsoDate(parsed.aroundDate)
+      ? parsed.aroundDate
+      : defaults.aroundDate;
+  const dateSpan = readSpan(parsed.dateSpan);
+  return withDateWindow({
+    handle: handles[0] ?? "",
+    handles,
     displayName: typeof parsed.displayName === "string" ? parsed.displayName : defaults.displayName,
     keywords: Array.isArray(parsed.keywords)
       ? parsed.keywords.filter((item): item is string => typeof item === "string")
       : defaults.keywords,
+    filterKeywords: readStringList(parsed.filterKeywords),
     mutedHandles: uniqueHandles(
       Array.isArray(parsed.mutedHandles)
         ? parsed.mutedHandles.filter((item): item is string => typeof item === "string")
         : defaults.mutedHandles,
     ),
+    mutedKeywords: readStringList(parsed.mutedKeywords),
     honorifics: readHonorifics(parsed),
     wrapQuotes: typeof parsed.wrapQuotes === "boolean" ? parsed.wrapQuotes : defaults.wrapQuotes,
     excludeOwn: typeof parsed.excludeOwn === "boolean" ? parsed.excludeOwn : defaults.excludeOwn,
     fromSelf: typeof parsed.fromSelf === "boolean" ? parsed.fromSelf : defaults.fromSelf,
     mediaOnly: typeof parsed.mediaOnly === "boolean" ? parsed.mediaOnly : false,
-    latest: typeof parsed.latest === "boolean" ? parsed.latest : defaults.latest,
-    since: typeof parsed.since === "string" ? parsed.since : defaults.since,
-    until: typeof parsed.until === "string" ? parsed.until : defaults.until,
-  };
+    latest: sort === "latest",
+    sort,
+    aroundDate,
+    dateSpan,
+    since: "",
+    until: "",
+  });
 }
 
 export function cloneConfig(config: SearchConfig): SearchConfig {
   const hydrated = hydrateConfig(config);
   return {
     ...hydrated,
+    handles: [...hydrated.handles],
     keywords: [...hydrated.keywords],
+    filterKeywords: [...hydrated.filterKeywords],
     mutedHandles: [...hydrated.mutedHandles],
+    mutedKeywords: [...hydrated.mutedKeywords],
     honorifics: [...hydrated.honorifics],
   };
 }
 
 export function isBlankConfig(config: SearchConfig): boolean {
   return (
+    !config.handles.some((item) => item.trim()) &&
     !config.handle.trim() &&
     !config.keywords.some((keyword) => keyword.trim()) &&
     !config.fromSelf

@@ -1,6 +1,6 @@
-import { normalizeHandle, uniqueHandles } from "./handle";
+import { uniqueHandles } from "./handle";
 import { expandSearchTerms } from "./honorifics";
-import type { SearchConfig } from "./types";
+import type { ResultSort, SearchConfig } from "./types";
 
 export function searchTermsOf(config: SearchConfig): string[] {
   return expandSearchTerms(config.keywords, config.honorifics);
@@ -21,17 +21,22 @@ export function orGroup(keywords: string[], wrapQuotes: boolean): string {
   return `(${parts.join(" OR ")})`;
 }
 
+export function ownHandlesOf(config: SearchConfig): string[] {
+  return uniqueHandles([...(config.handles ?? []), config.handle ?? ""]);
+}
+
 export function excludedFromHandles(config: SearchConfig): string[] {
   if (config.fromSelf) return [];
-  const own = normalizeHandle(config.handle);
+  const own = ownHandlesOf(config);
   return uniqueHandles([
-    ...(config.excludeOwn && own ? [own] : []),
+    ...(config.excludeOwn ? own : []),
     ...(config.mutedHandles ?? []),
   ]);
 }
 
 export function buildPostsQuery(config: SearchConfig): string {
-  const handle = normalizeHandle(config.handle);
+  const own = ownHandlesOf(config);
+  const handle = own[0] ?? "";
   const keywords = orGroup(searchTermsOf(config), config.wrapQuotes);
   const parts: string[] = [];
 
@@ -43,6 +48,16 @@ export function buildPostsQuery(config: SearchConfig): string {
     for (const excluded of excludedFromHandles(config)) {
       parts.push(`-from:${excluded}`);
     }
+  }
+
+  for (const extra of config.filterKeywords ?? []) {
+    const quoted = quoteTerm(extra, config.wrapQuotes);
+    if (quoted) parts.push(quoted);
+  }
+
+  for (const muted of config.mutedKeywords ?? []) {
+    const quoted = quoteTerm(muted, config.wrapQuotes);
+    if (quoted) parts.push(`-${quoted}`);
   }
 
   if (config.mediaOnly) parts.push("filter:media");
@@ -58,24 +73,31 @@ export function buildPeopleQuery(config: SearchConfig): string {
 
 export type SearchKind = "posts" | "people";
 
+export function sortParamOf(sort: ResultSort | boolean | undefined): "live" | "top" | null {
+  if (sort === true || sort === "latest") return "live";
+  if (sort === "likes" || sort === false) return "top";
+  return null;
+}
+
 export function buildSearchUrl(
   query: string,
   kind: SearchKind,
-  latest: boolean,
+  sort: ResultSort | boolean = "latest",
 ): string {
   const params = new URLSearchParams();
   params.set("q", query);
   params.set("src", "typed_query");
   if (kind === "people") {
     params.set("f", "user");
-  } else if (latest) {
-    params.set("f", "live");
+  } else {
+    const tab = sortParamOf(sort);
+    if (tab) params.set("f", tab);
   }
   return `https://x.com/search?${params.toString()}`;
 }
 
 export function canSearchPosts(config: SearchConfig): boolean {
-  return searchTermsOf(config).length > 0 || (config.fromSelf && Boolean(normalizeHandle(config.handle)));
+  return searchTermsOf(config).length > 0 || (config.fromSelf && ownHandlesOf(config).length > 0);
 }
 
 export function canSearchPeople(config: SearchConfig): boolean {
