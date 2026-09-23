@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig, hydrateConfig } from "./defaults";
+import { buildPostsQuery } from "./query";
 import { parseSearchParams, serializeSearchParams } from "./share-url";
 import { parseStatusUrl, tweetIntentUrl } from "./tweet-intent";
 
@@ -34,15 +35,45 @@ describe("share url", () => {
     expect(parsed.config.handle).toBe("");
     expect(parsed.config.handles).toEqual([]);
     expect(parsed.config.keywords).toEqual([]);
-    expect(parsed.config.mediaOnly).toBe(true);
+    expect(parsed.config.mediaOnly).toBe(false);
     expect(parsed.config.sort).toBe("latest");
-    expect(parsed.config.honorifics).toEqual(["san", "chan", "sama"]);
-    expect(parsed.locale).toBe("ja");
+    expect(parsed.config.honorifics).toEqual([]);
+    expect(parsed.config.dateFilter).toBe(false);
+    expect(parsed.config.since).toBe("");
   });
 
   it("does not treat filter-only params as a shared search", () => {
     const parsed = parseSearchParams("q=1&x=1&live=1");
     expect(parsed.found).toBe(false);
+  });
+
+  it("keeps quoting on and omits dates unless dateFilter is on", () => {
+    const off = hydrateConfig({
+      keywords: ["ぬぬはらさん"],
+      wrapQuotes: false,
+      mediaOnly: true,
+      honorifics: ["san"],
+    });
+    expect(off.wrapQuotes).toBe(true);
+    expect(off.mediaOnly).toBe(false);
+    expect(off.honorifics).toEqual([]);
+    expect(off.dateFilter).toBe(false);
+    expect(off.since).toBe("");
+    expect(buildPostsQuery(off)).toContain('"ぬぬはらさん"');
+    expect(buildPostsQuery(off)).not.toContain("since:");
+    expect(buildPostsQuery(off)).not.toContain("filter:media");
+    expect(buildPostsQuery(off)).not.toContain("ぬぬはらさんさん");
+
+    const on = hydrateConfig({
+      keywords: ["ぬぬはらさん"],
+      dateFilter: true,
+      aroundDate: "2026-09-22",
+      dateSpan: "7",
+    });
+    expect(on.since).toBe("2026-09-15");
+    expect(on.until).toBe("2026-09-30");
+    expect(buildPostsQuery(on)).toContain("since:2026-09-15");
+    expect(buildPostsQuery(on)).toContain("until:2026-09-30");
   });
 
   it("round-trips muted accounts as repeated mute params", () => {
