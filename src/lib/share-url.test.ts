@@ -19,6 +19,7 @@ describe("share url", () => {
       mediaOnly: true,
       latest: false,
       sort: "likes",
+      minFaves: 100,
       mutedHandles: ["spam_bot", "noise_acc"],
       mutedKeywords: ["ad"],
     });

@@ -184,8 +184,10 @@ export function SearchApp() {
       url={liveUrl}
       postsOk={postsOk}
       sort={config.sort}
+      minFaves={config.minFaves}
       mediaOnly={config.mediaOnly}
       onSort={(sort: ResultSort) => patch({ sort })}
+      onMinFaves={(minFaves) => patch({ minFaves })}
       onMedia={(mediaOnly) => patch({ mediaOnly })}
       t={t}
       testId={testId}
