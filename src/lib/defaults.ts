@@ -51,6 +51,9 @@ function readSpan(value: unknown): DateSpanId {
 }
 
 function withDateWindow(config: SearchConfig): SearchConfig {
+  if (!config.dateFilter) {
+    return { ...config, since: "", until: "" };
+  }
   const aroundDate = isIsoDate(config.aroundDate) ? config.aroundDate : todayIso();
   const { since, until } = windowAround(aroundDate, config.dateSpan);
   return { ...config, aroundDate, since, until };
@@ -66,15 +69,16 @@ export function createDefaultConfig(): SearchConfig {
     filterKeywords: [],
     mutedHandles: [],
     mutedKeywords: [],
-    honorifics: [...DEFAULT_HONORIFIC_IDS],
+    honorifics: [],
     wrapQuotes: true,
     excludeOwn: true,
     fromSelf: false,
-    mediaOnly: true,
+    mediaOnly: false,
     latest: true,
     sort: "latest",
     aroundDate: todayIso(),
     dateSpan: "7",
+    dateFilter: false,
     since: "",
     until: "",
   });
@@ -87,11 +91,11 @@ export function createOwnerSampleConfig(): SearchConfig {
     displayName: OWNER_DISPLAY_NAME,
     keywords: [...OWNER_KEYWORDS],
     mutedHandles: [],
-    honorifics: [...DEFAULT_HONORIFIC_IDS],
+    honorifics: [],
     wrapQuotes: true,
     excludeOwn: true,
     fromSelf: false,
-    mediaOnly: true,
+    mediaOnly: false,
     sort: "latest",
     latest: true,
   });
@@ -121,15 +125,16 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
         : defaults.mutedHandles,
     ),
     mutedKeywords: readStringList(parsed.mutedKeywords),
-    honorifics: readHonorifics(parsed),
-    wrapQuotes: typeof parsed.wrapQuotes === "boolean" ? parsed.wrapQuotes : defaults.wrapQuotes,
+    honorifics: readHonorifics(parsed).slice(0, 0),
+    wrapQuotes: true,
     excludeOwn: typeof parsed.excludeOwn === "boolean" ? parsed.excludeOwn : defaults.excludeOwn,
     fromSelf: typeof parsed.fromSelf === "boolean" ? parsed.fromSelf : defaults.fromSelf,
-    mediaOnly: typeof parsed.mediaOnly === "boolean" ? parsed.mediaOnly : false,
+    mediaOnly: false,
     latest: sort === "latest",
     sort,
     aroundDate,
     dateSpan,
+    dateFilter: parsed.dateFilter === true,
     since: "",
     until: "",
   });

@@ -61,6 +61,7 @@ export function serializeSearchParams(
   params.set("x", config.excludeOwn ? "1" : "0");
   params.set("own", config.fromSelf ? "1" : "0");
   params.set("m", config.mediaOnly ? "1" : "0");
+  params.set("df", config.dateFilter ? "1" : "0");
   params.set("sort", config.sort);
   params.set("live", config.sort === "latest" ? "1" : "0");
   if (config.aroundDate) params.set("around", config.aroundDate);
@@ -118,6 +119,9 @@ export function parseSearchParams(
       sort,
       aroundDate: params.get("around")?.trim() || defaults.aroundDate,
       dateSpan: parseSpan(params.get("span")) ?? defaults.dateSpan,
+      dateFilter:
+        readBool(params.get("df"), false) ||
+        Boolean(params.get("since")?.trim() || params.get("until")?.trim()),
       since: params.get("since")?.trim() || "",
       until: params.get("until")?.trim() || "",
     }),
