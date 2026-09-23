@@ -43,17 +43,17 @@ describe("buildPostsQuery", () => {
     expect(query).not.toContain("ぬぬはらさん");
     expect(query).not.toContain("filter:media");
     expect(query).not.toContain("since:");
-    expect(query).toContain("-from:nnhr_nunu");
-    expect(query.startsWith("from:")).toBe(false);
+    expect(query).toContain("from:nnhr_nunu");
+    expect(query).not.toContain("-from:nnhr_nunu");
   });
 
-  it("uses from: for own past posts and drops -from:", () => {
+  it("narrows to the account with from: regardless of legacy own-scope flags", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
-      fromSelf: true,
+      fromSelf: false,
       excludeOwn: true,
     });
-    expect(query.startsWith("from:nnhr_nunu")).toBe(true);
+    expect(query).toContain("from:nnhr_nunu");
     expect(query).not.toContain("-from:");
   });
 
@@ -65,7 +65,7 @@ describe("buildPostsQuery", () => {
       keywords: ["test"],
       wrapQuotes: false,
     });
-    expect(query).toContain("-from:nnhr_nunu");
+    expect(query).toContain("from:nnhr_nunu");
   });
 
   it("skips media while the toggle is hidden and keeps explicit dates", () => {
@@ -87,20 +87,19 @@ describe("buildPostsQuery", () => {
     expect(query).not.toContain("until:");
   });
 
-  it("adds -from: for each muted account and still excludes own posts", () => {
+  it("adds -from: for muted accounts but never mutes a narrowed account", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
       keywords: ["ぬぬはら"],
-      excludeOwn: true,
       mutedHandles: ["spam_bot", "@nnhr_nunu", "https://x.com/noise_acc"],
     });
-    expect(query).toContain("-from:nnhr_nunu");
+    expect(query).toContain("from:nnhr_nunu");
+    expect(query).not.toContain("-from:nnhr_nunu");
     expect(query).toContain("-from:spam_bot");
     expect(query).toContain("-from:noise_acc");
-    expect(query.match(/-from:nnhr_nunu/g)).toHaveLength(1);
   });
 
-  it("excludes every own @id with -from:", () => {
+  it("ORs every narrowed @id with from:", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
       handle: "alice",
@@ -113,8 +112,7 @@ describe("buildPostsQuery", () => {
       since: "",
       until: "",
     });
-    expect(query).toContain("-from:alice");
-    expect(query).toContain("-from:alice_alt");
+    expect(query).toBe("たろう (from:alice OR from:alice_alt)");
   });
 
   it("ANDs filter keywords and minuses muted keywords", () => {
@@ -135,33 +133,16 @@ describe("buildPostsQuery", () => {
     expect(query).toContain('-"広告"');
   });
 
-  it("keeps muted -from: even when exclude-own is off", () => {
-    const query = buildPostsQuery({
-      ...createOwnerSampleConfig(),
-      keywords: ["ぬぬはら"],
-      excludeOwn: false,
-      mutedHandles: ["spam_bot"],
-    });
-    expect(query).toContain("-from:spam_bot");
-    expect(query).not.toContain("-from:nnhr_nunu");
+  it("adds min_faves: only when a like threshold is set", () => {
+    const base = { ...createOwnerSampleConfig(), keywords: ["ぬぬはら"] };
+    expect(buildPostsQuery(base)).not.toContain("min_faves:");
+    expect(buildPostsQuery({ ...base, minFaves: 100 })).toContain("min_faves:100");
   });
 
-  it("does not apply muted accounts to from:self search", () => {
-    const query = buildPostsQuery({
-      ...createOwnerSampleConfig(),
-      fromSelf: true,
-      excludeOwn: false,
-      mutedHandles: ["spam_bot"],
-    });
-    expect(query.startsWith("from:nnhr_nunu")).toBe(true);
-    expect(query).not.toContain("-from:");
-  });
-
-  it("allows from:self with no keywords", () => {
+  it("allows an account-only search with no keywords", () => {
     const config = {
       ...createOwnerSampleConfig(),
       keywords: [],
-      fromSelf: true,
       mediaOnly: false,
       since: "",
       until: "",

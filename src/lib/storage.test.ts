@@ -61,7 +61,8 @@ describe("slot storage", () => {
     expect(loaded[1].keywords).toEqual(["二番目"]);
     expect(loaded[1].sort).toBe("likes");
     expect(loaded[2].keywords).toEqual(["三番目"]);
-    expect(loaded[2].sort).toBe("oldest");
+    // 古い順は非表示にしたので最新順へ戻す
+    expect(loaded[2].sort).toBe("latest");
     expect(loadActiveSlot()).toBe(2);
     expect(window.localStorage.getItem(SLOTS_STORAGE_KEY)).toContain("二番目");
     expect(window.localStorage.getItem(SLOT_INDEX_KEY)).toBe("2");

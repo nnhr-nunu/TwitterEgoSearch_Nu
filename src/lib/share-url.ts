@@ -1,10 +1,10 @@
-import { createDefaultConfig, hydrateConfig } from "./defaults";
+import { createDefaultConfig, hydrateConfig, readMinFaves } from "./defaults";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
 import type { DateSpanId, HonorificId, Locale, ResultSort, SearchConfig } from "./types";
 
 const BOOL_TRUE = new Set(["1", "true", "yes", "on"]);
-const SORTS: ResultSort[] = ["latest", "oldest", "likes"];
+const SORTS: ResultSort[] = ["latest", /* "oldest", */ "likes"];
 const SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 
 function readBool(value: string | null, fallback: boolean): boolean {
@@ -24,6 +24,7 @@ function parseHonorifics(params: URLSearchParams): HonorificId[] {
 function parseSort(params: URLSearchParams): ResultSort {
   const raw = params.get("sort");
   if (raw && SORTS.includes(raw as ResultSort)) return raw as ResultSort;
+  if (raw === "oldest") return "latest";
   if (params.has("live") && !readBool(params.get("live"), true)) return "likes";
   return "latest";
 }
@@ -64,6 +65,7 @@ export function serializeSearchParams(
   params.set("df", config.dateFilter ? "1" : "0");
   params.set("sort", config.sort);
   params.set("live", config.sort === "latest" ? "1" : "0");
+  if (config.minFaves > 0) params.set("fav", String(config.minFaves));
   if (config.aroundDate) params.set("around", config.aroundDate);
   params.set("span", config.dateSpan);
   if (config.since) params.set("since", config.since);
@@ -85,7 +87,9 @@ export function parseSearchParams(
     params.has("h") ||
     params.has("n") ||
     keywords.length > 0 ||
+    params.has("fk") ||
     mutedHandles.length > 0 ||
+    params.has("mk") ||
     params.has("since") ||
     params.has("until") ||
     params.has("around") ||
@@ -117,6 +121,7 @@ export function parseSearchParams(
       mediaOnly: params.has("m") ? readBool(params.get("m"), true) : false,
       latest: sort === "latest",
       sort,
+      minFaves: readMinFaves(params.get("fav")),
       aroundDate: params.get("around")?.trim() || defaults.aroundDate,
       dateSpan: parseSpan(params.get("span")) ?? defaults.dateSpan,
       dateFilter:

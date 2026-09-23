@@ -1,7 +1,14 @@
 import { windowAround, todayIso, isIsoDate } from "./dates";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
-import type { DateSpanId, HonorificId, ResultSort, SearchConfig } from "./types";
+import {
+  MIN_FAVES_OPTIONS,
+  type DateSpanId,
+  type HonorificId,
+  type MinFaves,
+  type ResultSort,
+  type SearchConfig,
+} from "./types";
 
 export const OWNER_HANDLE = "nnhr_nunu";
 export const OWNER_DISPLAY_NAME = "ぬぬはら";
@@ -10,7 +17,13 @@ export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾇﾇ🫀"] as const;
 
 const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
-const SORTS: ResultSort[] = ["latest", "oldest", "likes"];
+// 古い順は X で実現できないので受け付けない（latest に戻す）
+const SORTS: ResultSort[] = ["latest", /* "oldest", */ "likes"];
+
+export function readMinFaves(value: unknown): MinFaves {
+  const parsed = typeof value === "string" ? Number(value) : value;
+  return MIN_FAVES_OPTIONS.find((option) => option === parsed) ?? 0;
+}
 
 function readHonorifics(parsed: Partial<SearchConfig> & { honorifics?: unknown }): HonorificId[] {
   const raw = parsed.honorifics;
@@ -39,6 +52,7 @@ function readStringList(value: unknown): string[] {
 
 function readSort(parsed: Partial<SearchConfig>): ResultSort {
   if (parsed.sort && SORTS.includes(parsed.sort)) return parsed.sort;
+  if (parsed.sort === "oldest") return "latest";
   if (parsed.latest === false) return "likes";
   return "latest";
 }
@@ -76,6 +90,7 @@ export function createDefaultConfig(): SearchConfig {
     mediaOnly: false,
     latest: true,
     sort: "latest",
+    minFaves: 0,
     aroundDate: todayIso(),
     dateSpan: "7",
     dateFilter: false,
@@ -132,6 +147,7 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
     mediaOnly: false,
     latest: sort === "latest",
     sort,
+    minFaves: readMinFaves(parsed.minFaves),
     aroundDate,
     dateSpan,
     dateFilter: parsed.dateFilter === true,
@@ -157,7 +173,6 @@ export function isBlankConfig(config: SearchConfig): boolean {
   return (
     !config.handles.some((item) => item.trim()) &&
     !config.handle.trim() &&
-    !config.keywords.some((keyword) => keyword.trim()) &&
-    !config.fromSelf
+    !config.keywords.some((keyword) => keyword.trim())
   );
 }

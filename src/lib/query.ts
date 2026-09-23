@@ -25,29 +25,29 @@ export function ownHandlesOf(config: SearchConfig): string[] {
   return uniqueHandles([...(config.handles ?? []), config.handle ?? ""]);
 }
 
+// 「アカウントで絞り込む」の @id。excludeOwn / fromSelf は旧 UI の名残で、クエリには使わない
 export function excludedFromHandles(config: SearchConfig): string[] {
-  if (config.fromSelf) return [];
-  const own = ownHandlesOf(config);
-  return uniqueHandles([
-    ...(config.excludeOwn ? own : []),
-    ...(config.mutedHandles ?? []),
-  ]);
+  const narrowed = new Set(ownHandlesOf(config).map((handle) => handle.toLowerCase()));
+  return uniqueHandles(config.mutedHandles ?? []).filter(
+    (handle) => !narrowed.has(handle.toLowerCase()),
+  );
+}
+
+export function fromGroup(handles: string[]): string {
+  const parts = handles.map((handle) => `from:${handle}`);
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `(${parts.join(" OR ")})`;
 }
 
 export function buildPostsQuery(config: SearchConfig): string {
-  const own = ownHandlesOf(config);
-  const handle = own[0] ?? "";
   const keywords = orGroup(searchTermsOf(config), config.wrapQuotes);
   const parts: string[] = [];
 
-  if (config.fromSelf && handle) {
-    parts.push(`from:${handle}`);
-    if (keywords) parts.push(keywords);
-  } else {
-    if (keywords) parts.push(keywords);
-    for (const excluded of excludedFromHandles(config)) {
-      parts.push(`-from:${excluded}`);
-    }
+  if (keywords) parts.push(keywords);
+  const from = fromGroup(ownHandlesOf(config));
+  if (from) parts.push(from);
+  for (const excluded of excludedFromHandles(config)) {
+    parts.push(`-from:${excluded}`);
   }
 
   for (const extra of config.filterKeywords ?? []) {
@@ -64,6 +64,8 @@ export function buildPostsQuery(config: SearchConfig): string {
   // if (config.mediaOnly) parts.push("filter:media");
   if (config.since.trim()) parts.push(`since:${config.since.trim()}`);
   if (config.until.trim()) parts.push(`until:${config.until.trim()}`);
+  // X にはいいね数の降順がないので、下限で人気の投稿だけに絞る
+  if (config.minFaves > 0) parts.push(`min_faves:${config.minFaves}`);
 
   return parts.join(" ");
 }
@@ -98,7 +100,7 @@ export function buildSearchUrl(
 }
 
 export function canSearchPosts(config: SearchConfig): boolean {
-  return searchTermsOf(config).length > 0 || (config.fromSelf && ownHandlesOf(config).length > 0);
+  return searchTermsOf(config).length > 0 || ownHandlesOf(config).length > 0;
 }
 
 export function canSearchPeople(config: SearchConfig): boolean {

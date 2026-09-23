@@ -14,7 +14,7 @@ describe("buildLivePostsUrl", () => {
     expect(url.startsWith("https://x.com/search?")).toBe(true);
   });
 
-  it("uses f=top for いいね順", () => {
+  it("uses f=top for 人気順", () => {
     const url = buildLivePostsUrl({
       ...createOwnerSampleConfig(),
       sort: "likes",

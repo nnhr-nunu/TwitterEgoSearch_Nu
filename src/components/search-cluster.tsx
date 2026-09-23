@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MessageKey } from "@/lib/i18n";
-import type { ResultSort } from "@/lib/types";
+import { MIN_FAVES_OPTIONS, type MinFaves, type ResultSort } from "@/lib/types";
 
 type SearchClusterProps = {
   url: string;
   postsOk: boolean;
   sort: ResultSort;
+  minFaves: MinFaves;
   mediaOnly: boolean;
   onSort: (sort: ResultSort) => void;
+  onMinFaves: (minFaves: MinFaves) => void;
   onMedia: (mediaOnly: boolean) => void;
   t: (key: MessageKey) => string;
   testId: string;
@@ -20,16 +22,25 @@ type SearchClusterProps = {
 
 const SORTS: { id: ResultSort; label: MessageKey }[] = [
   { id: "latest", label: "sortLatest" },
-  { id: "oldest", label: "sortOldest" },
+  // 古い順は X の検索 URL で指定できないので非表示
+  // { id: "oldest", label: "sortOldest" },
   { id: "likes", label: "sortLikes" },
 ];
+
+function segmentClass(selected: boolean): string {
+  return `rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:px-3 sm:text-sm ${
+    selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+  }`;
+}
 
 export function SearchCluster({
   url,
   postsOk,
   sort,
+  minFaves,
   mediaOnly,
   onSort,
+  onMinFaves,
   onMedia,
   t,
   testId,
@@ -54,7 +65,7 @@ export function SearchCluster({
       </div>
 
       <div
-        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1"
+        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1"
         role="radiogroup"
         aria-label={t("searchPosts")}
         data-testid={`${testId}-sort`}
@@ -68,15 +79,43 @@ export function SearchCluster({
               role="radio"
               aria-checked={selected}
               data-testid={`${testId}-sort-${option.id}`}
-              className={`rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:px-3 sm:text-sm ${
-                selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-              }`}
+              className={segmentClass(selected)}
               onClick={() => onSort(option.id)}
             >
               {t(option.label)}
             </button>
           );
         })}
+      </div>
+      {sort === "likes" ? (
+        <p className="text-xs text-muted-foreground">{t("sortLikesHint")}</p>
+      ) : null}
+
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">{t("minFaves")}</p>
+        <div
+          className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-background p-1"
+          role="radiogroup"
+          aria-label={t("minFaves")}
+          data-testid={`${testId}-faves`}
+        >
+          {MIN_FAVES_OPTIONS.map((option) => {
+            const selected = minFaves === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                data-testid={`${testId}-faves-${option}`}
+                className={segmentClass(selected)}
+                onClick={() => onMinFaves(option)}
+              >
+                {option === 0 ? t("minFavesAny") : `${option.toLocaleString()}+`}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 画像・動画つきだけは非表示。復元するときは false を外す。 */}

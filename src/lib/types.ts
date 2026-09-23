@@ -10,7 +10,11 @@ export type HonorificId =
 
 export type OwnScope = "others" | "everyone" | "self";
 
+// "oldest" は X に古い順のタブがないため UI から外している（保存値は latest に戻す）
 export type ResultSort = "latest" | "oldest" | "likes";
+
+export const MIN_FAVES_OPTIONS = [0, 10, 100, 1000] as const;
+export type MinFaves = (typeof MIN_FAVES_OPTIONS)[number];
 
 export type DateSpanId = "7" | "14" | "month" | "quarter";
 
@@ -29,6 +33,7 @@ export type SearchConfig = {
   mediaOnly: boolean;
   latest: boolean;
   sort: ResultSort;
+  minFaves: MinFaves;
   aroundDate: string;
   dateSpan: DateSpanId;
   dateFilter: boolean;
