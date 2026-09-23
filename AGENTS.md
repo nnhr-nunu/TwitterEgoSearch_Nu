@@ -27,7 +27,9 @@ Cursor で開発するときの最短導線。全文読み込みを避け、触�
 
 ## Git
 
-切りの良いところで日本語メッセージを commit し `origin` へ push する。`.ts` / `.tsx` を変えたら `npm test` と `npm run lint`。
+切りの良いところで日本語メッセージを commit し `origin` へ push する。`.ts` / `.tsx` を変えたら `npm test` と `npm run lint`、可能なら `npm run typecheck` も通す。
+
+Windows の既定ターミナルは PowerShell（[`.vscode/settings.json`](./.vscode/settings.json)）。bash 形式の heredoc は使わず、1行メッセージか PowerShell here-string（`@'...'@`）/ `git commit -F` を使う。
 
 ## ドキュメント
 
