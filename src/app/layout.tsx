@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "エゴサ支援ツール",
+  title: "エゴサ支援ツール(ぬ)",
   description: "Twitter / X の検索URLを組み立ててワンクリックで開くエゴサ支援ツール。ログインもAPIも不要です。",
 };
 

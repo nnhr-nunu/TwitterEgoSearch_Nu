@@ -2,7 +2,7 @@ import type { Locale } from "./types";
 
 export const messages = {
   ja: {
-    title: "エゴサ支援ツール",
+    title: "エゴサ支援ツール(ぬ)",
     brand: "TWITTER (X)",
     handle: "アカウントで絞り込む",
     handlePlaceholder: "@id",
