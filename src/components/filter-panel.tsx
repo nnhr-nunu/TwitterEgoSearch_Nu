@@ -3,7 +3,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { windowAround } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { DateSpanId, SearchConfig } from "@/lib/types";
 
@@ -22,13 +21,11 @@ const SPANS: { id: DateSpanId; label: MessageKey }[] = [
 
 export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
   function setAroundDate(aroundDate: string) {
-    const { since, until } = windowAround(aroundDate, config.dateSpan);
-    onChange({ dateFilter: true, aroundDate, since, until });
+    onChange({ dateFilter: true, aroundDate });
   }
 
   function setSpan(dateSpan: DateSpanId) {
-    const { since, until } = windowAround(config.aroundDate, dateSpan);
-    onChange({ dateFilter: true, dateSpan, since, until });
+    onChange({ dateFilter: true, dateSpan });
   }
 
   return (
