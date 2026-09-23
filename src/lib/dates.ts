@@ -57,3 +57,51 @@ export function windowAround(
     until: shiftIso(shiftBySpan(center, span, 1), 1),
   };
 }
+
+export function exclusiveUntil(inclusiveEnd: string): string {
+  const end = isIsoDate(inclusiveEnd) ? inclusiveEnd : todayIso();
+  return shiftIso(end, 1);
+}
+
+export function laterIso(a: string, b: string): string {
+  if (!a.trim()) return b.trim();
+  if (!b.trim()) return a.trim();
+  return a.trim() >= b.trim() ? a.trim() : b.trim();
+}
+
+export function earlierIso(a: string, b: string): string {
+  if (!a.trim()) return b.trim();
+  if (!b.trim()) return a.trim();
+  return a.trim() <= b.trim() ? a.trim() : b.trim();
+}
+
+export type DateWindowFields = {
+  dateFilter: boolean;
+  aroundDate: string;
+  dateSpan: DateSpanId;
+  rangeFilter: boolean;
+  rangeStart: string;
+  rangeEnd: string;
+};
+
+export function rangeWindow(rangeStart: string, rangeEnd: string): { since: string; until: string } {
+  const since = isIsoDate(rangeStart) ? rangeStart : "";
+  const until = exclusiveUntil(isIsoDate(rangeEnd) ? rangeEnd : todayIso());
+  return { since, until };
+}
+
+export function resolveQueryWindow(config: DateWindowFields): { since: string; until: string } {
+  let since = "";
+  let until = "";
+  if (config.dateFilter) {
+    const around = windowAround(config.aroundDate, config.dateSpan);
+    since = around.since;
+    until = around.until;
+  }
+  if (config.rangeFilter) {
+    const range = rangeWindow(config.rangeStart, config.rangeEnd);
+    since = laterIso(since, range.since);
+    until = earlierIso(until, range.until);
+  }
+  return { since, until };
+}

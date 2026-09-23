@@ -4,10 +4,10 @@ import { splitSearchNames } from "./keywords";
 describe("splitSearchNames", () => {
   it("splits on half-width spaces, full-width spaces, and commas", () => {
     expect(splitSearchNames("ぬぬはらさん #003_FA")).toEqual(["ぬぬはらさん", "#003_FA"]);
-    expect(splitSearchNames("ぬぬはらさん　#003_FA　ﾍﾍ🫀")).toEqual([
+    expect(splitSearchNames("ぬぬはらさん　#003_FA　ﾇﾇ🫀")).toEqual([
       "ぬぬはらさん",
       "#003_FA",
-      "ﾍﾍ🫀",
+      "ﾇﾇ🫀",
     ]);
     expect(splitSearchNames("alpha,beta，gamma、delta")).toEqual([
       "alpha",
