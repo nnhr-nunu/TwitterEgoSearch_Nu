@@ -7,7 +7,7 @@ export const OWNER_HANDLE = "nnhr_nunu";
 export const OWNER_DISPLAY_NAME = "ぬぬはら";
 export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 
-export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾇﾇ🫀"] as const;
+export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "\uFF87\uFF87\u{1FAC0}"] as const;
 
 const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 const SORTS: ResultSort[] = ["latest", "oldest", "likes"];
@@ -52,7 +52,7 @@ function readSpan(value: unknown): DateSpanId {
 
 function withDateWindow(config: SearchConfig): SearchConfig {
   const aroundDate = isIsoDate(config.aroundDate) ? config.aroundDate : todayIso();
-  const rangeEnd = isIsoDate(config.rangeEnd) ? config.rangeEnd : todayIso();
+  const rangeEnd = isIsoDate(config.rangeEnd) ? config.rangeEnd : "";
   const rangeStart = isIsoDate(config.rangeStart) ? config.rangeStart : "";
   const { since, until } = resolveQueryWindow({
     ...config,
@@ -145,7 +145,11 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
     rangeFilter: parsed.rangeFilter === true,
     rangeStart: typeof parsed.rangeStart === "string" && isIsoDate(parsed.rangeStart) ? parsed.rangeStart : "",
     rangeEnd:
-      typeof parsed.rangeEnd === "string" && isIsoDate(parsed.rangeEnd) ? parsed.rangeEnd : todayIso(),
+      typeof parsed.rangeEnd === "string"
+        ? isIsoDate(parsed.rangeEnd)
+          ? parsed.rangeEnd
+          : ""
+        : todayIso(),
     since: "",
     until: "",
   });
