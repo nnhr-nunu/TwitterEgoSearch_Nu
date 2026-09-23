@@ -3,7 +3,8 @@
 import { BirdIcon, CopyIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AdSlot } from "@/components/ad-slot";
+import Link from "next/link";
+import { AdRailLayout, AdSlot } from "@/components/ad-slot";
 import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
 import { KeywordEditor } from "@/components/keyword-editor";
@@ -197,17 +198,25 @@ export function SearchApp() {
               {t("title")}
             </h1>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-          >
-            {t("language")}
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/guide/" data-testid="guide-link">
+                {t("guide")}
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
+            >
+              {t("language")}
+            </Button>
+          </div>
         </div>
       </header>
 
+      <AdRailLayout label={t("sponsored")}>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
         <SlotTabs value={slot} onChange={selectSlot} t={t} />
         {cluster("search-top")}
@@ -290,8 +299,9 @@ export function SearchApp() {
         {/* 誤クリックを避けるため、検索ボタンから離れた入力カードの下にだけ置く。 */}
         <AdSlot label={t("sponsored")} />
       </main>
+      </AdRailLayout>
 
-      <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} />
+      <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} guideLabel={t("guide")} />
     </div>
   );
 }

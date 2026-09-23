@@ -43,16 +43,17 @@ function ExternalLink({ href }: { href: string }) {
 type DeveloperInfoProps = {
   title: string;
   privacyLabel: string;
+  guideLabel: string;
 };
 
-export function DeveloperInfo({ title, privacyLabel }: DeveloperInfoProps) {
+export function DeveloperInfo({ title, privacyLabel, guideLabel }: DeveloperInfoProps) {
   return (
     <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6" data-testid="developer">
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
         <h2 className="font-heading text-base font-semibold tracking-tight">{title}</h2>
 
         <div className="mt-4 space-y-2">
-          <p className="font-medium">開発者：ぬぬはら（アブノーマル催眠音声制作者）</p>
+          <p className="font-medium">開発者：ぬぬはら（催眠音声制作者）</p>
           <p>
             Twitter：
             <ExternalLink href="https://x.com/nnhr_nunu" />
@@ -82,7 +83,10 @@ export function DeveloperInfo({ title, privacyLabel }: DeveloperInfoProps) {
           </ul>
         </div>
       </section>
-      <p className="mt-4 text-center text-xs">
+      <p className="mt-4 flex justify-center gap-4 text-xs">
+        <Link href="/guide/" className="text-muted-foreground underline-offset-2 hover:underline">
+          {guideLabel}
+        </Link>
         <Link href="/privacy/" className="text-muted-foreground underline-offset-2 hover:underline">
           {privacyLabel}
         </Link>
