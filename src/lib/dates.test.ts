@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysAgoIso, formatLocalIso, windowAround } from "./dates";
+import { daysAgoIso, exclusiveUntil, formatLocalIso, resolveQueryWindow, windowAround } from "./dates";
 
 describe("dates", () => {
   it("formats local calendar dates as YYYY-MM-DD", () => {
@@ -27,6 +27,42 @@ describe("dates", () => {
     expect(windowAround("2026-09-22", "quarter")).toEqual({
       since: "2026-06-22",
       until: "2026-12-23",
+    });
+  });
+
+  it("maps a range end to an exclusive until:", () => {
+    expect(exclusiveUntil("2026-09-23")).toBe("2026-09-24");
+  });
+
+  it("intersects around-date and range windows", () => {
+    expect(
+      resolveQueryWindow({
+        dateFilter: true,
+        aroundDate: "2026-09-22",
+        dateSpan: "7",
+        rangeFilter: true,
+        rangeStart: "2026-09-20",
+        rangeEnd: "2026-09-25",
+      }),
+    ).toEqual({
+      since: "2026-09-20",
+      until: "2026-09-26",
+    });
+  });
+
+  it("uses an open start and today as the range end", () => {
+    expect(
+      resolveQueryWindow({
+        dateFilter: false,
+        aroundDate: "2026-09-22",
+        dateSpan: "7",
+        rangeFilter: true,
+        rangeStart: "",
+        rangeEnd: "2026-09-23",
+      }),
+    ).toEqual({
+      since: "",
+      until: "2026-09-24",
     });
   });
 });
