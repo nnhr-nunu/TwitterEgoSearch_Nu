@@ -60,7 +60,8 @@ export function buildPostsQuery(config: SearchConfig): string {
     if (quoted) parts.push(`-${quoted}`);
   }
 
-  if (config.mediaOnly) parts.push("filter:media");
+  // 画像・動画つきだけ は非表示中なので filter:media を付けない
+  // if (config.mediaOnly) parts.push("filter:media");
   if (config.since.trim()) parts.push(`since:${config.since.trim()}`);
   if (config.until.trim()) parts.push(`until:${config.until.trim()}`);
 

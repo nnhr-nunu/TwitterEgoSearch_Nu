@@ -39,8 +39,8 @@ describe("buildLivePostsUrl", () => {
     const config = createDefaultConfig();
     expect(canSearchPosts(config)).toBe(false);
     const query = new URL(buildLivePostsUrl(config)).searchParams.get("q") ?? "";
-    expect(query).toContain("filter:media");
-    expect(query).toContain("since:");
-    expect(query).toContain("until:");
+    expect(query).toBe("");
+    expect(query).not.toContain("filter:media");
+    expect(query).not.toContain("since:");
   });
 });

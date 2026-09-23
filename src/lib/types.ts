@@ -31,6 +31,7 @@ export type SearchConfig = {
   sort: ResultSort;
   aroundDate: string;
   dateSpan: DateSpanId;
+  dateFilter: boolean;
   since: string;
   until: string;
 };
