@@ -62,10 +62,13 @@ export function serializeSearchParams(
   params.set("own", config.fromSelf ? "1" : "0");
   params.set("m", config.mediaOnly ? "1" : "0");
   params.set("df", config.dateFilter ? "1" : "0");
+  params.set("rf", config.rangeFilter ? "1" : "0");
   params.set("sort", config.sort);
   params.set("live", config.sort === "latest" ? "1" : "0");
   if (config.aroundDate) params.set("around", config.aroundDate);
   params.set("span", config.dateSpan);
+  if (config.rangeStart) params.set("rs", config.rangeStart);
+  if (config.rangeEnd) params.set("re", config.rangeEnd);
   if (config.since) params.set("since", config.since);
   if (config.until) params.set("until", config.until);
   if (locale !== "ja") params.set("lang", locale);
@@ -120,8 +123,10 @@ export function parseSearchParams(
       aroundDate: params.get("around")?.trim() || defaults.aroundDate,
       dateSpan: parseSpan(params.get("span")) ?? defaults.dateSpan,
       dateFilter:
-        readBool(params.get("df"), false) ||
-        Boolean(params.get("since")?.trim() || params.get("until")?.trim()),
+        readBool(params.get("df"), false),
+      rangeFilter: readBool(params.get("rf"), false),
+      rangeStart: params.get("rs")?.trim() || "",
+      rangeEnd: params.get("re")?.trim() || "",
       since: params.get("since")?.trim() || "",
       until: params.get("until")?.trim() || "",
     }),
