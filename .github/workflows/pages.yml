@@ -30,6 +30,7 @@ jobs:
           # GitHub の Settings → Secrets and variables → Actions → Variables で設定する。未設定なら広告は出ない。
           NEXT_PUBLIC_ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
           NEXT_PUBLIC_ADSENSE_SLOT: ${{ vars.ADSENSE_SLOT }}
+          NEXT_PUBLIC_ADSENSE_SIDE_SLOT: ${{ vars.ADSENSE_SIDE_SLOT }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
