@@ -49,8 +49,7 @@ export function DeveloperInfo({ title }: DeveloperInfoProps) {
         <h2 className="font-heading text-base font-semibold tracking-tight">{title}</h2>
 
         <div className="mt-4 space-y-2">
-          <h3 className="font-medium">【開発者】</h3>
-          <p>ぬぬはら</p>
+          <p className="font-medium">開発者：ぬぬはら（アブノーマル催眠音声制作者）</p>
           <p>
             Twitter：
             <ExternalLink href="https://x.com/nnhr_nunu" />
