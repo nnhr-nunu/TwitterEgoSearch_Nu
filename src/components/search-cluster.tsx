@@ -87,10 +87,13 @@ export function SearchCluster({
           );
         })}
       </div>
-      {sort === "likes" ? (
+      {/* いいね数で絞り込む非表示中は、下限と組み合わせる注記も出さない */}
+      {false && sort === "likes" ? (
         <p className="text-xs text-muted-foreground">{t("sortLikesHint")}</p>
       ) : null}
 
+      {/* いいね数で絞り込むは非表示。復元するときは false を外す。min_faves: も付けない。 */}
+      {false && (
       <div className="space-y-1.5">
         <p className="text-sm font-medium">{t("minFaves")}</p>
         <div
@@ -117,8 +120,9 @@ export function SearchCluster({
           })}
         </div>
       </div>
+      )}
 
-      {/* 画像・動画つきだけは非表示。復元するときは false を外す。 */}
+      {/* メディア絞り込みは区間フィルタ直下へ移した。ここには出さない。 */}
       {false && (
       <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
         <Label htmlFor={`${testId}-media`} className="cursor-pointer">
