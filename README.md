@@ -38,7 +38,7 @@ NEXT_PUBLIC_BASE_PATH=/TwitterEgoSearch_Nu npm run build
 
 ---
 
-# Ego-search helper
+# Self-Search Helper
 
 Static web app that builds Twitter / X search URLs. No search API and no login.
 

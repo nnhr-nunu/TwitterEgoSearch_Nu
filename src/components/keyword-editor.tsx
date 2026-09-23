@@ -7,6 +7,7 @@ import {
   isDerivedHonorific,
   toggleHonorific,
 } from "@/lib/honorifics";
+import { splitSearchNames } from "@/lib/keywords";
 import type { MessageKey } from "@/lib/i18n";
 import type { HonorificId } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ export function KeywordEditor({
         onChange={onChange}
         addLabel={t("addKeyword")}
         savedToast={t("savedToast")}
+        tokenize={splitSearchNames}
         testId="keyword"
       />
 

@@ -18,6 +18,7 @@ type ChipInputProps = {
   addLabel: string;
   savedToast: string;
   mode?: "text" | "handle";
+  tokenize?: (raw: string) => string[];
   invalidMessage?: string;
   testId?: string;
 };
@@ -31,6 +32,7 @@ export function ChipInput({
   addLabel,
   savedToast,
   mode = "text",
+  tokenize,
   invalidMessage,
   testId,
 }: ChipInputProps) {
@@ -51,9 +53,13 @@ export function ChipInput({
       toast.success(savedToast);
       return;
     }
-    const next = draft.trim();
-    if (!next) return;
-    if (!items.includes(next)) onChange([...items, next]);
+    const tokens = tokenize ? tokenize(draft) : [draft.trim()].filter(Boolean);
+    if (tokens.length === 0) return;
+    const next = [...items];
+    for (const token of tokens) {
+      if (!next.includes(token)) next.push(token);
+    }
+    onChange(next);
     setDraft("");
     toast.success(savedToast);
   }

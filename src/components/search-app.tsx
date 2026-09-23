@@ -3,6 +3,7 @@
 import { BirdIcon, CopyIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
 import { KeywordEditor } from "@/components/keyword-editor";
 import { MuteAccounts } from "@/components/mute-accounts";
@@ -13,7 +14,7 @@ import { SlotTabs } from "@/components/slot-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cloneConfig, createDefaultConfig } from "@/lib/defaults";
-import { windowAround } from "@/lib/dates";
+import { resolveQueryWindow } from "@/lib/dates";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
 import { buildLivePostsUrl } from "@/lib/live";
@@ -66,21 +67,9 @@ function applyConfigPatch(current: SearchConfig, next: Partial<SearchConfig>): S
     merged.sort = next.latest ? "latest" : "likes";
   }
   merged.wrapQuotes = true;
-  if (next.dateFilter === false) {
-    merged.dateFilter = false;
-    merged.since = "";
-    merged.until = "";
-  } else if (next.dateFilter === true || next.aroundDate !== undefined || next.dateSpan !== undefined) {
-    if (next.dateFilter === true) merged.dateFilter = true;
-    if (merged.dateFilter) {
-      const window = windowAround(merged.aroundDate, merged.dateSpan);
-      merged.since = window.since;
-      merged.until = window.until;
-    } else {
-      merged.since = "";
-      merged.until = "";
-    }
-  }
+  const window = resolveQueryWindow(merged);
+  merged.since = window.since;
+  merged.until = window.until;
   return merged;
 }
 
@@ -221,6 +210,9 @@ export function SearchApp() {
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
         <SlotTabs value={slot} onChange={selectSlot} t={t} />
         {cluster("search-top")}
+        <p className="px-1 text-center text-xs text-muted-foreground" data-testid="auto-save-note">
+          {t("autoSaveNote")}
+        </p>
 
         <Card>
           <CardContent className="space-y-6 pt-6">
@@ -294,11 +286,7 @@ export function SearchApp() {
         {cluster("search-bottom")}
       </main>
 
-      <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
-        <p className="text-sm leading-relaxed text-muted-foreground" data-testid="footer-note">
-          {t("footerNote")}
-        </p>
-      </footer>
+      <DeveloperInfo title={t("developer")} />
     </div>
   );
 }
