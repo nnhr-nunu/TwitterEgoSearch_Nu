@@ -41,6 +41,9 @@ export function KeywordEditor({
         testId="keyword"
       />
 
+      {/* 敬称ピッカーと自動チップは非表示。検索名称は利用者がフルで入れる。 */}
+      {false && (
+        <>
       <div className="space-y-2">
         <p className="text-sm font-medium">{t("honorifics")}</p>
         <div className="flex flex-wrap gap-2" data-testid="honorific-toggles" role="group" aria-label={t("honorifics")}>
@@ -91,6 +94,8 @@ export function KeywordEditor({
             })}
           </ul>
         </div>
+      )}
+        </>
       )}
     </div>
   );

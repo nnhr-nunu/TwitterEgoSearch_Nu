@@ -79,6 +79,8 @@ export function SearchCluster({
         })}
       </div>
 
+      {/* 画像・動画つきだけは非表示。復元するときは false を外す。 */}
+      {false && (
       <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5">
         <Label htmlFor={`${testId}-media`} className="cursor-pointer">
           {t("media")}
@@ -91,6 +93,7 @@ export function SearchCluster({
           data-testid={`${testId}-media`}
         />
       </div>
+      )}
     </section>
   );
 }
