@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { todayIso } from "@/lib/dates";
+import { MIN_SEARCH_DATE, dateIssues, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { SearchConfig } from "@/lib/types";
 
@@ -74,6 +74,14 @@ function ClearBound({
   );
 }
 
+function DateNote({ children, testId }: { children: ReactNode; testId?: string }) {
+  return (
+    <p className="text-xs text-destructive" role="alert" data-testid={testId}>
+      {children}
+    </p>
+  );
+}
+
 export function DateFilters({ config, onChange, t }: DateFiltersProps) {
   function setDateFilter(dateFilter: boolean) {
     onChange({ dateFilter });
@@ -89,6 +97,10 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
       rangeEnd: config.rangeEnd || todayIso(),
     });
   }
+
+  const issues = dateIssues(config);
+  const startInvalid = issues.includes("rangeStartInvalid");
+  const endInvalid = issues.includes("rangeEndInvalid");
 
   return (
     <div className="space-y-4">
@@ -130,10 +142,14 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
                 id="range-start"
                 type="date"
                 value={config.rangeStart}
+                min={MIN_SEARCH_DATE}
+                max={todayIso()}
                 className="h-10"
+                aria-invalid={startInvalid || undefined}
                 data-testid="range-start"
                 onChange={(event) => onChange({ rangeStart: event.target.value })}
               />
+              {startInvalid ? <DateNote>{t("dateInvalid")}</DateNote> : null}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -148,14 +164,23 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
                 id="range-end"
                 type="date"
                 value={config.rangeEnd}
+                min={MIN_SEARCH_DATE}
+                max={todayIso()}
                 className="h-10"
+                aria-invalid={endInvalid || undefined}
                 data-testid="range-end"
                 onChange={(event) => onChange({ rangeEnd: event.target.value })}
               />
+              {endInvalid ? <DateNote>{t("dateInvalid")}</DateNote> : null}
             </div>
+            {issues.includes("rangeReversed") ? <DateNote>{t("rangeReversed")}</DateNote> : null}
           </Nested>
         ) : null}
       </div>
+
+      {issues.includes("noOverlap") ? (
+        <DateNote testId="date-no-overlap">{t("dateNoOverlap")}</DateNote>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { daysAgoIso, exclusiveUntil, formatLocalIso, resolveQueryWindow, windowAround } from "./dates";
+import {
+  dateIssues,
+  daysAgoIso,
+  exclusiveUntil,
+  formatLocalIso,
+  isIsoDate,
+  resolveQueryWindow,
+  windowAround,
+} from "./dates";
+
+const base = {
+  dateFilter: false,
+  aroundDate: "2026-09-22",
+  dateSpan: "7" as const,
+  rangeFilter: true,
+  rangeStart: "",
+  rangeEnd: "",
+};
 
 describe("dates", () => {
   it("formats local calendar dates as YYYY-MM-DD", () => {
@@ -80,5 +97,52 @@ describe("dates", () => {
       since: "2026-09-01",
       until: "",
     });
+  });
+
+  it("rejects dates the date input can emit but X cannot search", () => {
+    expect(isIsoDate("2026-09-24")).toBe(true);
+    // 年を打ちすぎたとき（5〜6 桁の年）
+    expect(isIsoDate("202626-09-24")).toBe(false);
+    expect(isIsoDate("20266-09-24")).toBe(false);
+    // 年を 1 桁ずつ打っている途中の値
+    expect(isIsoDate("0002-09-24")).toBe(false);
+    expect(isIsoDate("0202-09-24")).toBe(false);
+    // X 開始前・存在しない日付・遠い未来
+    expect(isIsoDate("2006-03-20")).toBe(false);
+    expect(isIsoDate("2006-03-21")).toBe(true);
+    expect(isIsoDate("2026-02-31")).toBe(false);
+    expect(isIsoDate("2026-13-01")).toBe(false);
+    expect(isIsoDate("9999-12-31")).toBe(false);
+    expect(isIsoDate("")).toBe(false);
+  });
+
+  it("ignores invalid range bounds instead of searching from today", () => {
+    expect(resolveQueryWindow({ ...base, rangeStart: "2026-02-31", rangeEnd: "2026-02-31" })).toEqual({
+      since: "",
+      until: "",
+    });
+    expect(resolveQueryWindow({ ...base, rangeStart: "0002-01-01", rangeEnd: "202626-01-01" })).toEqual({
+      since: "",
+      until: "",
+    });
+  });
+
+  it("swaps a reversed range", () => {
+    const config = { ...base, rangeStart: "2026-09-20", rangeEnd: "2026-09-10" };
+    expect(resolveQueryWindow(config)).toEqual({ since: "2026-09-10", until: "2026-09-21" });
+    expect(dateIssues(config)).toEqual(["rangeReversed"]);
+  });
+
+  it("reports invalid inputs and non-overlapping windows", () => {
+    expect(dateIssues({ ...base, rangeStart: "202626-09-01" })).toEqual(["rangeStartInvalid"]);
+    expect(dateIssues({ ...base, rangeEnd: "2026-02-31" })).toEqual(["rangeEndInvalid"]);
+    expect(dateIssues({ ...base, rangeFilter: false, dateFilter: true, aroundDate: "0002-09-22" })).toEqual([
+      "aroundInvalid",
+    ]);
+    // 空欄は「指定なし」なので注意しない
+    expect(dateIssues({ ...base, dateFilter: true, aroundDate: "" })).toEqual([]);
+    expect(
+      dateIssues({ ...base, dateFilter: true, rangeStart: "2025-01-01", rangeEnd: "2025-01-31" }),
+    ).toEqual(["noOverlap"]);
   });
 });
