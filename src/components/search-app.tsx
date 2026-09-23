@@ -65,10 +65,21 @@ function applyConfigPatch(current: SearchConfig, next: Partial<SearchConfig>): S
   } else if (next.latest !== undefined) {
     merged.sort = next.latest ? "latest" : "likes";
   }
-  if (next.aroundDate !== undefined || next.dateSpan !== undefined) {
-    const window = windowAround(merged.aroundDate, merged.dateSpan);
-    merged.since = window.since;
-    merged.until = window.until;
+  merged.wrapQuotes = true;
+  if (next.dateFilter === false) {
+    merged.dateFilter = false;
+    merged.since = "";
+    merged.until = "";
+  } else if (next.dateFilter === true || next.aroundDate !== undefined || next.dateSpan !== undefined) {
+    if (next.dateFilter === true) merged.dateFilter = true;
+    if (merged.dateFilter) {
+      const window = windowAround(merged.aroundDate, merged.dateSpan);
+      merged.since = window.since;
+      merged.until = window.until;
+    } else {
+      merged.since = "";
+      merged.until = "";
+    }
   }
   return merged;
 }
@@ -232,6 +243,8 @@ export function SearchApp() {
           </CardContent>
         </Card>
 
+        {/* 詳細設定は非表示。クエリコピーと入力を消すは当面出さない。 */}
+        {false && (
         <details className="rounded-xl border border-border bg-card" data-testid="advanced" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden">
             {t("advanced")}
@@ -274,6 +287,7 @@ export function SearchApp() {
             </Button>
           </div>
         </details>
+        )}
 
         {cluster("search-bottom")}
       </main>
