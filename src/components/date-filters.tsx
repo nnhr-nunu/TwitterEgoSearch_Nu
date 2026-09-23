@@ -156,6 +156,16 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
           </Nested>
         ) : null}
       </div>
+
+      <div className="space-y-1">
+        <ToggleRow
+          id="media-filter"
+          label={t("media")}
+          checked={config.mediaOnly}
+          onCheckedChange={(mediaOnly) => onChange({ mediaOnly })}
+          testId="media-filter"
+        />
+      </div>
     </div>
   );
 }
