@@ -38,12 +38,11 @@ describe("buildPostsQuery", () => {
   it("builds the demo ego-search query", () => {
     const query = buildPostsQuery(createOwnerSampleConfig());
     expect(query).toContain("ぬぬはら");
-    expect(query).toContain("ぬぬはらさん");
-    expect(query).toContain("ぬぬはらちゃん");
-    expect(query).toContain("ぬぬはら様");
     expect(query).toContain("ぬぬさん");
     expect(query).toContain("ﾇﾇ🫀");
-    expect(query).toContain("filter:media");
+    expect(query).not.toContain("ぬぬはらさん");
+    expect(query).not.toContain("filter:media");
+    expect(query).not.toContain("since:");
     expect(query).toContain("-from:nnhr_nunu");
     expect(query.startsWith("from:")).toBe(false);
   });
@@ -69,7 +68,7 @@ describe("buildPostsQuery", () => {
     expect(query).toContain("-from:nnhr_nunu");
   });
 
-  it("adds media and date operators", () => {
+  it("skips media while the toggle is hidden and keeps explicit dates", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
       keywords: ["ぬぬはら"],
@@ -77,9 +76,15 @@ describe("buildPostsQuery", () => {
       since: "2026-01-01",
       until: "2026-02-01",
     });
-    expect(query).toContain("filter:media");
+    expect(query).not.toContain("filter:media");
     expect(query).toContain("since:2026-01-01");
     expect(query).toContain("until:2026-02-01");
+  });
+
+  it("omits since/until when date filter is off", () => {
+    const query = buildPostsQuery(createOwnerSampleConfig());
+    expect(query).not.toContain("since:");
+    expect(query).not.toContain("until:");
   });
 
   it("adds -from: for each muted account and still excludes own posts", () => {
@@ -182,7 +187,7 @@ describe("buildPostsQuery", () => {
       handle: "",
       handles: [],
       keywords: ["たろう"],
-      honorifics: ["san"] as HonorificId[],
+      honorifics: [] as HonorificId[],
       excludeOwn: true,
       mediaOnly: false,
       mutedHandles: [],
@@ -190,7 +195,6 @@ describe("buildPostsQuery", () => {
     expect(canSearchPosts(config)).toBe(true);
     const query = buildPostsQuery(config);
     expect(query).toContain("たろう");
-    expect(query).toContain("たろうさん");
     expect(query).not.toContain("-from:");
     expect(query).not.toContain("from:");
   });
