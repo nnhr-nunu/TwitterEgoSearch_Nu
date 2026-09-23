@@ -60,12 +60,11 @@ export function buildPostsQuery(config: SearchConfig): string {
     if (quoted) parts.push(`-${quoted}`);
   }
 
-  // 画像・動画つきだけ は非表示中なので filter:media を付けない
-  // if (config.mediaOnly) parts.push("filter:media");
+  if (config.mediaOnly) parts.push("filter:media");
   if (config.since.trim()) parts.push(`since:${config.since.trim()}`);
   if (config.until.trim()) parts.push(`until:${config.until.trim()}`);
-  // X にはいいね数の降順がないので、下限で人気の投稿だけに絞る
-  if (config.minFaves > 0) parts.push(`min_faves:${config.minFaves}`);
+  // いいね数で絞り込むは非表示中なので min_faves: を付けない
+  // if (config.minFaves > 0) parts.push(`min_faves:${config.minFaves}`);
 
   return parts.join(" ");
 }
