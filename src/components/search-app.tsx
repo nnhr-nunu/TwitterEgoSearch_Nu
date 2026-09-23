@@ -3,6 +3,7 @@
 import { BirdIcon, CopyIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AdSlot } from "@/components/ad-slot";
 import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
 import { KeywordEditor } from "@/components/keyword-editor";
@@ -285,9 +286,12 @@ export function SearchApp() {
 
         {/* 下部の「投稿を検索」は上部と重複するため非表示。復元するときは false を外す。 */}
         {false && cluster("search-bottom")}
+
+        {/* 誤クリックを避けるため、検索ボタンから離れた入力カードの下にだけ置く。 */}
+        <AdSlot label={t("sponsored")} />
       </main>
 
-      <DeveloperInfo title={t("developer")} />
+      <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} />
     </div>
   );
 }

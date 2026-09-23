@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type RelatedLink = {
   name: string;
   href: string;
@@ -40,9 +42,10 @@ function ExternalLink({ href }: { href: string }) {
 
 type DeveloperInfoProps = {
   title: string;
+  privacyLabel: string;
 };
 
-export function DeveloperInfo({ title }: DeveloperInfoProps) {
+export function DeveloperInfo({ title, privacyLabel }: DeveloperInfoProps) {
   return (
     <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6" data-testid="developer">
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
@@ -79,6 +82,11 @@ export function DeveloperInfo({ title }: DeveloperInfoProps) {
           </ul>
         </div>
       </section>
+      <p className="mt-4 text-center text-xs">
+        <Link href="/privacy/" className="text-muted-foreground underline-offset-2 hover:underline">
+          {privacyLabel}
+        </Link>
+      </p>
     </footer>
   );
 }

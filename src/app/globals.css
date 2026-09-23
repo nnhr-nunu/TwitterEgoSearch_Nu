@@ -132,3 +132,8 @@
     color-scheme: light;
   }
 }
+
+/* 広告が配信されなかった枠は、ラベルごと隠して空白を残さない。 */
+.ad-slot:has(ins.adsbygoogle[data-ad-status="unfilled"]) {
+  display: none;
+}
