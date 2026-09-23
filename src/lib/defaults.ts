@@ -151,7 +151,7 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
     wrapQuotes: true,
     excludeOwn: typeof parsed.excludeOwn === "boolean" ? parsed.excludeOwn : defaults.excludeOwn,
     fromSelf: typeof parsed.fromSelf === "boolean" ? parsed.fromSelf : defaults.fromSelf,
-    mediaOnly: false,
+    mediaOnly: parsed.mediaOnly === true,
     latest: sort === "latest",
     sort,
     minFaves: readMinFaves(parsed.minFaves),
