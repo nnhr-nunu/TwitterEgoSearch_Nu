@@ -45,10 +45,10 @@ type DeveloperInfoProps = {
 export function DeveloperInfo({ title }: DeveloperInfoProps) {
   return (
     <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6" data-testid="developer">
-      <section className="space-y-5 rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
+      <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
         <h2 className="font-heading text-base font-semibold tracking-tight">{title}</h2>
 
-        <div className="space-y-2">
+        <div className="mt-4 space-y-2">
           <h3 className="font-medium">【開発者】</h3>
           <p>ぬぬはら</p>
           <p>
@@ -66,11 +66,11 @@ export function DeveloperInfo({ title }: DeveloperInfoProps) {
           <p>バグ報告はDMなどで頂けたら幸いです。</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="mt-5 border-t border-border pt-5">
           <h3 className="font-medium">【開発した関連サービス】</h3>
-          <ul className="space-y-3">
+          <ul className="mt-3 divide-y divide-border">
             {RELATED.map((item) => (
-              <li key={item.href} className="space-y-0.5">
+              <li key={item.href} className="space-y-0.5 py-3 first:pt-0 last:pb-0">
                 <p>・{item.name}</p>
                 <p>
                   <ExternalLink href={item.href} />

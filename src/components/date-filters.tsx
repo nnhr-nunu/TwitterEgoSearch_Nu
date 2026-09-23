@@ -40,7 +40,6 @@ function ToggleRow({
         onCheckedChange={onCheckedChange}
         aria-label={label}
         data-testid={testId}
-        className="data-[size=default]:h-6 data-[size=default]:w-11"
       />
     </div>
   );
@@ -49,6 +48,29 @@ function ToggleRow({
 function Nested({ children }: { children: ReactNode }) {
   return (
     <div className="ml-1 space-y-3 border-l-2 border-primary/40 py-1 pl-4">{children}</div>
+  );
+}
+
+function ClearBound({
+  label,
+  onClick,
+  testId,
+}: {
+  label: string;
+  onClick: () => void;
+  testId: string;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-7 px-2 text-xs"
+      data-testid={testId}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
   );
 }
 
@@ -98,16 +120,11 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="range-start">{t("since")}</Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  data-testid="range-start-clear"
+                <ClearBound
+                  label={t("rangeClear")}
+                  testId="range-start-clear"
                   onClick={() => onChange({ rangeStart: "" })}
-                >
-                  {t("rangeUnspecified")}
-                </Button>
+                />
               </div>
               <Input
                 id="range-start"
@@ -119,14 +136,21 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="range-end">{t("until")}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="range-end">{t("until")}</Label>
+                <ClearBound
+                  label={t("rangeClear")}
+                  testId="range-end-clear"
+                  onClick={() => onChange({ rangeEnd: "" })}
+                />
+              </div>
               <Input
                 id="range-end"
                 type="date"
                 value={config.rangeEnd}
                 className="h-10"
                 data-testid="range-end"
-                onChange={(event) => onChange({ rangeEnd: event.target.value || todayIso() })}
+                onChange={(event) => onChange({ rangeEnd: event.target.value })}
               />
             </div>
           </Nested>
