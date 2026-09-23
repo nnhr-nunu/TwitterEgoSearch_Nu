@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { MIN_SEARCH_DATE, dateIssues, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { DateSpanId, SearchConfig } from "@/lib/types";
 
@@ -27,6 +28,8 @@ export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
   function setSpan(dateSpan: DateSpanId) {
     onChange({ dateFilter: true, dateSpan });
   }
+
+  const aroundInvalid = dateIssues(config).includes("aroundInvalid");
 
   return (
     <div className="space-y-4">
@@ -54,10 +57,18 @@ export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
           id="around-date"
           type="date"
           value={config.aroundDate}
+          min={MIN_SEARCH_DATE}
+          max={todayIso()}
           className="h-10"
+          aria-invalid={aroundInvalid || undefined}
           data-testid="around-date"
           onChange={(event) => setAroundDate(event.target.value)}
         />
+        {aroundInvalid ? (
+          <p className="text-xs text-destructive" data-testid="around-date-error">
+            {t("aroundInvalid")}
+          </p>
+        ) : null}
       </div>
 
       <div
