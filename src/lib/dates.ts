@@ -86,7 +86,7 @@ export type DateWindowFields = {
 
 export function rangeWindow(rangeStart: string, rangeEnd: string): { since: string; until: string } {
   const since = isIsoDate(rangeStart) ? rangeStart : "";
-  const until = exclusiveUntil(isIsoDate(rangeEnd) ? rangeEnd : todayIso());
+  const until = isIsoDate(rangeEnd) ? exclusiveUntil(rangeEnd) : "";
   return { since, until };
 }
 

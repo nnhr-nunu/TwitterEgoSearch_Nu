@@ -208,6 +208,9 @@ export function SearchApp() {
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
         <SlotTabs value={slot} onChange={selectSlot} t={t} />
         {cluster("search-top")}
+        <p className="px-1 text-xs text-muted-foreground" data-testid="auto-save-note">
+          {t("autoSaveNote")}
+        </p>
 
         <Card>
           <CardContent className="space-y-6 pt-6">

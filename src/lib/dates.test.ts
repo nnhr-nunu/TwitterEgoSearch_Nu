@@ -65,4 +65,20 @@ describe("dates", () => {
       until: "2026-09-24",
     });
   });
+
+  it("omits until when the range end is cleared", () => {
+    expect(
+      resolveQueryWindow({
+        dateFilter: false,
+        aroundDate: "2026-09-22",
+        dateSpan: "7",
+        rangeFilter: true,
+        rangeStart: "2026-09-01",
+        rangeEnd: "",
+      }),
+    ).toEqual({
+      since: "2026-09-01",
+      until: "",
+    });
+  });
 });
