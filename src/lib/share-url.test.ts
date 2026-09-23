@@ -57,13 +57,13 @@ describe("share url", () => {
       honorifics: ["san"],
     });
     expect(off.wrapQuotes).toBe(true);
-    expect(off.mediaOnly).toBe(false);
+    expect(off.mediaOnly).toBe(true);
     expect(off.honorifics).toEqual([]);
     expect(off.dateFilter).toBe(false);
     expect(off.since).toBe("");
     expect(buildPostsQuery(off)).toContain('"ぬぬはらさん"');
     expect(buildPostsQuery(off)).not.toContain("since:");
-    expect(buildPostsQuery(off)).not.toContain("filter:media");
+    expect(buildPostsQuery(off)).toContain("filter:media");
     expect(buildPostsQuery(off)).not.toContain("ぬぬはらさんさん");
 
     const on = hydrateConfig({

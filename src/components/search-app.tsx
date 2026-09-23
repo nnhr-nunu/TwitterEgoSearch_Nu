@@ -283,7 +283,8 @@ export function SearchApp() {
         </details>
         )}
 
-        {cluster("search-bottom")}
+        {/* 下部の「投稿を検索」は上部と重複するため非表示。復元するときは false を外す。 */}
+        {false && cluster("search-bottom")}
       </main>
 
       <DeveloperInfo title={t("developer")} />

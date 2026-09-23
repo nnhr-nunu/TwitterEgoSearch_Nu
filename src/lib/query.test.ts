@@ -39,7 +39,7 @@ describe("buildPostsQuery", () => {
     const query = buildPostsQuery(createOwnerSampleConfig());
     expect(query).toContain("ぬぬはら");
     expect(query).toContain("ぬぬさん");
-    expect(query).toContain("ﾇﾇ🫀");
+    expect(query).toContain("\uFF87\uFF87\u{1FAC0}");
     expect(query).not.toContain("ぬぬはらさん");
     expect(query).not.toContain("filter:media");
     expect(query).not.toContain("since:");
@@ -68,7 +68,7 @@ describe("buildPostsQuery", () => {
     expect(query).toContain("from:nnhr_nunu");
   });
 
-  it("skips media while the toggle is hidden and keeps explicit dates", () => {
+  it("adds filter:media when the media toggle is on and keeps explicit dates", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
       keywords: ["ぬぬはら"],
@@ -76,7 +76,7 @@ describe("buildPostsQuery", () => {
       since: "2026-01-01",
       until: "2026-02-01",
     });
-    expect(query).not.toContain("filter:media");
+    expect(query).toContain("filter:media");
     expect(query).toContain("since:2026-01-01");
     expect(query).toContain("until:2026-02-01");
   });
@@ -133,10 +133,10 @@ describe("buildPostsQuery", () => {
     expect(query).toContain('-"広告"');
   });
 
-  it("adds min_faves: only when a like threshold is set", () => {
+  it("skips min_faves while the like-count filter is hidden", () => {
     const base = { ...createOwnerSampleConfig(), keywords: ["ぬぬはら"] };
     expect(buildPostsQuery(base)).not.toContain("min_faves:");
-    expect(buildPostsQuery({ ...base, minFaves: 100 })).toContain("min_faves:100");
+    expect(buildPostsQuery({ ...base, minFaves: 100 })).not.toContain("min_faves:");
   });
 
   it("allows an account-only search with no keywords", () => {
@@ -154,12 +154,12 @@ describe("buildPostsQuery", () => {
   it("does not add honorifics when none are on", () => {
     const query = buildPostsQuery({
       ...createOwnerSampleConfig(),
-      keywords: ["ﾇﾇ🫀"],
+      keywords: ["\uFF87\uFF87\u{1FAC0}"],
       honorifics: [],
       mediaOnly: false,
     });
-    expect(query).toContain("ﾇﾇ🫀");
-    expect(query).not.toContain("ﾇﾇ🫀さん");
+    expect(query).toContain("\uFF87\uFF87\u{1FAC0}");
+    expect(query).not.toContain("\uFF87\uFF87\u{1FAC0}さん");
   });
 
   it("searches everyone by 呼ばれ方 when the username is empty", () => {
@@ -187,7 +187,7 @@ describe("people and urls", () => {
     expect(buildPeopleQuery(createOwnerSampleConfig())).not.toContain("from:");
   });
 
-  it("maps sorts onto X search tabs without inventing operators", () => {
+  it("maps 話題のポスト順 onto X f=top without inventing operators", () => {
     expect(sortParamOf("latest")).toBe("live");
     expect(sortParamOf("likes")).toBe("top");
     expect(sortParamOf("oldest")).toBeNull();
