@@ -27,6 +27,9 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /TwitterEgoSearch_Nu
+          # GitHub の Settings → Secrets and variables → Actions → Variables で設定する。未設定なら広告は出ない。
+          NEXT_PUBLIC_ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          NEXT_PUBLIC_ADSENSE_SLOT: ${{ vars.ADSENSE_SLOT }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
