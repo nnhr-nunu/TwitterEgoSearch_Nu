@@ -40,6 +40,7 @@ describe("share url", () => {
     expect(parsed.config.sort).toBe("latest");
     expect(parsed.config.honorifics).toEqual([]);
     expect(parsed.config.dateFilter).toBe(false);
+    expect(parsed.config.rangeFilter).toBe(false);
     expect(parsed.config.since).toBe("");
   });
 
@@ -75,6 +76,21 @@ describe("share url", () => {
     expect(on.until).toBe("2026-09-30");
     expect(buildPostsQuery(on)).toContain("since:2026-09-15");
     expect(buildPostsQuery(on)).toContain("until:2026-09-30");
+  });
+
+  it("intersects around-date and range filters into one since/until", () => {
+    const both = hydrateConfig({
+      keywords: ["ぬぬはらさん"],
+      dateFilter: true,
+      aroundDate: "2026-09-22",
+      dateSpan: "7",
+      rangeFilter: true,
+      rangeStart: "2026-09-20",
+      rangeEnd: "2026-09-25",
+    });
+    expect(buildPostsQuery(both)).toContain("since:2026-09-20");
+    expect(buildPostsQuery(both)).toContain("until:2026-09-26");
+    expect(buildPostsQuery(both)).not.toContain("until:2026-09-30");
   });
 
   it("round-trips muted accounts as repeated mute params", () => {

@@ -1,4 +1,4 @@
-import { windowAround, todayIso, isIsoDate } from "./dates";
+import { resolveQueryWindow, todayIso, isIsoDate } from "./dates";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
 import {
@@ -14,7 +14,7 @@ export const OWNER_HANDLE = "nnhr_nunu";
 export const OWNER_DISPLAY_NAME = "ぬぬはら";
 export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 
-export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "ﾇﾇ🫀"] as const;
+export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "\uFF87\uFF87\u{1FAC0}"] as const;
 
 const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 // 古い順は X で実現できないので受け付けない（latest に戻す）
@@ -65,12 +65,16 @@ function readSpan(value: unknown): DateSpanId {
 }
 
 function withDateWindow(config: SearchConfig): SearchConfig {
-  if (!config.dateFilter) {
-    return { ...config, since: "", until: "" };
-  }
   const aroundDate = isIsoDate(config.aroundDate) ? config.aroundDate : todayIso();
-  const { since, until } = windowAround(aroundDate, config.dateSpan);
-  return { ...config, aroundDate, since, until };
+  const rangeEnd = isIsoDate(config.rangeEnd) ? config.rangeEnd : "";
+  const rangeStart = isIsoDate(config.rangeStart) ? config.rangeStart : "";
+  const { since, until } = resolveQueryWindow({
+    ...config,
+    aroundDate,
+    rangeStart,
+    rangeEnd,
+  });
+  return { ...config, aroundDate, rangeStart, rangeEnd, since, until };
 }
 
 export function createDefaultConfig(): SearchConfig {
@@ -94,6 +98,9 @@ export function createDefaultConfig(): SearchConfig {
     aroundDate: todayIso(),
     dateSpan: "7",
     dateFilter: false,
+    rangeFilter: false,
+    rangeStart: "",
+    rangeEnd: todayIso(),
     since: "",
     until: "",
   });
@@ -151,6 +158,14 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
     aroundDate,
     dateSpan,
     dateFilter: parsed.dateFilter === true,
+    rangeFilter: parsed.rangeFilter === true,
+    rangeStart: typeof parsed.rangeStart === "string" && isIsoDate(parsed.rangeStart) ? parsed.rangeStart : "",
+    rangeEnd:
+      typeof parsed.rangeEnd === "string"
+        ? isIsoDate(parsed.rangeEnd)
+          ? parsed.rangeEnd
+          : ""
+        : todayIso(),
     since: "",
     until: "",
   });

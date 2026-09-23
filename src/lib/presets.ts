@@ -104,6 +104,9 @@ function normalizeForCompare(config: SearchConfig): SearchConfig {
     sort: hydrated.sort,
     aroundDate: hydrated.aroundDate,
     dateSpan: hydrated.dateSpan,
+    rangeFilter: hydrated.rangeFilter,
+    rangeStart: hydrated.rangeStart,
+    rangeEnd: hydrated.rangeEnd,
     since: hydrated.since.trim(),
     until: hydrated.until.trim(),
   };
