@@ -28,9 +28,9 @@ npm run build
 
 `out/` を GitHub Pages / Cloudflare Pages / Vercel に置きます。
 
-公開 URL は `https://nnhr-nunu.github.io/TwitterEgoSearch_Nu/` です。`main` へ push すると `.github/workflows/pages.yml` が GitHub Pages へ出します。初回だけ GitHub の Settings → Pages で Source を GitHub Actions にする必要があります。
+公開 URL は `https://self-search.oshilog.life/` です（GitHub Pages のカスタムドメイン。DNS は Cloudflare の CNAME で `nnhr-nunu.github.io` へ、プロキシなし）。`main` へ push すると `.github/workflows/pages.yml` が GitHub Pages へ出します。初回だけ GitHub の Settings → Pages で Source を GitHub Actions にする必要があります。
 
-プロジェクトサイト用の書き出し:
+サブパス付きで書き出したいとき:
 
 ```bash
 NEXT_PUBLIC_BASE_PATH=/TwitterEgoSearch_Nu npm run build
