@@ -15,7 +15,7 @@ const RELATED: RelatedLink[] = [
   },
   {
     name: "配信者向け雑談提供Webサービス：TopicStream(ぬ)",
-    href: "https://topic-stream-amber.vercel.app/",
+    href: "https://topic-stream.oshilog.life/",
   },
   {
     name: "心音配信に合わせて動く心臓ソフトウェア：StreamHeartbeat(ぬ)",
