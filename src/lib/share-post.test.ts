@@ -4,7 +4,8 @@ import { buildLivePostsUrl } from "./live";
 import { buildPostsQuery } from "./query";
 import {
   buildShareParams,
-  buildSharePostText,
+  buildShareBody,
+  composeSharePost,
   buildShareUrl,
   shareSubjectLabel,
   weightedPostLength,
@@ -67,10 +68,17 @@ describe("share post", () => {
   });
 
   it("writes a post that fits in one X post", () => {
-    const text = buildSharePostText(rich, "ja", "thanks");
-    expect(text).toContain("「ぬぬはら・ぬぬさん」");
-    expect(text).toContain("#エゴサ支援ツール");
+    const body = buildShareBody(rich, "ja", "thanks");
+    expect(body).toContain("「ぬぬはら・ぬぬさん」");
+    const text = composeSharePost(body);
+    expect(text.endsWith("\n\n#エゴサ支援ツールぬ")).toBe(true);
     expect(weightedPostLength(text, true)).toBeLessThanOrEqual(280);
+  });
+
+  it("starts free input blank but always keeps the hashtag", () => {
+    expect(buildShareBody(rich, "ja", "free")).toBe("");
+    expect(composeSharePost("")).toBe("#エゴサ支援ツールぬ");
+    expect(composeSharePost("  いつもありがとう！ \n")).toBe("いつもありがとう！\n\n#エゴサ支援ツールぬ");
   });
 
   it("weighs Japanese as 2 and URLs as 23", () => {

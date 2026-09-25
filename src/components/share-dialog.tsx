@@ -1,7 +1,7 @@
 "use client";
 
-import { BirdIcon, CopyIcon, SearchIcon, Share2Icon, UserIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { BirdIcon, CopyIcon, PencilIcon, SearchIcon, Share2Icon, UserIcon } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,9 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MessageKey } from "@/lib/i18n";
 import {
-  buildSharePostText,
+  buildShareBody,
   buildShareUrl,
+  composeSharePost,
   POST_LIMIT,
+  SHARE_HASHTAG,
   SHARE_TEMPLATES,
   SITE_NAME,
   weightedPostLength,
@@ -36,6 +38,7 @@ type ShareDialogProps = {
 };
 
 const TEMPLATE_LABELS: Record<ShareTemplateId, MessageKey> = {
+  free: "templateFree",
   thanks: "templateThanks",
   report: "templateReport",
   simple: "templateSimple",
@@ -87,9 +90,12 @@ function LinkCardPreview({ tagline }: { tagline: string }) {
 
 /** 開くたびに最新の条件で文面を作り直すため、呼び出し側で key を変えて作り直す */
 export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: ShareDialogProps) {
-  const [template, setTemplate] = useState<ShareTemplateId>("thanks");
-  const [text, setText] = useState(() => buildSharePostText(config, locale, "thanks"));
+  // 既定は自由入力。文面はその場で書く前提にして、文例は「たたき台」として選ばせる
+  const [template, setTemplate] = useState<ShareTemplateId>("free");
+  const [body, setBody] = useState("");
   const [includeMutes, setIncludeMutes] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const text = composeSharePost(body);
 
   const hasMutes = config.mutedHandles.length > 0 || config.mutedKeywords.length > 0;
   const url = useMemo(
@@ -101,8 +107,23 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
   const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   function pickTemplate(next: ShareTemplateId) {
+    if (next === template) return;
     setTemplate(next);
-    setText(buildSharePostText(config, locale, next));
+    setBody(buildShareBody(config, locale, next));
+    requestAnimationFrame(() => bodyRef.current?.focus());
+  }
+
+  // 文例を書き換えたら、もう自分の文章なので「自由入力」に切り替える
+  function editBody(value: string) {
+    setBody(value);
+    if (template !== "free") setTemplate("free");
+  }
+
+  // マウス操作の環境だけ入力欄に最初からフォーカスする（スマホはキーボードでプレビューが隠れる）
+  function focusBodyOnOpen(event: Event) {
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    event.preventDefault();
+    bodyRef.current?.focus();
   }
 
   async function nativeShare() {
@@ -115,7 +136,11 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto sm:max-w-md [&>*]:min-w-0" data-testid="share-dialog">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto sm:max-w-md [&>*]:min-w-0"
+        data-testid="share-dialog"
+        onOpenAutoFocus={focusBodyOnOpen}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2Icon className="size-4 text-primary" aria-hidden />
@@ -125,7 +150,7 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
         </DialogHeader>
 
         <div
-          className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1"
+          className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-background p-1"
           role="radiogroup"
           aria-label={t("shareTemplate")}
         >
@@ -138,7 +163,7 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
                 role="radio"
                 aria-checked={selected}
                 data-testid={`share-template-${id}`}
-                className={`rounded-lg px-2 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                className={`rounded-lg px-1 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:text-sm ${
                   selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
                 }`}
                 onClick={() => pickTemplate(id)}
@@ -148,6 +173,8 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
             );
           })}
         </div>
+
+        <p className="-mt-2 px-1 text-xs text-muted-foreground">{t("shareBodyHint")}</p>
 
         {/* 投稿の見た目をそのまま編集できるプレビュー */}
         <div className="rounded-2xl border border-border bg-card p-3">
@@ -160,13 +187,23 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
             </span>
             <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm font-bold">{t("shareYou")}</p>
-              <textarea
-                aria-label={t("shareTemplate")}
-                data-testid="share-text"
-                className="field-sizing-content min-h-20 w-full resize-none bg-transparent text-[15px] leading-relaxed outline-none"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-              />
+              <label className="block space-y-1">
+                <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                  <PencilIcon className="size-3" aria-hidden />
+                  {t("shareBodyLabel")}
+                </span>
+                <textarea
+                  ref={bodyRef}
+                  data-testid="share-text"
+                  className="field-sizing-content min-h-24 w-full resize-none rounded-lg border border-dashed border-primary/50 bg-primary/5 px-2.5 py-2 text-[15px] leading-relaxed transition-colors outline-none placeholder:text-muted-foreground/80 focus:border-solid focus:border-primary focus:bg-transparent focus:ring-3 focus:ring-primary/15"
+                  placeholder={t("shareBodyPlaceholder")}
+                  value={body}
+                  onChange={(event) => editBody(event.target.value)}
+                />
+              </label>
+              <p className="text-[15px] text-primary" data-testid="share-hashtag">
+                {SHARE_HASHTAG}
+              </p>
               <p className="truncate text-sm text-primary" data-testid="share-url">
                 {displayUrl(url)}
               </p>
