@@ -79,7 +79,7 @@ export function serializeSearchParams(
 
 export function parseSearchParams(
   search: string | URLSearchParams,
-): { config: SearchConfig; locale: Locale; found: boolean } {
+): { config: SearchConfig; locale: Locale; found: boolean; shared: boolean } {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
   const defaults = createDefaultConfig();
@@ -102,12 +102,14 @@ export function parseSearchParams(
   const locale: Locale = lang === "en" ? "en" : "ja";
 
   if (!found) {
-    return { config: defaults, locale, found: false };
+    return { config: defaults, locale, found: false, shared: false };
   }
 
   const sort = parseSort(params);
   return {
     found: true,
+    // シェア投稿から来たリンク。受け取った側の保存済み設定は上書きしない
+    shared: params.get("share") === "1",
     locale,
     config: hydrateConfig({
       handle: handles[0] ?? "",

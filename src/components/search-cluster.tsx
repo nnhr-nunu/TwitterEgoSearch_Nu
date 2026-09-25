@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, Share2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ type SearchClusterProps = {
   onSort: (sort: ResultSort) => void;
   onMinFaves: (minFaves: MinFaves) => void;
   onMedia: (mediaOnly: boolean) => void;
+  onShare: () => void;
   t: (key: MessageKey) => string;
   testId: string;
 };
@@ -42,6 +43,7 @@ export function SearchCluster({
   onSort,
   onMinFaves,
   onMedia,
+  onShare,
   t,
   testId,
 }: SearchClusterProps) {
@@ -87,6 +89,18 @@ export function SearchCluster({
           );
         })}
       </div>
+      {postsOk ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={onShare}
+          data-testid={`${testId}-share`}
+        >
+          <Share2Icon data-icon="inline-start" />
+          {t("share")}
+        </Button>
+      ) : null}
       {/* いいね数で絞り込む非表示中は、下限と組み合わせる注記も出さない */}
       {false && sort === "likes" ? (
         <p className="text-xs text-muted-foreground">{t("sortLikesHint")}</p>
