@@ -8,8 +8,12 @@ export const SITE_URL = "https://self-search.oshilog.life";
 export const POST_LIMIT = 280;
 const URL_WEIGHT = 23;
 
-export type ShareTemplateId = "thanks" | "report" | "simple";
-export const SHARE_TEMPLATES: ShareTemplateId[] = ["thanks", "report", "simple"];
+// 推しログの #推しログぬ と同じ「サービス名＋ぬ」。括弧入りの (ぬ) はハッシュタグが途中で切れるので使わない
+export const SHARE_HASHTAG = "#エゴサ支援ツールぬ";
+
+// free は空欄から自由に書く。ほかは文例を流し込んで、その場で直してもらう
+export type ShareTemplateId = "free" | "thanks" | "report" | "simple";
+export const SHARE_TEMPLATES: ShareTemplateId[] = ["free", "thanks", "report", "simple"];
 
 export type ShareOptions = {
   /** 除外アカウント・除外キーワードも載せるか。人名が晒されるので既定はオフ */
@@ -86,7 +90,7 @@ export function shareSubjectLabel(config: SearchConfig, max = 2): string {
   return rest > 0 ? `${shown} ほか${rest}件` : shown;
 }
 
-const TEMPLATES: Record<Locale, Record<ShareTemplateId, (subject: string) => string>> = {
+const TEMPLATES: Record<Locale, Record<Exclude<ShareTemplateId, "free">, (subject: string) => string>> = {
   ja: {
     thanks: (s) => `「${s}」への感想・反応を、ワンタップでまとめて見られるリンクを作りました🔍\nいつもありがとうございます！`,
     report: (s) => `「${s}」でエゴサした結果はこちら🔍\nタップするとXの検索結果がそのまま開きます👇`,
@@ -99,18 +103,20 @@ const TEMPLATES: Record<Locale, Record<ShareTemplateId, (subject: string) => str
   },
 };
 
-const SIGNATURE: Record<Locale, string> = {
-  ja: `#エゴサ支援ツール`,
-  en: `#SelfSearchHelper`,
-};
-
-export function buildSharePostText(
+/** 利用者が編集する本文。自由入力は空欄から始める（ハッシュタグは composeSharePost で必ず付ける） */
+export function buildShareBody(
   config: SearchConfig,
   locale: Locale,
   template: ShareTemplateId,
 ): string {
-  const subject = shareSubjectLabel(config);
-  return `${TEMPLATES[locale][template](subject)}\n\n${SIGNATURE[locale]}`;
+  if (template === "free") return "";
+  return TEMPLATES[locale][template](shareSubjectLabel(config));
+}
+
+/** 投稿する本文。ハッシュタグは消せないようにして、拡散の足跡を残す */
+export function composeSharePost(body: string): string {
+  const trimmed = body.trim();
+  return trimmed ? `${trimmed}\n\n${SHARE_HASHTAG}` : SHARE_HASHTAG;
 }
 
 // X の文字数カウント（twitter-text の重み付け）。ラテン・一般記号は 1、日本語や絵文字は 2
