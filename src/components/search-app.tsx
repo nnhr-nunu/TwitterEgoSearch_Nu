@@ -12,10 +12,12 @@ import { MuteAccounts } from "@/components/mute-accounts";
 import { MuteKeywords } from "@/components/mute-keywords";
 import { ProfileFields } from "@/components/profile-fields";
 import { SearchCluster } from "@/components/search-cluster";
+import { ShareDialog } from "@/components/share-dialog";
+import { SharedBanner } from "@/components/shared-banner";
 import { SlotTabs } from "@/components/slot-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cloneConfig, createDefaultConfig } from "@/lib/defaults";
+import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
@@ -85,6 +87,10 @@ export function SearchApp() {
     createDefaultConfig(),
   ]);
   const [config, setConfig] = useState<SearchConfig>(createDefaultConfig);
+  // シェア投稿から開かれたときの条件。保存済みの設定とは別に持つ
+  const [shared, setShared] = useState<SearchConfig | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareKey, setShareKey] = useState(0);
 
   const t = (key: MessageKey) => translate(locale, key);
 
@@ -93,12 +99,14 @@ export function SearchApp() {
     const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     const storedSlots = loadSlots();
     const storedSlot = loadActiveSlot();
-    if (parsed.found) {
+    // 旧形式の共有 URL は設定1へ取り込む。シェア投稿（share=1）は閲覧だけにとどめる
+    const legacy = parsed.found && !parsed.shared;
+    if (legacy) {
       storedSlots[0] = cloneConfig(parsed.config);
       saveSlots(storedSlots);
       saveActiveSlot(0);
     }
-    const nextSlot = parsed.found ? 0 : storedSlot;
+    const nextSlot = legacy ? 0 : storedSlot;
     const nextConfig = cloneConfig(storedSlots[nextSlot] ?? createDefaultConfig());
     const nextLocale =
       parsed.found && parsed.locale === "en"
@@ -111,6 +119,7 @@ export function SearchApp() {
       setSlot(nextSlot);
       setConfig(nextConfig);
       setLocale(nextLocale);
+      if (parsed.shared) setShared(cloneConfig(parsed.config));
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
@@ -156,6 +165,37 @@ export function SearchApp() {
     saveActiveSlot(index);
   }
 
+  function clearSharedUrl() {
+    setShared(null);
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  // 空いている設定に入れる。空きが無ければいま開いている設定を置き換える
+  function importShared() {
+    if (!shared) return;
+    const current = slots.map((item, i) => (i === slot ? cloneConfig(config) : item));
+    const blank = current.findIndex((item) => isBlankConfig(item));
+    const target = (blank >= 0 ? blank : slot) as SlotIndex;
+    const nextSlots = current.map((item, i) => (i === target ? cloneConfig(shared) : item));
+    persistSlots(nextSlots);
+    setSlot(target);
+    setConfig(cloneConfig(shared));
+    saveActiveSlot(target);
+    clearSharedUrl();
+    const slotLabel = t(`slot${target + 1}` as MessageKey);
+    toast.success(t("sharedImported").replace("{slot}", slotLabel));
+  }
+
+  function startOwnSearch() {
+    clearSharedUrl();
+    requestAnimationFrame(() => document.getElementById("keyword-input")?.focus());
+  }
+
+  function openShare() {
+    setShareKey((key) => key + 1);
+    setShareOpen(true);
+  }
+
   async function copy(value: string) {
     const ok = await copyText(value);
     toast[ok ? "success" : "error"](ok ? t("copied") : t("copyFailed"));
@@ -180,6 +220,7 @@ export function SearchApp() {
       onSort={(sort: ResultSort) => patch({ sort })}
       onMinFaves={(minFaves) => patch({ minFaves })}
       onMedia={(mediaOnly) => patch({ mediaOnly })}
+      onShare={openShare}
       t={t}
       testId={testId}
     />
@@ -218,6 +259,9 @@ export function SearchApp() {
 
       <AdRailLayout label={t("sponsored")}>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
+        {shared ? (
+          <SharedBanner config={shared} onImport={importShared} onDismiss={startOwnSearch} t={t} />
+        ) : null}
         <SlotTabs value={slot} onChange={selectSlot} t={t} />
         {cluster("search-top")}
         <p className="px-1 text-center text-xs text-muted-foreground" data-testid="auto-save-note">
@@ -300,6 +344,16 @@ export function SearchApp() {
         <AdSlot label={t("sponsored")} />
       </main>
       </AdRailLayout>
+
+      <ShareDialog
+        key={shareKey}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        config={config}
+        locale={locale}
+        onCopy={copy}
+        t={t}
+      />
 
       <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} guideLabel={t("guide")} />
     </div>
