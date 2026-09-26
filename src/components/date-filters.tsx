@@ -104,6 +104,13 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
 
   return (
     <div className="space-y-4">
+      <ToggleRow
+        id="match-all"
+        label={t("matchAll")}
+        checked={config.matchAll === true}
+        onCheckedChange={(matchAll) => onChange({ matchAll })}
+        testId="match-all"
+      />
       <div className="space-y-1">
         <ToggleRow
           id="date-filter"
