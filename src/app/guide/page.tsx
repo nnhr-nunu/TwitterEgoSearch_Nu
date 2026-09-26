@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
 
 export const metadata: Metadata = {
-  title: "使い方 | エゴサ支援ツール(ぬ)",
+  title: "使い方 | エゴサ支援ツール(ぬ) — エゴサ・推しのパブサ",
   description:
-    "エゴサ支援ツール(ぬ)の使い方。自分の名前のエゴサはもちろん、推しの話題やファンアート、推し本人の過去の投稿を探すときにも使えます。",
+    "エゴサ支援ツール(ぬ)の使い方。自分の名前のエゴサはもちろん、推しのパブサ(パブリックサーチ)で話題やファンアート、推し本人の過去の投稿を探すときにも使えます。",
+  alternates: { canonical: "/guide" },
 };
 
 function Card({ children }: { children: ReactNode }) {

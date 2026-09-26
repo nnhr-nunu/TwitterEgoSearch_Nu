@@ -31,6 +31,8 @@ export type SearchConfig = {
   excludeOwn: boolean;
   fromSelf: boolean;
   mediaOnly: boolean;
+  // オンなら検索名を OR ではなく AND でつなぐ（すべて含む投稿だけ）
+  matchAll?: boolean;
   latest: boolean;
   sort: ResultSort;
   minFaves: MinFaves;

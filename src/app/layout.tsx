@@ -17,18 +17,31 @@ const geistMono = Geist_Mono({
 });
 
 const OG_ALT = "エゴサ支援ツール(ぬ) — 名前も愛称も、まとめてエゴサ。";
+const TITLE = `${SITE_NAME} | X(Twitter)のエゴサ・推しのパブサをまとめて検索`;
 const description =
-  "Twitter / X の検索URLを組み立ててワンクリックで開くエゴサ支援ツール。ログインもAPIも不要です。";
+  "名前・愛称・ハッシュタグを OR / AND でまとめて X(Twitter) 検索。エゴサーチはもちろん、推しのパブサ(パブリックサーチ)にも使えます。日付・画像で絞り込み、ミュートも可能。ログイン・アプリ連携不要の無料ツールです。";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: SITE_NAME,
+  title: TITLE,
   description,
+  keywords: [
+    "エゴサ",
+    "エゴサーチ",
+    "パブサ",
+    "パブリックサーチ",
+    "推し",
+    "X 検索",
+    "Twitter 検索",
+    "高度な検索",
+    "検索コマンド",
+  ],
+  alternates: { canonical: "/" },
   // シェア投稿を X に貼ったとき大きいカードで出す。画像は app/og.png/route.tsx
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: SITE_NAME,
+    title: TITLE,
     description,
     url: "/",
     locale: "ja_JP",
@@ -36,7 +49,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: SITE_NAME,
+    title: TITLE,
     description,
     images: [{ url: "/og.png", alt: OG_ALT }],
   },

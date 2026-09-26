@@ -48,6 +48,7 @@ export function buildShareParams(
     }
   }
   if (config.mediaOnly) params.set("m", "1");
+  if (config.matchAll) params.set("and", "1");
   if (config.sort === "likes") params.set("sort", "likes");
   if (config.dateFilter) {
     params.set("df", "1");

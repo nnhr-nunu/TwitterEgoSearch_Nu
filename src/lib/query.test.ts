@@ -203,3 +203,16 @@ describe("people and urls", () => {
     );
   });
 });
+
+describe("matchAll", () => {
+  it("AND トグルがオンなら検索名を空白でつなぐ", () => {
+    const config = { ...createOwnerSampleConfig(), handles: [], handle: "", keywords: ["ぬぬはら", "推し"], matchAll: true };
+    expect(buildPostsQuery(config)).toBe('"ぬぬはら" "推し"');
+  });
+
+  it("既定はオフで OR のまま", () => {
+    const config = { ...createOwnerSampleConfig(), handles: [], handle: "", keywords: ["ぬぬはら", "推し"] };
+    expect(createOwnerSampleConfig().matchAll).toBe(false);
+    expect(buildPostsQuery(config)).toBe('("ぬぬはら" OR "推し")');
+  });
+});

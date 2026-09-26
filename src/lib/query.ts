@@ -21,6 +21,16 @@ export function orGroup(keywords: string[], wrapQuotes: boolean): string {
   return `(${parts.join(" OR ")})`;
 }
 
+// X の検索は空白区切りが AND
+export function andGroup(keywords: string[], wrapQuotes: boolean): string {
+  return keywords.map((keyword) => quoteTerm(keyword, wrapQuotes)).filter(Boolean).join(" ");
+}
+
+function keywordGroup(config: SearchConfig): string {
+  const group = config.matchAll ? andGroup : orGroup;
+  return group(searchTermsOf(config), config.wrapQuotes);
+}
+
 export function ownHandlesOf(config: SearchConfig): string[] {
   return uniqueHandles([...(config.handles ?? []), config.handle ?? ""]);
 }
@@ -40,7 +50,7 @@ export function fromGroup(handles: string[]): string {
 }
 
 export function buildPostsQuery(config: SearchConfig): string {
-  const keywords = orGroup(searchTermsOf(config), config.wrapQuotes);
+  const keywords = keywordGroup(config);
   const parts: string[] = [];
 
   if (keywords) parts.push(keywords);
@@ -70,7 +80,7 @@ export function buildPostsQuery(config: SearchConfig): string {
 }
 
 export function buildPeopleQuery(config: SearchConfig): string {
-  return orGroup(searchTermsOf(config), config.wrapQuotes);
+  return keywordGroup(config);
 }
 
 export type SearchKind = "posts" | "people";
