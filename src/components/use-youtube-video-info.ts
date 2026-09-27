@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  type ChannelData,
-  effectiveYoutubeKey,
-  fetchVideoInfo,
-  loadYoutubeApiKey,
-  type VideoInfo,
-} from "@/lib/youtube";
+import { type ChannelData, fetchVideoInfo, type VideoInfo, youtubeApiKey } from "@/lib/youtube";
 import { findVideoInChannels, loadVideoInfo, saveVideoInfo } from "@/lib/youtube-cache";
 
 // URL検索に貼った動画のタイトルとチャンネル名。保存済みのチャンネル一覧か、前に取った情報があれば API を呼ばない
@@ -19,10 +13,10 @@ export function useYoutubeVideoInfo(videoId: string | null, channels: ChannelDat
 
   useEffect(() => {
     if (!videoId || !needsFetch) return;
-    const key = effectiveYoutubeKey(loadYoutubeApiKey());
+    const key = youtubeApiKey();
     if (!key) return;
     let cancelled = false;
-    // 入力途中や貼り直しで何度も呼ばないよう、少し待ってから 1 回だけ取る（1 ユニット）
+    // 続けて検索し直しても何度も呼ばないよう、少し待ってから 1 回だけ取る（1 ユニット）
     const timer = window.setTimeout(() => {
       fetchVideoInfo(videoId, key)
         .then((info) => {

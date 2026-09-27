@@ -1,3 +1,4 @@
+import { daysAgoIso } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
 import type { ResultSort } from "./types";
@@ -5,13 +6,25 @@ import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoYear } from "./you
 
 export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 
+// 期間の絞り込み。保存するのは相対の期間で、since: の日付は検索のたびに今日から数える
+export type UrlPeriod = "all" | "day" | "week" | "month" | "year";
+
+export const URL_PERIODS: UrlPeriod[] = ["all", "day", "week", "month", "year"];
+
+const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all">, number> = { day: 1, week: 7, month: 30, year: 365 };
+
+export function periodSince(period: UrlPeriod): string {
+  return period === "all" ? "" : daysAgoIso(PERIOD_DAYS[period]);
+}
+
 export type UrlSearchState = {
+  // 「検索」で確定した URL。入力途中の値は画面側で持つ
   url: string;
   // リンクを貼らずに感想を書く人を拾うための言葉（タイトル・略称・ハッシュタグ）
   words: string[];
   // 自分の告知ポストなど、反応として数えたくないアカウント
   excluded: string[];
-  since: string;
+  period: UrlPeriod;
   sort: ResultSort;
   // チャンネルの動画一覧の絞り込み。空は「すべて」
   videoKinds: VideoKind[];
@@ -43,7 +56,7 @@ export function createDefaultUrlSearch(): UrlSearchState {
     url: "",
     words: [],
     excluded: [],
-    since: "",
+    period: "all",
     sort: "latest",
     videoKinds: [],
     videoYears: [],
@@ -139,7 +152,8 @@ function group(terms: string[]): string {
 
 function tailParts(state: UrlSearchState): string[] {
   const parts = uniqueHandles(state.excluded).map((handle) => `-from:${handle}`);
-  if (state.since.trim()) parts.push(`since:${state.since.trim()}`);
+  const since = periodSince(state.period);
+  if (since) parts.push(`since:${since}`);
   return parts;
 }
 
@@ -256,7 +270,7 @@ export function loadUrlSearch(): UrlSearchState {
       url: typeof parsed.url === "string" ? parsed.url : "",
       words: strings(parsed.words),
       excluded: strings(parsed.excluded),
-      since: typeof parsed.since === "string" ? parsed.since : "",
+      period: URL_PERIODS.includes(parsed.period as UrlPeriod) ? (parsed.period as UrlPeriod) : "all",
       sort: parsed.sort === "likes" ? "likes" : "latest",
       videoKinds: strings(parsed.videoKinds).filter((kind): kind is VideoKind =>
         (VIDEO_KINDS as string[]).includes(kind),

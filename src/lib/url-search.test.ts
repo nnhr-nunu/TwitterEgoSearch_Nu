@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildUrlQueries,
   buildVideoBatches,
@@ -9,6 +9,16 @@ import {
   videoQuery,
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
+
+// 期間は今日から数えるので、日付を固定する（2026-09-27 の 7 日前 = 2026-09-20）
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 8, 27, 12));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("parseTargetUrl", () => {
   it.each([
@@ -70,7 +80,7 @@ describe("buildUrlQueries", () => {
       url: "https://youtu.be/dQw4w9WgXcQ",
       words: ["#新作MV", "ぬぬ MV"],
       excluded: ["@nunuhara"],
-      since: "2026-09-20",
+      period: "week",
     });
     expect(queries.all).toBe(
       '(url:dQw4w9WgXcQ OR #新作MV OR "ぬぬ MV") -from:nunuhara since:2026-09-20',
@@ -80,7 +90,7 @@ describe("buildUrlQueries", () => {
   });
 
   it("returns empty queries without a url or words", () => {
-    const queries = buildUrlQueries({ ...createDefaultUrlSearch(), since: "2026-09-20" });
+    const queries = buildUrlQueries({ ...createDefaultUrlSearch(), period: "week" });
     expect(queries).toEqual({ all: "", link: "", words: "", videoCount: 0 });
   });
 
@@ -144,14 +154,14 @@ describe("filterVideos", () => {
 
 describe("buildVideoBatches", () => {
   const items = Array.from({ length: 30 }, (_, i) => ({ id: `video${String(i).padStart(6, "0")}`, keyword: "" }));
-  const state = { ...createDefaultUrlSearch(), excluded: ["nnhr_nunu"], since: "2026-01-01" };
+  const state = { ...createDefaultUrlSearch(), excluded: ["nnhr_nunu"], period: "year" as const };
 
   it("splits the ids so each query fits the length limit", () => {
     const batches = buildVideoBatches(items, state, 200);
     expect(batches.length).toBeGreaterThan(1);
     for (const batch of batches) {
       expect(batch.query.length).toBeLessThanOrEqual(200);
-      expect(batch.query.endsWith(" -from:nnhr_nunu since:2026-01-01")).toBe(true);
+      expect(batch.query.endsWith(" -from:nnhr_nunu since:2025-09-27")).toBe(true);
     }
     expect(batches[0].from).toBe(1);
     expect(batches.at(-1)?.to).toBe(30);
