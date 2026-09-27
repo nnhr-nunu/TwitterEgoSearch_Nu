@@ -14,9 +14,10 @@ import { ProfileFields } from "@/components/profile-fields";
 import { SearchCluster } from "@/components/search-cluster";
 import { ShareDialog } from "@/components/share-dialog";
 import { SharedBanner } from "@/components/shared-banner";
-import { SlotTabs } from "@/components/slot-tabs";
+import { SlotTabs, type TabValue } from "@/components/slot-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { UrlSearchPanel } from "@/components/url-search-panel";
 import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
 import { uniqueHandles } from "@/lib/handle";
@@ -27,10 +28,12 @@ import { parseSearchParams } from "@/lib/share-url";
 import {
   loadActiveSlot,
   loadSlots,
+  loadUrlView,
   LOCALE_STORAGE_KEY,
   saveActiveSlot,
   saveLastConfig,
   saveSlots,
+  saveUrlView,
 } from "@/lib/storage";
 import type { Locale, ResultSort, SearchConfig, SlotIndex } from "@/lib/types";
 
@@ -81,6 +84,7 @@ export function SearchApp() {
   const [ready, setReady] = useState(false);
   const [locale, setLocale] = useState<Locale>("ja");
   const [slot, setSlot] = useState<SlotIndex>(0);
+  const [urlView, setUrlView] = useState(false);
   const [slots, setSlots] = useState<SearchConfig[]>(() => [
     createDefaultConfig(),
     createDefaultConfig(),
@@ -117,6 +121,8 @@ export function SearchApp() {
     const frame = requestAnimationFrame(() => {
       setSlots(storedSlots.map((item) => cloneConfig(item)));
       setSlot(nextSlot);
+      // 旧形式の共有 URL を取り込んだときは設定1を見せる
+      setUrlView(legacy ? false : loadUrlView());
       setConfig(nextConfig);
       setLocale(nextLocale);
       if (parsed.shared) setShared(cloneConfig(parsed.config));
@@ -129,9 +135,10 @@ export function SearchApp() {
     if (!ready) return;
     saveLastConfig(config);
     saveActiveSlot(slot);
+    saveUrlView(urlView);
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     document.documentElement.lang = locale;
-  }, [config, locale, ready, slot]);
+  }, [config, locale, ready, slot, urlView]);
 
   const postsQuery = useMemo(() => buildPostsQuery(config), [config]);
   const liveUrl = useMemo(() => buildLivePostsUrl(config), [config]);
@@ -165,6 +172,11 @@ export function SearchApp() {
     saveActiveSlot(index);
   }
 
+  function selectTab(value: TabValue) {
+    setUrlView(value === "url");
+    if (value !== "url") selectSlot(value);
+  }
+
   function clearSharedUrl() {
     setShared(null);
     window.history.replaceState(null, "", window.location.pathname);
@@ -179,6 +191,7 @@ export function SearchApp() {
     const nextSlots = current.map((item, i) => (i === target ? cloneConfig(shared) : item));
     persistSlots(nextSlots);
     setSlot(target);
+    setUrlView(false);
     setConfig(cloneConfig(shared));
     saveActiveSlot(target);
     clearSharedUrl();
@@ -262,7 +275,10 @@ export function SearchApp() {
         {shared ? (
           <SharedBanner config={shared} onImport={importShared} onDismiss={startOwnSearch} t={t} />
         ) : null}
-        <SlotTabs value={slot} onChange={selectSlot} t={t} />
+        <SlotTabs value={urlView ? "url" : slot} onChange={selectTab} t={t} />
+        {urlView ? <UrlSearchPanel t={t} /> : null}
+        {urlView ? null : (
+        <>
         {cluster("search-top")}
         <p className="px-1 text-center text-xs text-muted-foreground" data-testid="auto-save-note">
           {t("autoSaveNote")}
@@ -290,6 +306,8 @@ export function SearchApp() {
             />
           </CardContent>
         </Card>
+        </>
+        )}
 
         {/* 詳細設定は非表示。クエリコピーと入力を消すは当面出さない。 */}
         {false && (

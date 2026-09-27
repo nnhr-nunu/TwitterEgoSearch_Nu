@@ -5,9 +5,12 @@ import type { MessageKey } from "@/lib/i18n";
 import type { SlotIndex } from "@/lib/types";
 import { SLOT_COUNT } from "@/lib/types";
 
+// 設定1〜3 と、その隣の URL検索
+export type TabValue = SlotIndex | "url";
+
 type SlotTabsProps = {
-  value: SlotIndex;
-  onChange: (index: SlotIndex) => void;
+  value: TabValue;
+  onChange: (value: TabValue) => void;
   t: (key: MessageKey) => string;
 };
 
@@ -17,11 +20,11 @@ export function SlotTabs({ value, onChange, t }: SlotTabsProps) {
   return (
     <Tabs
       value={String(value)}
-      onValueChange={(next) => onChange(Number(next) as SlotIndex)}
+      onValueChange={(next) => onChange(next === "url" ? "url" : (Number(next) as SlotIndex))}
       className="w-full gap-0"
       data-testid="slot-tabs"
     >
-      <TabsList className="grid h-11 w-full grid-cols-3">
+      <TabsList className="grid h-11 w-full grid-cols-4">
         {SLOT_LABELS.slice(0, SLOT_COUNT).map((label, index) => (
           <TabsTrigger
             key={label}
@@ -32,6 +35,9 @@ export function SlotTabs({ value, onChange, t }: SlotTabsProps) {
             {t(label)}
           </TabsTrigger>
         ))}
+        <TabsTrigger value="url" className="text-sm" data-testid="slot-tab-url">
+          {t("urlTab")}
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   );
