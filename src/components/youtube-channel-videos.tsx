@@ -135,7 +135,7 @@ export function YoutubeChannelVideos({
   const kindCounts = countBy(inPeriod.map((video) => video.kind));
   // 種類の切り替えは、チャンネルに 2 種類以上あるときだけ出す。期間を変えても並びが動かないよう、0 本の種類も残す
   const kinds = VIDEO_KINDS.filter((kind) => channelKinds.includes(kind) || kind === state.videoKind);
-  const listKey = [state.url, state.period, state.rangeStart, state.rangeEnd, state.aroundDate, state.dateSpan, state.dateMode, state.videoKind, state.videoTitle].join("|");
+  const listKey = [state.url, state.period, state.rangeStart, state.rangeEnd, state.aroundDate, state.dateSpan, state.videoKind, state.videoTitle].join("|");
 
   return (
     <div className="space-y-3" data-testid="yt-channel">

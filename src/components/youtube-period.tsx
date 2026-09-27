@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { isIsoDate, MIN_SEARCH_DATE, shiftIso, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { DateSpanId } from "@/lib/types";
-import { URL_PERIODS, type UrlDateMode, type UrlPeriod, type UrlSearchState } from "@/lib/url-search";
+import { URL_PERIODS, type UrlPeriod, type UrlSearchState } from "@/lib/url-search";
 
-type PeriodFields = Pick<UrlSearchState, "period" | "dateMode" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">;
+type PeriodFields = Pick<UrlSearchState, "period" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">;
 
 type YoutubePeriodProps = {
   t: (key: MessageKey) => string;
@@ -22,11 +22,11 @@ type YoutubePeriodProps = {
 
 const PERIOD_LABELS: Record<UrlPeriod, MessageKey> = {
   all: "urlPeriodAll",
-  day: "urlPeriodDay",
   week: "urlPeriodWeek",
   month: "urlPeriodMonth",
   year: "urlPeriodYear",
-  custom: "urlPeriodCustom",
+  around: "urlPeriodAround",
+  range: "urlPeriodRange",
 };
 
 const SPANS: { id: DateSpanId; label: MessageKey }[] = [
@@ -81,15 +81,12 @@ function DateField({
 }
 
 export function YoutubePeriod({ t, state, patch, publishedDate }: YoutubePeriodProps) {
-  const custom = state.period === "custom";
-  const setMode = (dateMode: UrlDateMode) =>
-    patch(dateMode === "around" && !state.aroundDate ? { dateMode, aroundDate: todayIso() } : { dateMode });
   const issues: MessageKey[] = [];
-  if (custom && state.dateMode === "range") {
+  if (state.period === "range") {
     if (invalid(state.rangeStart) || invalid(state.rangeEnd)) issues.push("dateInvalid");
     if (isIsoDate(state.rangeStart) && isIsoDate(state.rangeEnd) && state.rangeStart > state.rangeEnd) issues.push("rangeReversed");
   }
-  if (custom && state.dateMode === "around" && invalid(state.aroundDate)) issues.push("aroundInvalid");
+  if (state.period === "around" && invalid(state.aroundDate)) issues.push("aroundInvalid");
 
   return (
     <div className="space-y-2">
@@ -98,24 +95,14 @@ export function YoutubePeriod({ t, state, patch, publishedDate }: YoutubePeriodP
         options={URL_PERIODS.map((period) => ({ id: period, label: t(PERIOD_LABELS[period]) }))}
         value={state.period}
         label={t("urlPeriod")}
-        onChange={(period) => patch(period === "custom" && state.dateMode === "around" && !state.aroundDate ? { period, aroundDate: todayIso() } : { period })}
+        onChange={(period) => patch(period === "around" && !state.aroundDate ? { period, aroundDate: todayIso() } : { period })}
         testId="url-period"
         columns="grid-cols-3 sm:grid-cols-6"
       />
 
-      {custom ? (
+      {state.period === "range" || state.period === "around" ? (
         <div className="ml-1 space-y-3 border-l-2 border-primary/40 py-1 pl-4" data-testid="url-period-dates">
-          <Segmented<UrlDateMode>
-            options={[
-              { id: "range", label: t("urlDateRange") },
-              { id: "around", label: t("urlDateAround") },
-            ]}
-            value={state.dateMode}
-            label={t("urlPeriodCustom")}
-            onChange={setMode}
-            testId="url-date-mode"
-          />
-          {state.dateMode === "range" ? (
+          {state.period === "range" ? (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <DateField id="url-range-start" label={t("since")} value={state.rangeStart} onChange={(rangeStart) => patch({ rangeStart })} t={t} />
@@ -153,8 +140,7 @@ export function YoutubePeriod({ t, state, patch, publishedDate }: YoutubePeriodP
           data-testid="url-from-publish"
           onClick={() =>
             patch({
-              period: "custom",
-              dateMode: "range",
+              period: "range",
               rangeStart: publishedDate,
               // まだ 1 週間たっていなければ終わりは空欄（今日まで）にする
               rangeEnd: shiftIso(publishedDate, 6) < todayIso() ? shiftIso(publishedDate, 6) : "",

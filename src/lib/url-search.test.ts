@@ -5,9 +5,11 @@ import {
   createDefaultUrlSearch,
   linkTerm,
   parseTargetUrl,
+  loadUrlSearch,
   postWindow,
+  URL_SEARCH_STORAGE_KEY,
   videosInScope,
-  videoWindow,
+  withChannelWords,
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
 
@@ -119,11 +121,11 @@ describe("buildMainQuery", () => {
     expect(query).toBe('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA)');
   });
 
-  it("uses since and until for a custom range", () => {
+  it("uses since and until for a range", () => {
     const state = {
       ...createDefaultUrlSearch(),
       url: "https://youtu.be/dQw4w9WgXcQ",
-      period: "custom" as const,
+      period: "range" as const,
       rangeStart: "2026-08-01",
       rangeEnd: "2026-08-10",
     };
@@ -136,12 +138,12 @@ describe("postWindow", () => {
 
   it("counts relative periods from today", () => {
     expect(postWindow(base)).toEqual({ since: "", until: "" });
-    expect(postWindow({ ...base, period: "day" })).toEqual({ since: "2026-09-26", until: "" });
+    expect(postWindow({ ...base, period: "week" })).toEqual({ since: "2026-09-20", until: "" });
     expect(postWindow({ ...base, period: "year" })).toEqual({ since: "2025-09-27", until: "" });
   });
 
   it("reads a range with blank ends and swaps a reversed one", () => {
-    const custom = { ...base, period: "custom" as const };
+    const custom = { ...base, period: "range" as const };
     expect(postWindow(custom)).toEqual({ since: "", until: "" });
     expect(postWindow({ ...custom, rangeStart: "2026-08-01" })).toEqual({ since: "2026-08-01", until: "" });
     expect(postWindow({ ...custom, rangeEnd: "2026-08-10" })).toEqual({ since: "", until: "2026-08-11" });
@@ -152,14 +154,9 @@ describe("postWindow", () => {
   });
 
   it("reads a window around a date, or around today when blank", () => {
-    const around = { ...base, period: "custom" as const, dateMode: "around" as const };
+    const around = { ...base, period: "around" as const };
     expect(postWindow({ ...around, aroundDate: "2026-08-15" })).toEqual({ since: "2026-08-08", until: "2026-08-23" });
     expect(postWindow({ ...around, dateSpan: "month" })).toEqual({ since: "2026-08-27", until: "2026-10-28" });
-  });
-
-  it("starts the video window a week before the posts", () => {
-    expect(videoWindow({ ...base, period: "week" })).toEqual({ since: "2026-09-13", until: "" });
-    expect(videoWindow(base)).toEqual({ since: "", until: "" });
   });
 });
 
@@ -177,9 +174,9 @@ describe("videosInScope", () => {
     expect(videosInScope(videos, state)).toHaveLength(4);
   });
 
-  it("keeps videos published in the period and the week before it", () => {
-    expect(videosInScope(videos, { ...state, period: "week" }).map((v) => v.id)).toEqual(["aaaaaaaaaaa", "bbbbbbbbbbb"]);
-    const range = { ...state, period: "custom" as const, rangeStart: "2025-03-05", rangeEnd: "2025-03-31" };
+  it("keeps only videos published in the period", () => {
+    expect(videosInScope(videos, { ...state, period: "week" }).map((v) => v.id)).toEqual(["aaaaaaaaaaa"]);
+    const range = { ...state, period: "range" as const, rangeStart: "2025-03-01", rangeEnd: "2025-03-31" };
     expect(videosInScope(videos, range).map((v) => v.id)).toEqual(["ddddddddddd"]);
     expect(videosInScope(videos, { ...range, rangeStart: "", rangeEnd: "2026-09-13" }).map((v) => v.id)).toEqual([
       "ccccccccccc",
@@ -212,40 +209,40 @@ describe("buildChannelBatches", () => {
   };
   const scope = { links: ["UCqYpbbypex0iOikcZRenxGA"], owners: ["nnhr_nunu"], videoIds: ids };
 
-  it("puts the channel links and words only in the first search", () => {
-    const batches = buildChannelBatches(state, scope, 200);
-    expect(batches.length).toBeGreaterThan(1);
-    expect(
-      batches[0].query.startsWith('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA OR #ぬぬ配信 OR url:video000000'),
-    ).toBe(true);
-    for (const batch of batches.slice(1)) {
-      expect(batch.query).not.toContain("youtube.com");
-      expect(batch.query).not.toContain("#ぬぬ配信");
-    }
-  });
-
-  it("splits the videos so each search fits the length limit", () => {
-    const batches = buildChannelBatches(state, scope, 200);
+  it("searches 20 videos at a time and adds the channel links and words to the last search", () => {
+    const batches = buildChannelBatches(state, scope);
+    expect(batches.map((batch) => [batch.from, batch.to])).toEqual([
+      [1, 20],
+      [21, 30],
+    ]);
+    expect(batches[0].query).not.toContain("youtube.com");
+    expect(batches[0].query).not.toContain("#ぬぬ配信");
+    expect(batches[1].query.startsWith('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA OR #ぬぬ配信 OR url:video000020')).toBe(
+      true,
+    );
     for (const batch of batches) {
-      expect(batch.query.length).toBeLessThanOrEqual(200);
+      expect(batch.query.length).toBeLessThanOrEqual(480);
       expect(batch.query.endsWith(" -from:someone -from:nnhr_nunu since:2025-09-27")).toBe(true);
     }
-    expect(batches[0].from).toBe(1);
-    expect(batches.at(-1)?.to).toBe(30);
-    batches.slice(1).forEach((batch, index) => expect(batch.from).toBe(batches[index].to + 1));
     const joined = batches.map((batch) => batch.query).join(" ");
     for (const id of ids) expect(joined).toContain(`url:${id}`);
   });
 
-  it("fits the channel and about 24 video links in one search", () => {
-    const real = Array.from({ length: 60 }, (_, i) => `NUCX55gmk${String(i).padStart(2, "0")}`);
-    const batches = buildChannelBatches(
-      { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu" },
-      { links: ["UCqYpbbypex0iOikcZRenxGA"], videoIds: real },
-    );
-    expect(batches[0].to).toBeGreaterThanOrEqual(22);
-    expect(batches[1].to - batches[1].from + 1).toBeGreaterThanOrEqual(25);
-    for (const batch of batches) expect(batch.query.length).toBeLessThanOrEqual(480);
+  it("searches the channel links and words on their own when they do not fit", () => {
+    const batches = buildChannelBatches(state, { ...scope, videoIds: ids.slice(0, 20) });
+    expect(batches.map((batch) => [batch.from, batch.to])).toEqual([
+      [1, 20],
+      [21, 20],
+    ]);
+    expect(batches[1].query.startsWith('(url:"youtube.com/@nnhr_nunu"')).toBe(true);
+  });
+
+  it("uses fewer videos per search only when 20 do not fit", () => {
+    const batches = buildChannelBatches(state, scope, 200);
+    const sizes = batches.filter((batch) => batch.to >= batch.from).map((batch) => batch.to - batch.from + 1);
+    expect(new Set(sizes.slice(0, -1)).size).toBe(1);
+    expect(sizes[0]).toBeLessThan(20);
+    for (const batch of batches) expect(batch.query.length).toBeLessThanOrEqual(200);
   });
 
   it("searches the channel link alone when no video is in scope", () => {
@@ -260,5 +257,39 @@ describe("buildChannelBatches", () => {
 
   it("returns nothing without a readable url", () => {
     expect(buildChannelBatches(createDefaultUrlSearch(), scope)).toEqual([]);
+  });
+});
+
+describe("channel words", () => {
+  it("replaces one channel's words and drops empty ones", () => {
+    const map = { UCa: ["#a"], UCb: ["#b"] };
+    expect(withChannelWords(map, "UCa", ["#a", "#a2"])).toEqual({ UCa: ["#a", "#a2"], UCb: ["#b"] });
+    expect(withChannelWords(map, "UCa", [])).toEqual({ UCb: ["#b"] });
+    expect(map).toEqual({ UCa: ["#a"], UCb: ["#b"] });
+  });
+});
+
+describe("loadUrlSearch", () => {
+  function stored(value: object) {
+    const localStorage = { getItem: (key: string) => (key === URL_SEARCH_STORAGE_KEY ? JSON.stringify(value) : null) };
+    Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage } });
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, "window");
+  });
+
+  it("moves the old periods to the new ones", () => {
+    stored({ period: "day" });
+    expect(loadUrlSearch().period).toBe("week");
+    stored({ period: "custom", dateMode: "around" });
+    expect(loadUrlSearch().period).toBe("around");
+    stored({ period: "custom" });
+    expect(loadUrlSearch().period).toBe("range");
+  });
+
+  it("keeps words per channel", () => {
+    stored({ channelWords: { UCa: ["#a"], UCb: [], UCc: "x" } });
+    expect(loadUrlSearch().channelWords).toEqual({ UCa: ["#a"] });
   });
 });
