@@ -17,6 +17,8 @@ export type UrlSearchState = {
   videoKinds: VideoKind[];
   videoYears: string[];
   videoTitle: string;
+  // 動画ごとの検索に、タイトルから取った言葉（曲名など）も足す
+  videoTitleSearch: boolean;
 };
 
 export type UrlTargetKind = "video" | "channel" | "niconico" | "page";
@@ -46,6 +48,7 @@ export function createDefaultUrlSearch(): UrlSearchState {
     videoKinds: [],
     videoYears: [],
     videoTitle: "",
+    videoTitleSearch: true,
   };
 }
 
@@ -150,18 +153,32 @@ export type UrlQueries = {
   all: string;
   link: string;
   words: string;
+  // チャンネルのとき、メインの検索に入れた動画リンクの本数（新しい順）
+  videoCount: number;
 };
 
-export function buildUrlQueries(state: UrlSearchState, extraTokens: string[] = []): UrlQueries {
+// チャンネルのときは videoIds（新しい順）のリンクも、X に入る長さまでメインの検索に足す。
+// 動画の共有リンクにはチャンネル名が入らないので、これがないとチャンネルへの反応の大半を取りこぼす
+export function buildUrlQueries(
+  state: UrlSearchState,
+  extraTokens: string[] = [],
+  videoIds: string[] = [],
+  maxLength = MAX_QUERY_LENGTH,
+): UrlQueries {
   const target = parseTargetUrl(state.url);
   const links = linkTerms(target, extraTokens);
-  const link = group(links);
-  const wordGroup = orGroup(state.words, false);
-  const all = group([...links, ...state.words.map((word) => quoteTerm(word, false))]);
+  const words = state.words.map((word) => quoteTerm(word, false)).filter(Boolean);
+  const videoLinks: string[] = [];
+  for (const id of links.length ? videoIds : []) {
+    const next = [...videoLinks, tokenTerm(id)];
+    if (withTail(group([...links, ...next, ...words]), state).length > maxLength) break;
+    videoLinks.push(tokenTerm(id));
+  }
   return {
-    all: withTail(all, state),
-    link: withTail(link, state),
-    words: withTail(wordGroup, state),
+    all: withTail(group([...links, ...videoLinks, ...words]), state),
+    link: withTail(group([...links, ...videoLinks]), state),
+    words: withTail(orGroup(state.words, false), state),
+    videoCount: videoLinks.length,
   };
 }
 
@@ -175,8 +192,26 @@ export function filterVideos(videos: ChannelVideo[], state: UrlSearchState): Cha
   );
 }
 
-export function videoQuery(videoId: string, state: UrlSearchState): string {
-  return withTail(tokenTerm(videoId), state);
+export type VideoItem = {
+  id: string;
+  // タイトルから取った言葉。取れなければ空
+  keyword: string;
+};
+
+// リンクを貼らずに曲名などで書いた感想も拾う。一緒に探す言葉（名前）があれば、
+// ありふれた曲名で関係ない投稿が混ざらないよう「タイトルの言葉 かつ 名前」に絞る
+function videoTerms(items: VideoItem[], state: UrlSearchState): string[] {
+  const links = items.map((item) => tokenTerm(item.id));
+  if (!state.videoTitleSearch) return links;
+  const keywords = [...new Set(items.map((item) => item.keyword.trim()).filter(Boolean))];
+  if (!keywords.length) return links;
+  const names = orGroup(state.words, false);
+  if (!names) return [...links, ...keywords.map((keyword) => quoteTerm(keyword, true))];
+  return [...links, `(${orGroup(keywords, true)} ${names})`];
+}
+
+export function videoQuery(item: VideoItem, state: UrlSearchState): string {
+  return withTail(group(videoTerms([item], state)), state);
 }
 
 export type VideoBatch = {
@@ -186,30 +221,25 @@ export type VideoBatch = {
   to: number;
 };
 
-// 動画ごとの url: を OR でつなぎ、X に入る長さごとに分ける
+// 動画ごとの url:（とタイトルの言葉）を OR でつなぎ、X に入る長さごとに分ける
 export function buildVideoBatches(
-  videoIds: string[],
+  items: VideoItem[],
   state: UrlSearchState,
   maxLength = MAX_QUERY_LENGTH,
 ): VideoBatch[] {
-  const tail = tailParts(state).join(" ");
-  const budget = maxLength - (tail ? tail.length + 1 : 0) - 2;
   const batches: VideoBatch[] = [];
-  let terms: string[] = [];
+  let current: VideoItem[] = [];
   let from = 1;
-  const flush = (end: number) => {
-    if (!terms.length) return;
-    batches.push({ query: withTail(group(terms), state), from, to: end });
-    terms = [];
-    from = end + 1;
-  };
-  videoIds.forEach((id, index) => {
-    const term = tokenTerm(id);
-    const length = [...terms, term].join(" OR ").length;
-    if (terms.length && length > budget) flush(index);
-    terms.push(term);
+  const queryOf = (list: VideoItem[]) => withTail(group(videoTerms(list, state)), state);
+  items.forEach((item, index) => {
+    if (current.length && queryOf([...current, item]).length > maxLength) {
+      batches.push({ query: queryOf(current), from, to: index });
+      current = [];
+      from = index + 1;
+    }
+    current.push(item);
   });
-  flush(videoIds.length);
+  if (current.length) batches.push({ query: queryOf(current), from, to: items.length });
   return batches;
 }
 
@@ -233,6 +263,7 @@ export function loadUrlSearch(): UrlSearchState {
       ),
       videoYears: strings(parsed.videoYears),
       videoTitle: typeof parsed.videoTitle === "string" ? parsed.videoTitle : "",
+      videoTitleSearch: parsed.videoTitleSearch !== false,
     };
   } catch {
     return fallback;

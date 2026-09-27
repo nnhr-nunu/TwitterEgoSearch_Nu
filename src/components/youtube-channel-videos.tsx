@@ -6,16 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import type { MessageKey } from "@/lib/i18n";
 import { buildSearchUrl } from "@/lib/query";
-import { buildVideoBatches, filterVideos, type UrlSearchState, videoQuery } from "@/lib/url-search";
+import { channelNameWords, titleKeyword } from "@/lib/title-keywords";
+import { buildVideoBatches, filterVideos, type UrlSearchState, type VideoItem, videoQuery } from "@/lib/url-search";
 import {
   type ChannelData,
   effectiveYoutubeKey,
   fetchChannelVideos,
   hasBuiltInYoutubeKey,
   loadYoutubeApiKey,
-  saveChannelCache,
+  refreshChannelVideos,
   saveYoutubeApiKey,
   VIDEO_KINDS,
   type VideoKind,
@@ -28,7 +30,7 @@ type YoutubeChannelVideosProps = {
   t: (key: MessageKey) => string;
   // 入力 URL から読んだハンドルかチャンネル ID
   channelRef: string;
-  // 入力中のチャンネルと一致するときだけ渡される
+  // 保存済みの一覧のうち、入力中のチャンネルと一致するもの
   data: ChannelData | null;
   onLoaded: (data: ChannelData) => void;
   state: UrlSearchState;
@@ -75,16 +77,23 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
   const [apiKey, setApiKey] = useState(loadYoutubeApiKey);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  const [notice, setNotice] = useState("");
   const builtIn = hasBuiltInYoutubeKey();
   const key = effectiveYoutubeKey(apiKey);
 
-  const load = async () => {
+  // 保存済みなら新着分だけ取る（数ユニット）。全部取り直すのは「すべて読み直す」のときだけ
+  const load = async (mode: "refresh" | "full") => {
     setLoading(true);
     setError(null);
+    setNotice("");
     try {
-      const next = await fetchChannelVideos(channelRef, key);
-      saveChannelCache(next);
-      onLoaded(next);
+      if (mode === "refresh" && data) {
+        const result = await refreshChannelVideos(data, key);
+        onLoaded(result.data);
+        setNotice(result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew"));
+      } else {
+        onLoaded(await fetchChannelVideos(channelRef, key));
+      }
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -97,7 +106,10 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
   const yearCounts = countBy(videos.map(videoYear).filter(Boolean));
   const years = [...yearCounts.keys()].sort((a, b) => b.localeCompare(a));
   const matched = filterVideos(videos, state);
-  const batches = buildVideoBatches(matched.map((video) => video.id), state);
+  // 名前だけの区切り（「曲名 / 名前」の名前側）はタイトルの言葉にしない
+  const nameWords = data ? [...state.words, ...channelNameWords(data.channel.title), data.channel.handle] : [];
+  const items: VideoItem[] = matched.map((video) => ({ id: video.id, keyword: titleKeyword(video.title, nameWords) }));
+  const batches = buildVideoBatches(items, state);
   const hrefOf = (query: string) => buildSearchUrl(query, "posts", state.sort);
 
   return (
@@ -136,9 +148,15 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" disabled={!key || loading} onClick={load} data-testid="yt-load">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!key || loading}
+          onClick={() => load("refresh")}
+          data-testid="yt-load"
+        >
           <RefreshCwIcon data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
-          {loading ? t("ytLoading") : data ? t("ytReload") : t("ytLoad")}
+          {loading ? t("ytLoading") : data ? t("ytRefresh") : t("ytLoad")}
         </Button>
         {data ? (
           <span className="text-xs text-muted-foreground" data-testid="yt-loaded">
@@ -149,6 +167,21 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
           </span>
         ) : null}
       </div>
+      {data ? (
+        <p className="text-xs text-muted-foreground">
+          {notice ? <span data-testid="yt-notice">{notice} </span> : null}
+          {t("ytCacheNote")}{" "}
+          <button
+            type="button"
+            className="underline underline-offset-2 disabled:opacity-50"
+            disabled={!key || loading}
+            onClick={() => load("full")}
+            data-testid="yt-reload-all"
+          >
+            {t("ytReloadAll")}
+          </button>
+        </p>
+      ) : null}
       {error ? (
         <p className="text-sm text-destructive" data-testid="yt-error">
           {t(error)}
@@ -226,6 +259,26 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
             />
           </div>
 
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="yt-title-search" className="cursor-pointer text-sm">
+                {t("ytTitleSearch")}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {state.videoTitleSearch && state.words.length
+                  ? t("ytTitleSearchScoped").replace("{names}", state.words.join("・"))
+                  : t("ytTitleSearchHint")}
+              </p>
+            </div>
+            <Switch
+              id="yt-title-search"
+              checked={state.videoTitleSearch}
+              onCheckedChange={(checked) => patch({ videoTitleSearch: checked })}
+              aria-label={t("ytTitleSearch")}
+              data-testid="yt-title-search"
+            />
+          </div>
+
           <div className="space-y-2">
             <p className="text-sm font-medium" data-testid="yt-matched">
               {t("ytMatched").replace("{count}", String(matched.length))}
@@ -256,19 +309,24 @@ export function YoutubeChannelVideos({ t, channelRef, data, onLoaded, state, pat
 
           {matched.length ? (
             <ul className="max-h-96 divide-y divide-border overflow-y-auto rounded-lg border border-border" data-testid="yt-list">
-              {matched.map((video) => (
+              {matched.map((video, index) => (
                 <li key={video.id} className="flex items-center gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <p className="line-clamp-2 text-sm leading-snug">{video.title}</p>
                     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="tabular-nums">{videoDate(video)}</span>
+                      <span className="whitespace-nowrap tabular-nums">{videoDate(video)}</span>
                       <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
                         {t(KIND_LABELS[video.kind])}
                       </Badge>
                     </p>
+                    {state.videoTitleSearch && items[index].keyword ? (
+                      <p className="truncate text-xs text-muted-foreground" data-testid="yt-keyword">
+                        ＋「{items[index].keyword}」
+                      </p>
+                    ) : null}
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <a href={hrefOf(videoQuery(video.id, state))} target="_blank" rel="noopener noreferrer">
+                    <a href={hrefOf(videoQuery(items[index], state))} target="_blank" rel="noopener noreferrer">
                       <SearchIcon data-icon="inline-start" />
                       {t("ytReactions")}
                     </a>

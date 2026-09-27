@@ -1,9 +1,9 @@
 // YouTube Data API v3（無料枠 1 日 10,000 ユニット）でチャンネルの動画一覧を取る。
 // 使うのは channels / playlistItems / videos の list だけで、どれも 1 回 1 ユニット。
 // search.list（100 ユニット）は使わない。
+// 取った一覧はブラウザに保存し（youtube-cache.ts）、読み直しは新着分だけ取る（refreshChannelVideos）。
 
 export const YOUTUBE_API_KEY_STORAGE_KEY = "egosearch-nu:youtube-api-key";
-export const YOUTUBE_CHANNEL_CACHE_KEY = "egosearch-nu:youtube-channel";
 
 // 取りすぎて無料枠を食わないよう、1 チャンネルあたりの上限を決めておく（約 45 ユニット）
 export const MAX_UPLOADS = 1000;
@@ -134,7 +134,14 @@ async function fetchChannel(fetchImpl: FetchLike, ref: string, key: string): Pro
   };
 }
 
-async function fetchPlaylistIds(fetchImpl: FetchLike, playlistId: string, key: string, limit: number) {
+// stopAt にある動画まで来たら止める（新しい順なので、そこから先は取得済み）
+async function fetchPlaylistIds(
+  fetchImpl: FetchLike,
+  playlistId: string,
+  key: string,
+  limit: number,
+  stopAt?: Set<string>,
+) {
   const ids: string[] = [];
   let pageToken = "";
   do {
@@ -143,6 +150,7 @@ async function fetchPlaylistIds(fetchImpl: FetchLike, playlistId: string, key: s
     const list = await callApi(fetchImpl, "playlistItems", params, key);
     for (const item of list.items ?? []) {
       const id = str(obj(item.contentDetails).videoId);
+      if (id && stopAt?.has(id)) return { ids: ids.slice(0, limit), truncated: false };
       if (id) ids.push(id);
     }
     pageToken = list.nextPageToken ?? "";
@@ -152,9 +160,14 @@ async function fetchPlaylistIds(fetchImpl: FetchLike, playlistId: string, key: s
 
 // UUSH（ショート）と UULV（配信）は公式に文書化されていない自動プレイリスト。
 // 取れなければ null を返し、長さと配信情報からの判定に任せる
-async function tryPlaylistIdSet(fetchImpl: FetchLike, playlistId: string, key: string): Promise<Set<string> | null> {
+async function tryPlaylistIdSet(
+  fetchImpl: FetchLike,
+  playlistId: string,
+  key: string,
+  stopAt?: Set<string>,
+): Promise<Set<string> | null> {
   try {
-    return new Set((await fetchPlaylistIds(fetchImpl, playlistId, key, MAX_UPLOADS)).ids);
+    return new Set((await fetchPlaylistIds(fetchImpl, playlistId, key, MAX_UPLOADS, stopAt)).ids);
   } catch {
     return null;
   }
@@ -185,6 +198,24 @@ export function classifyVideo(
   return !detail.hasLive && detail.seconds > 0 && detail.seconds <= SHORT_MAX_SECONDS ? "short" : "video";
 }
 
+async function fetchDetails(fetchImpl: FetchLike, ids: string[], key: string): Promise<VideoDetail[]> {
+  const details: VideoDetail[] = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const list = await callApi(
+      fetchImpl,
+      "videos",
+      { part: "snippet,contentDetails,liveStreamingDetails", id: ids.slice(i, i + 50).join(","), maxResults: "50" },
+      key,
+    );
+    details.push(...(list.items ?? []).map(toDetail).filter((detail) => detail.id));
+  }
+  return details;
+}
+
+function byNewest(a: ChannelVideo, b: ChannelVideo): number {
+  return b.publishedAt.localeCompare(a.publishedAt);
+}
+
 export async function fetchChannelVideos(ref: string, key: string, fetchImpl: FetchLike = fetch): Promise<ChannelData> {
   const channel = await fetchChannel(fetchImpl, ref, key);
   const uploads = await fetchPlaylistIds(fetchImpl, channel.uploads, key, MAX_UPLOADS);
@@ -193,35 +224,89 @@ export async function fetchChannelVideos(ref: string, key: string, fetchImpl: Fe
     tryPlaylistIdSet(fetchImpl, `UUSH${suffix}`, key),
     tryPlaylistIdSet(fetchImpl, `UULV${suffix}`, key),
   ]);
-
-  const details: VideoDetail[] = [];
-  for (let i = 0; i < uploads.ids.length; i += 50) {
-    const list = await callApi(
-      fetchImpl,
-      "videos",
-      { part: "snippet,contentDetails,liveStreamingDetails", id: uploads.ids.slice(i, i + 50).join(","), maxResults: "50" },
-      key,
-    );
-    details.push(...(list.items ?? []).map(toDetail));
-  }
-
-  const videos = details
-    .filter((detail) => detail.id)
-    .map((detail) => ({
-      id: detail.id,
-      title: detail.title,
-      publishedAt: detail.publishedAt,
-      kind: classifyVideo(detail, shorts, lives),
-    }))
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const details = await fetchDetails(fetchImpl, uploads.ids, key);
 
   return {
     ref,
     channel: { id: channel.id, title: channel.title, handle: channel.handle },
-    videos,
+    videos: details
+      .map((detail) => ({
+        id: detail.id,
+        title: detail.title,
+        publishedAt: detail.publishedAt,
+        kind: classifyVideo(detail, shorts, lives),
+      }))
+      .sort(byNewest),
     fetchedAt: new Date().toISOString(),
     truncated: uploads.truncated,
   };
+}
+
+export type RefreshResult = { data: ChannelData; added: number };
+
+// 保存済みの一覧に新着だけ足す。新着がなければ 2 ユニット（アップロード 1 ページ＋直近 50 本の取り直し）で済む
+export async function refreshChannelVideos(
+  previous: ChannelData,
+  key: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<RefreshResult> {
+  const suffix = previous.channel.id.slice(2);
+  const known = new Set(previous.videos.map((video) => video.id));
+  const uploads = await fetchPlaylistIds(fetchImpl, `UU${suffix}`, key, MAX_UPLOADS, known);
+  const added = uploads.ids.filter((id) => !known.has(id));
+  const [shorts, lives] = added.length
+    ? await Promise.all([
+        tryPlaylistIdSet(fetchImpl, `UUSH${suffix}`, key, known),
+        tryPlaylistIdSet(fetchImpl, `UULV${suffix}`, key, known),
+      ])
+    : [null, null];
+
+  // 新着と一緒に直近の動画も取り直し、タイトルの変更や配信日時の確定、削除を反映する（50 本で 1 ユニット）
+  const size = Math.max(50, Math.ceil(added.length / 50) * 50);
+  const recent = previous.videos.slice(0, size - added.length).map((video) => video.id);
+  const details = new Map((await fetchDetails(fetchImpl, [...added, ...recent], key)).map((d) => [d.id, d]));
+  const recentSet = new Set(recent);
+
+  const videos: ChannelVideo[] = [];
+  for (const id of added) {
+    const detail = details.get(id);
+    if (detail) {
+      videos.push({ id, title: detail.title, publishedAt: detail.publishedAt, kind: classifyVideo(detail, shorts, lives) });
+    }
+  }
+  for (const video of previous.videos) {
+    const detail = details.get(video.id);
+    if (detail) videos.push({ ...video, title: detail.title, publishedAt: detail.publishedAt });
+    // 取り直した範囲で返ってこなかった動画は、削除か非公開になった
+    else if (!recentSet.has(video.id)) videos.push(video);
+  }
+
+  const sorted = videos.sort(byNewest);
+  return {
+    data: {
+      ...previous,
+      videos: sorted.slice(0, MAX_UPLOADS),
+      fetchedAt: new Date().toISOString(),
+      truncated: previous.truncated || uploads.truncated || sorted.length > MAX_UPLOADS,
+    },
+    added: added.filter((id) => details.has(id)).length,
+  };
+}
+
+export type VideoInfo = {
+  id: string;
+  title: string;
+  channelId: string;
+  channelTitle: string;
+};
+
+// 動画 1 本のタイトルとチャンネル名（1 ユニット）。見つからなければ null
+export async function fetchVideoInfo(id: string, key: string, fetchImpl: FetchLike = fetch): Promise<VideoInfo | null> {
+  const list = await callApi(fetchImpl, "videos", { part: "snippet", id }, key);
+  const item = list.items?.[0];
+  if (!item) return null;
+  const snippet = obj(item.snippet);
+  return { id, title: str(snippet.title), channelId: str(snippet.channelId), channelTitle: str(snippet.channelTitle) };
 }
 
 // 年の区切りは閲覧しているブラウザの時刻に合わせる
@@ -235,29 +320,4 @@ export function videoDate(video: Pick<ChannelVideo, "publishedAt">): string {
   if (Number.isNaN(date.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-export function sameRef(a: string, b: string): boolean {
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
-}
-
-export function loadChannelCache(): ChannelData | null {
-  try {
-    const raw = window.localStorage.getItem(YOUTUBE_CHANNEL_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ChannelData;
-    if (typeof parsed?.ref !== "string" || !Array.isArray(parsed.videos) || !parsed.channel?.id) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-// 直近の 1 チャンネルだけ覚える（容量を増やさないため）
-export function saveChannelCache(data: ChannelData): void {
-  try {
-    window.localStorage.setItem(YOUTUBE_CHANNEL_CACHE_KEY, JSON.stringify(data));
-  } catch {
-    // 保存できなくても、その場では使える
-  }
 }

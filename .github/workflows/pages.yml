@@ -31,8 +31,9 @@ jobs:
           NEXT_PUBLIC_ADSENSE_SLOT: ${{ vars.ADSENSE_SLOT }}
           NEXT_PUBLIC_ADSENSE_SIDE_SLOT: ${{ vars.ADSENSE_SIDE_SLOT }}
           # URL検索でチャンネルの動画一覧を読むキー。Google Cloud 側で HTTP リファラーを公開ドメインに、API を YouTube Data API v3 に制限しておく。
-          # 未設定なら、利用者が自分のキーを入れたときだけ読み込める。
-          NEXT_PUBLIC_YOUTUBE_API_KEY: ${{ vars.YOUTUBE_API_KEY }}
+          # Variables と Secrets のどちらに入れても使う。未設定なら、利用者が自分のキーを入れたときだけ読み込める。
+          # （公開ページの JS に入るので秘密にはならない。守りは Google Cloud 側のリファラー制限）
+          NEXT_PUBLIC_YOUTUBE_API_KEY: ${{ vars.YOUTUBE_API_KEY || secrets.YOUTUBE_API_KEY }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { classifyVideo, fetchChannelVideos, parseIsoDuration, YoutubeApiError } from "./youtube";
+import {
+  type ChannelData,
+  classifyVideo,
+  fetchChannelVideos,
+  fetchVideoInfo,
+  parseIsoDuration,
+  refreshChannelVideos,
+  YoutubeApiError,
+} from "./youtube";
 
 const CHANNEL_ID = "UCqYpbbypex0iOikcZRenxGA";
 const SUFFIX = CHANNEL_ID.slice(2);
@@ -145,5 +153,70 @@ describe("fetchChannelVideos", () => {
     const error = await fetchChannelVideos("nobody", "KEY", impl).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(YoutubeApiError);
     expect((error as YoutubeApiError).reason).toBe("channelNotFound");
+  });
+});
+
+describe("refreshChannelVideos", () => {
+  const previous: ChannelData = {
+    ref: "nnhr_nunu",
+    channel: { id: CHANNEL_ID, title: "ぬぬはら", handle: "nnhr_nunu" },
+    videos: [
+      { id: "eeeeeeeeeee", title: "消えた動画", publishedAt: "2025-06-01T12:00:00Z", kind: "video" },
+      { id: "aaaaaaaaaaa", title: "old title", publishedAt: "2025-01-10T12:00:00Z", kind: "video" },
+      { id: "ddddddddddd", title: "title ddddddddddd", publishedAt: "2024-04-10T12:00:00Z", kind: "live" },
+    ],
+    fetchedAt: "2026-01-01T00:00:00Z",
+    truncated: false,
+  };
+
+  it("adds only the new uploads without looking up the channel again", async () => {
+    const { impl, calls } = fakeFetch(
+      channelRoutes({
+        [`UU${SUFFIX}`]: ["ccccccccccc", "bbbbbbbbbbb", "eeeeeeeeeee", "aaaaaaaaaaa", "ddddddddddd"],
+        [`UUSH${SUFFIX}`]: ["bbbbbbbbbbb", "aaaaaaaaaaa"],
+        [`UULV${SUFFIX}`]: ["ccccccccccc", "ddddddddddd"],
+      }),
+    );
+    const { data, added } = await refreshChannelVideos(previous, "KEY", impl);
+    expect(calls.some((call) => call.startsWith("channels"))).toBe(false);
+    expect(calls.filter((call) => call.startsWith("videos"))).toHaveLength(1);
+    expect(added).toBe(2);
+    expect(data.videos.map((v) => [v.id, v.kind, v.title])).toEqual([
+      ["ccccccccccc", "live", "title ccccccccccc"],
+      ["bbbbbbbbbbb", "short", "title bbbbbbbbbbb"],
+      // タイトルは取り直し、種類は保存済みのまま
+      ["aaaaaaaaaaa", "video", "title aaaaaaaaaaa"],
+      ["ddddddddddd", "live", "title ddddddddddd"],
+    ]);
+    expect(data.fetchedAt).not.toBe(previous.fetchedAt);
+  });
+
+  it("skips the short and live playlists when nothing is new", async () => {
+    const { impl, calls } = fakeFetch(channelRoutes({ [`UU${SUFFIX}`]: ["eeeeeeeeeee", "aaaaaaaaaaa"] }));
+    const { added } = await refreshChannelVideos(previous, "KEY", impl);
+    expect(added).toBe(0);
+    expect(calls).toHaveLength(2);
+  });
+});
+
+describe("fetchVideoInfo", () => {
+  it("reads the title and channel of one video", async () => {
+    const { impl, calls } = fakeFetch({
+      videos: () => ({
+        body: { items: [{ id: "aaaaaaaaaaa", snippet: { title: "シャルル", channelId: CHANNEL_ID, channelTitle: "ぬぬはら" } }] },
+      }),
+    });
+    expect(await fetchVideoInfo("aaaaaaaaaaa", "KEY", impl)).toEqual({
+      id: "aaaaaaaaaaa",
+      title: "シャルル",
+      channelId: CHANNEL_ID,
+      channelTitle: "ぬぬはら",
+    });
+    expect(calls[0]).toContain("part=snippet&id=aaaaaaaaaaa");
+  });
+
+  it("returns null for an unknown video", async () => {
+    const { impl } = fakeFetch({ videos: () => ({ body: { items: [] } }) });
+    expect(await fetchVideoInfo("zzzzzzzzzzz", "KEY", impl)).toBeNull();
   });
 });

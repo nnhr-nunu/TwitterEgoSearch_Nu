@@ -6,6 +6,7 @@ import {
   filterVideos,
   linkTerm,
   parseTargetUrl,
+  videoQuery,
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
 
@@ -80,7 +81,7 @@ describe("buildUrlQueries", () => {
 
   it("returns empty queries without a url or words", () => {
     const queries = buildUrlQueries({ ...createDefaultUrlSearch(), since: "2026-09-20" });
-    expect(queries).toEqual({ all: "", link: "", words: "" });
+    expect(queries).toEqual({ all: "", link: "", words: "", videoCount: 0 });
   });
 
   it("falls back to words when the url cannot be read", () => {
@@ -98,6 +99,24 @@ describe("buildUrlQueries with channel tokens", () => {
     );
     expect(queries.link).toBe("(url:nnhr_nunu OR url:UCqYpbbypex0iOikcZRenxGA)");
     expect(queries.all).toBe(queries.link);
+  });
+
+  it("adds the newest channel videos to the main search up to the length limit", () => {
+    const state = { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu", words: ["ぬぬはら"] };
+    const ids = Array.from({ length: 40 }, (_, i) => `video${String(i).padStart(6, "0")}`);
+    const queries = buildUrlQueries(state, [], ids, 200);
+    expect(queries.videoCount).toBeGreaterThan(0);
+    expect(queries.videoCount).toBeLessThan(40);
+    expect(queries.all.length).toBeLessThanOrEqual(200);
+    expect(queries.all).toMatch(/^\(url:nnhr_nunu OR url:video000000 OR .* OR ぬぬはら\)$/);
+    expect(queries.link).not.toContain("ぬぬはら");
+    expect(queries.link).toContain(`url:video${String(queries.videoCount - 1).padStart(6, "0")}`);
+  });
+
+  it("ignores video ids when the target is not a channel", () => {
+    const queries = buildUrlQueries({ ...createDefaultUrlSearch(), words: ["曲名"] }, [], ["aaaaaaaaaaa"]);
+    expect(queries.videoCount).toBe(0);
+    expect(queries.all).toBe("曲名");
   });
 });
 
@@ -124,11 +143,11 @@ describe("filterVideos", () => {
 });
 
 describe("buildVideoBatches", () => {
-  const ids = Array.from({ length: 30 }, (_, i) => `video${String(i).padStart(6, "0")}`);
+  const items = Array.from({ length: 30 }, (_, i) => ({ id: `video${String(i).padStart(6, "0")}`, keyword: "" }));
   const state = { ...createDefaultUrlSearch(), excluded: ["nnhr_nunu"], since: "2026-01-01" };
 
   it("splits the ids so each query fits the length limit", () => {
-    const batches = buildVideoBatches(ids, state, 200);
+    const batches = buildVideoBatches(items, state, 200);
     expect(batches.length).toBeGreaterThan(1);
     for (const batch of batches) {
       expect(batch.query.length).toBeLessThanOrEqual(200);
@@ -137,16 +156,41 @@ describe("buildVideoBatches", () => {
     expect(batches[0].from).toBe(1);
     expect(batches.at(-1)?.to).toBe(30);
     const joined = batches.map((batch) => batch.query).join(" ");
-    for (const id of ids) expect(joined).toContain(`url:${id}`);
+    for (const item of items) expect(joined).toContain(`url:${item.id}`);
   });
 
   it("uses a single term without parentheses", () => {
-    expect(buildVideoBatches(["aaaaaaaaaaa"], createDefaultUrlSearch())).toEqual([
+    expect(buildVideoBatches([{ id: "aaaaaaaaaaa", keyword: "" }], createDefaultUrlSearch())).toEqual([
       { query: "url:aaaaaaaaaaa", from: 1, to: 1 },
     ]);
   });
 
   it("returns nothing for no ids", () => {
     expect(buildVideoBatches([], state)).toEqual([]);
+  });
+
+  it("adds title words, scoped by the names when there are any", () => {
+    const two = [
+      { id: "aaaaaaaaaaa", keyword: "シャルル" },
+      { id: "bbbbbbbbbbb", keyword: "夜に駆ける" },
+    ];
+    expect(buildVideoBatches(two, createDefaultUrlSearch())[0].query).toBe(
+      '(url:aaaaaaaaaaa OR url:bbbbbbbbbbb OR "シャルル" OR "夜に駆ける")',
+    );
+    const named = { ...createDefaultUrlSearch(), words: ["ぬぬはら", "nnhr"] };
+    expect(buildVideoBatches(two, named)[0].query).toBe(
+      '(url:aaaaaaaaaaa OR url:bbbbbbbbbbb OR (("シャルル" OR "夜に駆ける") (ぬぬはら OR nnhr)))',
+    );
+    expect(buildVideoBatches(two, { ...named, videoTitleSearch: false })[0].query).toBe(
+      "(url:aaaaaaaaaaa OR url:bbbbbbbbbbb)",
+    );
+  });
+});
+
+describe("videoQuery", () => {
+  it("searches the link or the title words", () => {
+    const state = { ...createDefaultUrlSearch(), words: ["ぬぬはら"] };
+    expect(videoQuery({ id: "aaaaaaaaaaa", keyword: "シャルル" }, state)).toBe('(url:aaaaaaaaaaa OR ("シャルル" ぬぬはら))');
+    expect(videoQuery({ id: "aaaaaaaaaaa", keyword: "" }, state)).toBe("url:aaaaaaaaaaa");
   });
 });
