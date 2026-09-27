@@ -50,6 +50,14 @@ export function upsertChannel(channels: ChannelData[], data: ChannelData): Chann
   return [data, ...channels.filter((item) => item.channel.id !== data.channel.id)].slice(0, MAX_CHANNELS);
 }
 
+// チャンネルを選び直したとき、これより古い一覧なら新着を確認する（数ユニット）
+const STALE_MS = 60 * 60 * 1000;
+
+export function isStaleChannel(data: ChannelData, now = Date.now()): boolean {
+  const fetched = Date.parse(data.fetchedAt);
+  return Number.isNaN(fetched) || now - fetched > STALE_MS;
+}
+
 export function saveChannelCache(channels: ChannelData[]): void {
   try {
     window.localStorage.setItem(YOUTUBE_CHANNELS_CACHE_KEY, JSON.stringify(channels));

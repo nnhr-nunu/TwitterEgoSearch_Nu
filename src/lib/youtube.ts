@@ -28,6 +28,12 @@ export type ChannelInfo = {
   title: string;
   // "@" を除いたハンドル。ないチャンネルもある
   handle: string;
+  // ここから下は後から足した項目。前に保存した一覧には無い
+  thumbnail?: string;
+  // 説明欄に載っている X アカウント。本人の投稿を検索から除くのに使う
+  xHandles?: string[];
+  // 説明欄に載っているハッシュタグ（配信タグ・ファンアートタグなど）
+  hashtags?: string[];
 };
 
 export type ChannelData = {
@@ -88,6 +94,34 @@ async function callApi(fetchImpl: FetchLike, path: string, params: Record<string
   return body as ApiList;
 }
 
+// dropbox.com のような別ドメインの一部を拾わないよう、直前が英数字でないものに限る
+const X_PROFILE_RE = /(?<![A-Za-z0-9-])(?:twitter|x)\.com\/@?([A-Za-z0-9_]{1,15})(?![A-Za-z0-9_])/gi;
+const X_RESERVED = new Set(["i", "intent", "home", "hashtag", "search", "share", "explore", "settings", "messages", "notifications", "login", "signup", "tos", "privacy"]);
+const HASHTAG_RE = /[#＃]([^\s#＃.,、。!！?？:：;；()（）「」『』【】[\]<>＜＞"'“”/／|｜]+)/gu;
+const GENERIC_HASHTAGS = new Set(["shorts", "short", "youtube", "vtuber", "live", "asmr"]);
+
+function uniqueCaseless(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const lower = value.toLowerCase();
+    if (seen.has(lower)) return false;
+    seen.add(lower);
+    return true;
+  });
+}
+
+// チャンネルの説明欄から、本人の X アカウントとハッシュタグを拾う
+export function channelDescriptionLinks(description: string): { xHandles: string[]; hashtags: string[] } {
+  const xHandles = [...description.matchAll(X_PROFILE_RE)]
+    .map((match) => match[1])
+    .filter((handle) => !X_RESERVED.has(handle.toLowerCase()));
+  const hashtags = [...description.matchAll(HASHTAG_RE)]
+    .map((match) => match[1])
+    .filter((tag) => !/^\d+$/.test(tag) && !GENERIC_HASHTAGS.has(tag.toLowerCase()))
+    .map((tag) => `#${tag}`);
+  return { xHandles: uniqueCaseless(xHandles).slice(0, 3), hashtags: uniqueCaseless(hashtags).slice(0, 6) };
+}
+
 async function fetchChannel(fetchImpl: FetchLike, ref: string, key: string): Promise<ChannelInfo & { uploads: string }> {
   const lookup: Record<string, string> = CHANNEL_ID_RE.test(ref) ? { id: ref } : { forHandle: `@${ref}` };
   let list = await callApi(fetchImpl, "channels", { part: "snippet,contentDetails", ...lookup }, key);
@@ -99,10 +133,13 @@ async function fetchChannel(fetchImpl: FetchLike, ref: string, key: string): Pro
   if (!item) throw new YoutubeApiError("channel not found", "channelNotFound");
   const snippet = obj(item.snippet);
   const uploads = str(obj(obj(item.contentDetails).relatedPlaylists).uploads);
+  const thumbnails = obj(snippet.thumbnails);
   return {
     id: str(item.id),
     title: str(snippet.title),
     handle: str(snippet.customUrl).replace(/^@/, ""),
+    thumbnail: str(obj(thumbnails.default).url) || str(obj(thumbnails.medium).url),
+    ...channelDescriptionLinks(str(snippet.description)),
     uploads: uploads || `UU${str(item.id).slice(2)}`,
   };
 }
@@ -190,8 +227,8 @@ function byNewest(a: ChannelVideo, b: ChannelVideo): number {
 }
 
 export async function fetchChannelVideos(ref: string, key: string, fetchImpl: FetchLike = fetch): Promise<ChannelData> {
-  const channel = await fetchChannel(fetchImpl, ref, key);
-  const uploads = await fetchPlaylistIds(fetchImpl, channel.uploads, key, MAX_UPLOADS);
+  const { uploads: uploadsId, ...channel } = await fetchChannel(fetchImpl, ref, key);
+  const uploads = await fetchPlaylistIds(fetchImpl, uploadsId, key, MAX_UPLOADS);
   const suffix = channel.id.slice(2);
   const [shorts, lives] = await Promise.all([
     tryPlaylistIdSet(fetchImpl, `UUSH${suffix}`, key),
@@ -201,7 +238,7 @@ export async function fetchChannelVideos(ref: string, key: string, fetchImpl: Fe
 
   return {
     ref,
-    channel: { id: channel.id, title: channel.title, handle: channel.handle },
+    channel,
     videos: details
       .map((detail) => ({
         id: detail.id,
@@ -217,15 +254,17 @@ export async function fetchChannelVideos(ref: string, key: string, fetchImpl: Fe
 
 export type RefreshResult = { data: ChannelData; added: number };
 
-// 保存済みの一覧に新着だけ足す。新着がなければ 2 ユニット（アップロード 1 ページ＋直近 50 本の取り直し）で済む
+// 保存済みの一覧に新着だけ足す。新着がなければ 3 ユニット
+// （チャンネル名・アイコンの取り直し＋アップロード 1 ページ＋直近 50 本の取り直し）で済む
 export async function refreshChannelVideos(
   previous: ChannelData,
   key: string,
   fetchImpl: FetchLike = fetch,
 ): Promise<RefreshResult> {
+  const { uploads: uploadsId, ...channel } = await fetchChannel(fetchImpl, previous.channel.id, key);
   const suffix = previous.channel.id.slice(2);
   const known = new Set(previous.videos.map((video) => video.id));
-  const uploads = await fetchPlaylistIds(fetchImpl, `UU${suffix}`, key, MAX_UPLOADS, known);
+  const uploads = await fetchPlaylistIds(fetchImpl, uploadsId, key, MAX_UPLOADS, known);
   const added = uploads.ids.filter((id) => !known.has(id));
   const [shorts, lives] = added.length
     ? await Promise.all([
@@ -258,6 +297,7 @@ export async function refreshChannelVideos(
   return {
     data: {
       ...previous,
+      channel,
       videos: sorted.slice(0, MAX_UPLOADS),
       fetchedAt: new Date().toISOString(),
       truncated: previous.truncated || uploads.truncated || sorted.length > MAX_UPLOADS,

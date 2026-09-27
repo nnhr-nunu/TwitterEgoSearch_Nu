@@ -70,7 +70,7 @@ export function saveActiveSlot(index: SlotIndex): void {
   window.localStorage.setItem(SLOT_INDEX_KEY, String(index));
 }
 
-// 設定1〜3 と URL検索 のどちらを開いていたか
+// 設定1〜3 と YouTube タブのどちらを開いていたか
 export const URL_VIEW_KEY = "egosearch-nu:url-view";
 
 export function loadUrlView(): boolean {

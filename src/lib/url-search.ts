@@ -1,8 +1,17 @@
 import { daysAgoIso } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
+import { titleKeyword } from "./title-keywords";
 import type { ResultSort } from "./types";
 import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoYear } from "./youtube";
+
+// YouTube タブ（旧 URL検索）の条件と、X の検索クエリの組み立て。
+// X で実際に検索して分かったこと（2026-09-28, @nnhr_nunu）:
+// - url:動画ID は動画のリンクを貼った投稿だけに当たる。いちばん確実
+// - url:ハンドル は note・マシュマロ・本人の X 投稿の画像 URL（x.com/ハンドル/status/…）まで拾う。
+//   url:"youtube.com/@ハンドル" にすると、チャンネルのリンクを貼った投稿に絞れる
+// - タイトルから取った言葉を単独で探すと、「認知症の祖母」「七夕」のような言葉で無関係な投稿が大量に混ざる
+// - X の検索は約 500 文字を超えるとエラーになる（26 本 492 文字は通り、28 本 530 文字で失敗）
 
 export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 
@@ -17,32 +26,37 @@ export function periodSince(period: UrlPeriod): string {
   return period === "all" ? "" : daysAgoIso(PERIOD_DAYS[period]);
 }
 
+export type VideoKindFilter = VideoKind | "all";
+
 export type UrlSearchState = {
-  // 「検索」で確定した URL。入力途中の値は画面側で持つ
+  // 読み込んだ URL。入力途中の値は画面側で持つ
   url: string;
-  // リンクを貼らずに感想を書く人を拾うための言葉（タイトル・略称・ハッシュタグ）
+  // リンクを貼らずに感想を書く人を拾うための言葉（配信タグ・呼び名など）
   words: string[];
-  // 自分の告知ポストなど、反応として数えたくないアカウント
+  // 反応として数えたくないアカウント
   excluded: string[];
+  // チャンネルの説明欄にある本人の X アカウントの投稿を除く
+  excludeOwner: boolean;
   period: UrlPeriod;
   sort: ResultSort;
-  // チャンネルの動画一覧の絞り込み。空は「すべて」
-  videoKinds: VideoKind[];
-  videoYears: string[];
+  // チャンネルの動画一覧の絞り込み。"all" と "" は「すべて」
+  videoKind: VideoKindFilter;
+  videoYear: string;
   videoTitle: string;
-  // 動画ごとの検索に、タイトルから取った言葉（曲名など）も足す
-  videoTitleSearch: boolean;
 };
 
 export type UrlTargetKind = "video" | "channel" | "niconico" | "page";
 
 export type UrlTarget = {
   kind: UrlTargetKind;
-  // X の url: 演算子に渡す値。展開後の URL の一部に一致する
+  // 対象を見分ける値（動画 ID・ハンドル・チャンネル ID など）。保存済みのチャンネルとの照合に使う
   token: string;
+  // X の url: 演算子に渡す値。展開後の URL の一部に一致する
+  link: string;
 };
 
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const CHANNEL_ID_RE = /^UC[A-Za-z0-9_-]{22}$/;
 const YOUTUBE_HOSTS = new Set(["youtube.com", "m.youtube.com", "music.youtube.com"]);
 // ニコニコ動画（sm/so/nm）と生放送（lv）の ID。nico.ms の短縮 URL にも同じ ID が入る
 const NICONICO_ID_RE = /^(?:sm|so|nm|lv)\d+$/;
@@ -56,12 +70,12 @@ export function createDefaultUrlSearch(): UrlSearchState {
     url: "",
     words: [],
     excluded: [],
+    excludeOwner: true,
     period: "all",
     sort: "latest",
-    videoKinds: [],
-    videoYears: [],
+    videoKind: "all",
+    videoYear: "",
     videoTitle: "",
-    videoTitleSearch: true,
   };
 }
 
@@ -77,26 +91,42 @@ function toUrl(raw: string): URL | null {
   }
 }
 
+function video(id: string): UrlTarget {
+  return { kind: "video", token: id, link: id };
+}
+
+// チャンネルのリンクとして X で探す値。ID はそのまま、ハンドルなどは youtube.com からの形にする
+export function channelLink(ref: string): string {
+  if (CHANNEL_ID_RE.test(ref)) return ref;
+  return `youtube.com/@${ref.replace(/^@/, "")}`;
+}
+
 function youtubeTarget(host: string, url: URL): UrlTarget | null {
   const segments = url.pathname.split("/").filter(Boolean);
   if (host === "youtu.be") {
     const id = segments[0] ?? "";
-    return VIDEO_ID_RE.test(id) ? { kind: "video", token: id } : null;
+    return VIDEO_ID_RE.test(id) ? video(id) : null;
   }
   if (!YOUTUBE_HOSTS.has(host)) return null;
 
   const v = url.searchParams.get("v") ?? "";
-  if (segments[0] === "watch" && VIDEO_ID_RE.test(v)) return { kind: "video", token: v };
+  if (segments[0] === "watch" && VIDEO_ID_RE.test(v)) return video(v);
   if (["shorts", "live", "embed"].includes(segments[0] ?? "") && VIDEO_ID_RE.test(segments[1] ?? "")) {
-    return { kind: "video", token: segments[1] };
+    return video(segments[1]);
   }
 
   const first = segments[0] ?? "";
   if (first.startsWith("@") && first.length > 1) {
-    return { kind: "channel", token: decodeURIComponent(first.slice(1)) };
+    const handle = decodeURIComponent(first.slice(1));
+    return { kind: "channel", token: handle, link: channelLink(handle) };
   }
-  if (["channel", "c", "user"].includes(first) && segments[1]) {
-    return { kind: "channel", token: decodeURIComponent(segments[1]) };
+  if (first === "channel" && segments[1]) {
+    const id = decodeURIComponent(segments[1]);
+    return { kind: "channel", token: id, link: id };
+  }
+  if (["c", "user"].includes(first) && segments[1]) {
+    const name = decodeURIComponent(segments[1]);
+    return { kind: "channel", token: name, link: `youtube.com/${first}/${name}` };
   }
   return null;
 }
@@ -105,7 +135,7 @@ function niconicoTarget(host: string, url: URL): UrlTarget | null {
   if (!NICONICO_HOSTS.has(host)) return null;
   const segments = url.pathname.split("/").filter(Boolean);
   const id = host === "nico.ms" ? segments[0] : segments[0] === "watch" ? segments[1] : "";
-  return id && NICONICO_ID_RE.test(id) ? { kind: "niconico", token: id } : null;
+  return id && NICONICO_ID_RE.test(id) ? { kind: "niconico", token: id, link: id } : null;
 }
 
 export function parseTargetUrl(raw: string): UrlTarget | null {
@@ -121,111 +151,112 @@ export function parseTargetUrl(raw: string): UrlTarget | null {
     return null;
   }
   const path = url.pathname.replace(/\/+$/, "");
-  return { kind: "page", token: `${host}${path}` };
+  const link = `${host}${path}`;
+  return { kind: "page", token: link, link };
 }
 
-export function linkTerm(target: UrlTarget): string {
-  // 先頭の - は除外演算子と読まれるので引用符で囲む
-  return `url:${quoteTerm(target.token, target.kind === "page" || target.token.startsWith("-"))}`;
-}
-
-function tokenTerm(token: string): string {
-  return `url:${quoteTerm(token, token.startsWith("-"))}`;
-}
-
-// チャンネルはハンドルと UC から始まる ID のどちらのリンクでも貼られるので、両方を探す
-function linkTerms(target: UrlTarget | null, extraTokens: string[]): string[] {
-  if (!target) return [];
-  const seen = new Set([target.token.toLowerCase()]);
-  const terms = [linkTerm(target)];
-  for (const token of extraTokens) {
-    if (!token || seen.has(token.toLowerCase())) continue;
-    seen.add(token.toLowerCase());
-    terms.push(tokenTerm(token));
-  }
-  return terms;
+// ドメインやパスを含む値は引用符で囲む。先頭の - も除外演算子と読まれるので囲む
+export function linkTerm(link: string): string {
+  return `url:${quoteTerm(link, /[./@]/.test(link) || link.startsWith("-"))}`;
 }
 
 function group(terms: string[]): string {
   return terms.length > 1 ? `(${terms.join(" OR ")})` : (terms[0] ?? "");
 }
 
-function tailParts(state: UrlSearchState): string[] {
-  const parts = uniqueHandles(state.excluded).map((handle) => `-from:${handle}`);
+function uniqueCaseless(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const lower = value.trim().toLowerCase();
+    if (!lower || seen.has(lower)) return false;
+    seen.add(lower);
+    return true;
+  });
+}
+
+// 検索から除くアカウント。本人のアカウントはスイッチが入っているときだけ足す
+export function excludedHandles(state: UrlSearchState, owners: string[] = []): string[] {
+  return uniqueHandles([...state.excluded, ...(state.excludeOwner ? owners : [])]);
+}
+
+function tailParts(state: UrlSearchState, owners: string[]): string[] {
+  const parts = excludedHandles(state, owners).map((handle) => `-from:${handle}`);
   const since = periodSince(state.period);
   if (since) parts.push(`since:${since}`);
   return parts;
 }
 
-function withTail(head: string, state: UrlSearchState): string {
-  if (!head) return "";
-  return [head, ...tailParts(state)].join(" ");
+function compose(terms: string[], tail: string[]): string {
+  return terms.length ? [group(terms), ...tail].join(" ") : "";
 }
 
-export type UrlQueries = {
-  // リンクと言葉のどちらかを含む投稿。メインの検索
-  all: string;
-  link: string;
-  words: string;
+export type UrlScope = {
+  // 対象の URL のほかに探すリンク（読み込んだチャンネルの ID・ハンドル）
+  links?: string[];
+  // チャンネルの動画 ID（新しい順）。メインの検索に入るだけ足す
+  videoIds?: string[];
+  // 本人の X アカウント
+  owners?: string[];
+  // 動画 1 本のとき、タイトルから取った言葉と、それと一緒に書かれていてほしい名前
+  keyword?: string;
+  names?: string[];
+};
+
+// 曲名などは、名前も一緒に書かれた投稿だけに絞る（単独だと無関係な投稿が混ざる）
+function titleTerm(keyword: string, names: string[]): string {
+  const nameGroup = orGroup(uniqueCaseless(names), false);
+  return keyword.trim() && nameGroup ? `(${quoteTerm(keyword, true)} ${nameGroup})` : "";
+}
+
+export type MainQuery = {
+  query: string;
   // チャンネルのとき、メインの検索に入れた動画リンクの本数（新しい順）
   videoCount: number;
 };
 
-// チャンネルのときは videoIds（新しい順）のリンクも、X に入る長さまでメインの検索に足す。
-// 動画の共有リンクにはチャンネル名が入らないので、これがないとチャンネルへの反応の大半を取りこぼす
-export function buildUrlQueries(
-  state: UrlSearchState,
-  extraTokens: string[] = [],
-  videoIds: string[] = [],
-  maxLength = MAX_QUERY_LENGTH,
-): UrlQueries {
+// メインの検索。リンクと言葉のどちらかを含む投稿を探す。
+// チャンネルのときは新しい動画のリンクも X に入る長さまで足す（動画の共有リンクにはチャンネルが入らないため）
+export function buildMainQuery(state: UrlSearchState, scope: UrlScope = {}, maxLength = MAX_QUERY_LENGTH): MainQuery {
   const target = parseTargetUrl(state.url);
-  const links = linkTerms(target, extraTokens);
+  if (!target) return { query: "", videoCount: 0 };
+  const tail = tailParts(state, scope.owners ?? []);
+  const links = uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm);
+  if (target.kind === "video") links.push(titleTerm(scope.keyword ?? "", scope.names ?? []));
   const words = state.words.map((word) => quoteTerm(word, false)).filter(Boolean);
   const videoLinks: string[] = [];
-  for (const id of links.length ? videoIds : []) {
-    const next = [...videoLinks, tokenTerm(id)];
-    if (withTail(group([...links, ...next, ...words]), state).length > maxLength) break;
-    videoLinks.push(tokenTerm(id));
+  for (const id of target.kind === "channel" ? (scope.videoIds ?? []) : []) {
+    const term = linkTerm(id);
+    if (compose([...links, ...videoLinks, term, ...words], tail).length > maxLength) break;
+    videoLinks.push(term);
   }
-  return {
-    all: withTail(group([...links, ...videoLinks, ...words]), state),
-    link: withTail(group([...links, ...videoLinks]), state),
-    words: withTail(orGroup(state.words, false), state),
-    videoCount: videoLinks.length,
-  };
+  return { query: compose([...links, ...videoLinks, ...words].filter(Boolean), tail), videoCount: videoLinks.length };
 }
 
 export function filterVideos(videos: ChannelVideo[], state: UrlSearchState): ChannelVideo[] {
   const title = state.videoTitle.trim().toLowerCase();
   return videos.filter(
-    (video) =>
-      (state.videoKinds.length === 0 || state.videoKinds.includes(video.kind)) &&
-      (state.videoYears.length === 0 || state.videoYears.includes(videoYear(video))) &&
-      (!title || video.title.toLowerCase().includes(title)),
+    (item) =>
+      (state.videoKind === "all" || item.kind === state.videoKind) &&
+      (!state.videoYear || videoYear(item) === state.videoYear) &&
+      (!title || item.title.toLowerCase().includes(title)),
   );
 }
 
 export type VideoItem = {
   id: string;
-  // タイトルから取った言葉。取れなければ空
+  // タイトルから取った言葉（曲名など）。取れないときと配信は空
   keyword: string;
 };
 
-// リンクを貼らずに曲名などで書いた感想も拾う。一緒に探す言葉（名前）があれば、
-// ありふれた曲名で関係ない投稿が混ざらないよう「タイトルの言葉 かつ 名前」に絞る
-function videoTerms(items: VideoItem[], state: UrlSearchState): string[] {
-  const links = items.map((item) => tokenTerm(item.id));
-  if (!state.videoTitleSearch) return links;
-  const keywords = [...new Set(items.map((item) => item.keyword.trim()).filter(Boolean))];
-  if (!keywords.length) return links;
-  const names = orGroup(state.words, false);
-  if (!names) return [...links, ...keywords.map((keyword) => quoteTerm(keyword, true))];
-  return [...links, `(${orGroup(keywords, true)} ${names})`];
+// 配信のタイトルは「【原神】〇〇を進める」のような説明で、感想に書かれることはまずないので使わない
+export function videoItemOf(item: ChannelVideo, names: string[]): VideoItem {
+  return { id: item.id, keyword: item.kind === "live" ? "" : titleKeyword(item.title, names) };
 }
 
-export function videoQuery(item: VideoItem, state: UrlSearchState): string {
-  return withTail(group(videoTerms([item], state)), state);
+// 1 本の動画の反応。リンクに加えて、曲名などを名前と一緒に書いた感想も拾う
+export function videoQuery(item: VideoItem, state: UrlSearchState, names: string[] = [], owners: string[] = []): string {
+  const terms = [linkTerm(item.id), titleTerm(item.keyword, names)].filter(Boolean);
+  return compose(terms, tailParts(state, owners));
 }
 
 export type VideoBatch = {
@@ -235,26 +266,32 @@ export type VideoBatch = {
   to: number;
 };
 
-// 動画ごとの url:（とタイトルの言葉）を OR でつなぎ、X に入る長さごとに分ける
+// 動画のリンクを OR でつなぎ、X に入る長さごとに分ける。まとめて探すときはリンクだけにして回数を減らす
 export function buildVideoBatches(
-  items: VideoItem[],
+  ids: string[],
   state: UrlSearchState,
+  owners: string[] = [],
   maxLength = MAX_QUERY_LENGTH,
 ): VideoBatch[] {
+  const tail = tailParts(state, owners);
   const batches: VideoBatch[] = [];
-  let current: VideoItem[] = [];
+  let current: string[] = [];
   let from = 1;
-  const queryOf = (list: VideoItem[]) => withTail(group(videoTerms(list, state)), state);
-  items.forEach((item, index) => {
-    if (current.length && queryOf([...current, item]).length > maxLength) {
-      batches.push({ query: queryOf(current), from, to: index });
+  ids.forEach((id, index) => {
+    const term = linkTerm(id);
+    if (current.length && compose([...current, term], tail).length > maxLength) {
+      batches.push({ query: compose(current, tail), from, to: index });
       current = [];
       from = index + 1;
     }
-    current.push(item);
+    current.push(term);
   });
-  if (current.length) batches.push({ query: queryOf(current), from, to: items.length });
+  if (current.length) batches.push({ query: compose(current, tail), from, to: ids.length });
   return batches;
+}
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 export function loadUrlSearch(): UrlSearchState {
@@ -263,21 +300,22 @@ export function loadUrlSearch(): UrlSearchState {
   try {
     const raw = window.localStorage.getItem(URL_SEARCH_STORAGE_KEY);
     if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<UrlSearchState>;
-    const strings = (value: unknown) =>
-      Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown; videoYears?: unknown };
+    // 以前は種類と公開年を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ
+    const oldKinds = strings(parsed.videoKinds);
+    const oldYears = strings(parsed.videoYears);
+    const kind = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
     return {
       url: typeof parsed.url === "string" ? parsed.url : "",
       words: strings(parsed.words),
       excluded: strings(parsed.excluded),
+      excludeOwner: parsed.excludeOwner !== false,
       period: URL_PERIODS.includes(parsed.period as UrlPeriod) ? (parsed.period as UrlPeriod) : "all",
       sort: parsed.sort === "likes" ? "likes" : "latest",
-      videoKinds: strings(parsed.videoKinds).filter((kind): kind is VideoKind =>
-        (VIDEO_KINDS as string[]).includes(kind),
-      ),
-      videoYears: strings(parsed.videoYears),
+      videoKind: (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKind) : "all",
+      videoYear:
+        typeof parsed.videoYear === "string" ? parsed.videoYear : oldYears.length === 1 ? oldYears[0] : "",
       videoTitle: typeof parsed.videoTitle === "string" ? parsed.videoTitle : "",
-      videoTitleSearch: parsed.videoTitleSearch !== false,
     };
   } catch {
     return fallback;
