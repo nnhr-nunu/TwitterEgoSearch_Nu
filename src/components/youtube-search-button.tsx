@@ -13,8 +13,6 @@ type YoutubeSearchButtonProps = {
   // 検索に入れた動画（新しい順）。回ごとの公開日の範囲を出すのに使う
   videos: ChannelVideo[];
   hrefOf: (query: string) => string;
-  // 1 回目にチャンネルのリンクも入っているか
-  withChannel: boolean;
 };
 
 function shortDate(video: ChannelVideo | undefined): string {
@@ -30,7 +28,7 @@ export function batchRange(batch: SearchBatch, videos: ChannelVideo[]): string {
 }
 
 // 画面上部の検索ボタン。X に入る長さを超えるときは、押すたびに次の回を開く
-export function YoutubeSearchButton({ t, batches, videos, hrefOf, withChannel }: YoutubeSearchButtonProps) {
+export function YoutubeSearchButton({ t, batches, videos, hrefOf }: YoutubeSearchButtonProps) {
   const [step, setStep] = useState(0);
   const label = t("urlSearch");
 
@@ -47,10 +45,13 @@ export function YoutubeSearchButton({ t, batches, videos, hrefOf, withChannel }:
 
   const parts = String(batches.length);
   const current = batches[step];
-  const detail = (batch: SearchBatch, index: number) =>
-    t(withChannel && index === 0 ? "ytStepChannel" : "ytStepRange")
-      .replace("{range}", batchRange(batch, videos))
-      .replace("{count}", String(batch.to - batch.from + 1));
+  // 動画が入らない回は、チャンネルのリンクと言葉だけの回
+  const detail = (batch: SearchBatch) =>
+    batch.to < batch.from
+      ? t("ytStepLinks")
+      : t("ytStepRange")
+          .replace("{range}", batchRange(batch, videos))
+          .replace("{count}", String(batch.to - batch.from + 1));
 
   return (
     <div className="space-y-2" data-testid="url-search-steps">
@@ -70,7 +71,7 @@ export function YoutubeSearchButton({ t, batches, videos, hrefOf, withChannel }:
                 {t("ytStep").replace("{step}", String(step + 1)).replace("{parts}", parts)}
               </span>
             </span>
-            <span className="text-xs font-normal tabular-nums opacity-85">{detail(current, step)}</span>
+            <span className="text-xs font-normal tabular-nums opacity-85">{detail(current)}</span>
           </a>
         </Button>
       ) : (
@@ -91,9 +92,9 @@ export function YoutubeSearchButton({ t, batches, videos, hrefOf, withChannel }:
             key={index}
             type="button"
             className="group flex h-5 flex-1 items-center"
-            aria-label={t("ytBulkPart").replace("{step}", String(index + 1)).replace("{range}", detail(batch, index))}
+            aria-label={t("ytBulkPart").replace("{step}", String(index + 1)).replace("{range}", detail(batch))}
             aria-current={index === step ? "step" : undefined}
-            title={detail(batch, index)}
+            title={detail(batch)}
             onClick={() => setStep(index)}
           >
             <span

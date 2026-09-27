@@ -1,4 +1,4 @@
-import { daysAgoIso, rangeWindow, shiftIso, windowAround } from "./dates";
+import { daysAgoIso, rangeWindow, windowAround } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
 import type { DateSpanId, ResultSort } from "./types";
@@ -14,33 +14,32 @@ import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./you
 
 export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 
-// 期間の絞り込み。1日〜1年は相対の期間で、since: の日付は検索のたびに今日から数える。
-// "custom" は設定1〜3 と同じく、区間（開始日〜終了日）か、ある日付の前後を指定する
-export type UrlPeriod = "all" | "day" | "week" | "month" | "year" | "custom";
+// 期間の絞り込み。1週間〜1年は相対の期間で、since: の日付は検索のたびに今日から数える。
+// "around" はある日付の前後、"range" は区間（開始日〜終了日）。投稿も動画の公開日も同じ期間で絞る
+export type UrlPeriod = "all" | "week" | "month" | "year" | "around" | "range";
 
-export const URL_PERIODS: UrlPeriod[] = ["all", "day", "week", "month", "year", "custom"];
+export const URL_PERIODS: UrlPeriod[] = ["all", "week", "month", "year", "around", "range"];
 
-export type UrlDateMode = "range" | "around";
+const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all" | "around" | "range">, number> = { week: 7, month: 30, year: 365 };
 
-const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all" | "custom">, number> = { day: 1, week: 7, month: 30, year: 365 };
-
-// 投稿の期間より少し前に出た動画も、期間中に共有されることが多いので対象に含める
-export const VIDEO_LEAD_DAYS = 7;
+// チャンネルの検索で 1 回に入れる動画の本数。X の検索は約 500 文字までで、回ごとに本数がばらつかないようそろえる
+export const VIDEOS_PER_SEARCH = 20;
 
 export type VideoKindFilter = VideoKind | "all";
 
 export type UrlSearchState = {
   // 読み込んだ URL。入力途中の値は画面側で持つ
   url: string;
-  // リンクと一緒に探す言葉（配信タグ・ファンアートタグ・呼び名など）
+  // リンクと一緒に探す言葉（配信タグ・ファンアートタグ・呼び名など）。チャンネルが分かるときは channelWords を使う
   words: string[];
+  // チャンネルごとに覚えておく言葉。キーはチャンネル ID（読み込めていなければハンドルなど）
+  channelWords: Record<string, string[]>;
   // 反応として数えたくないアカウント
   excluded: string[];
   // チャンネルの説明欄にある本人の X アカウントの投稿を除く
   excludeOwner: boolean;
   period: UrlPeriod;
-  // period が "custom" のときの指定。空欄はその側を区切らない（対象の日付の空欄は今日）
-  dateMode: UrlDateMode;
+  // period が "range" / "around" のときの指定。空欄はその側を区切らない（対象の日付の空欄は今日）
   rangeStart: string;
   rangeEnd: string;
   aroundDate: string;
@@ -54,16 +53,11 @@ export type UrlSearchState = {
 // X の since:（その日を含む）と until:（その日を含まない）
 export type DateWindow = { since: string; until: string };
 
-export function postWindow(state: Pick<UrlSearchState, "period" | "dateMode" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">): DateWindow {
+export function postWindow(state: Pick<UrlSearchState, "period" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">): DateWindow {
   if (state.period === "all") return { since: "", until: "" };
-  if (state.period !== "custom") return { since: daysAgoIso(PERIOD_DAYS[state.period]), until: "" };
-  return state.dateMode === "around" ? windowAround(state.aroundDate, state.dateSpan) : rangeWindow(state.rangeStart, state.rangeEnd);
-}
-
-// 対象にする動画の公開日の範囲。投稿の期間の VIDEO_LEAD_DAYS 日前から
-export function videoWindow(state: Parameters<typeof postWindow>[0]): DateWindow {
-  const { since, until } = postWindow(state);
-  return { since: since ? shiftIso(since, -VIDEO_LEAD_DAYS) : "", until };
+  if (state.period === "around") return windowAround(state.aroundDate, state.dateSpan);
+  if (state.period === "range") return rangeWindow(state.rangeStart, state.rangeEnd);
+  return { since: daysAgoIso(PERIOD_DAYS[state.period]), until: "" };
 }
 
 export type UrlTargetKind = "video" | "channel" | "niconico" | "page";
@@ -90,10 +84,10 @@ export function createDefaultUrlSearch(): UrlSearchState {
   return {
     url: "",
     words: [],
+    channelWords: {},
     excluded: [],
     excludeOwner: true,
     period: "all",
-    dateMode: "range",
     rangeStart: "",
     rangeEnd: "",
     aroundDate: "",
@@ -247,7 +241,7 @@ export function buildMainQuery(state: UrlSearchState, scope: UrlScope = {}): str
 
 // チャンネルの動画のうち、期間・種類・タイトルに当てはまるもの（新しい順のまま）
 export function videosInScope(videos: ChannelVideo[], state: UrlSearchState): ChannelVideo[] {
-  const { since, until } = videoWindow(state);
+  const { since, until } = postWindow(state);
   const title = state.videoTitle.trim().toLowerCase();
   return videos.filter((item) => {
     const date = videoDate(item);
@@ -267,35 +261,61 @@ export type SearchBatch = {
   to: number;
 };
 
-// チャンネルの検索。動画の共有リンクにはチャンネルが入らないので、動画のリンクも 1 本ずつ OR でつなぐ。
-// X に入る長さを超えるときは何回かに分け、チャンネルのリンクと言葉は 1 回目にだけ入れる（同じ投稿が毎回出ないように）
+// チャンネルの検索。動画の共有リンクにはチャンネルが入らないので、動画のリンクも OR でつなぐ。
+// 動画は 1 回に perSearch 本ずつ入れ、チャンネルのリンクと言葉はいちばん空きのある最後の回にだけ入れる（同じ投稿が毎回出ないように）。
+// 入りきらなければチャンネルのリンクと言葉だけの回を最後に足す。20 本すら入らないほど除外が長いときは本数を減らしてそろえる
 export function buildChannelBatches(
   state: UrlSearchState,
   scope: UrlScope & { videoIds: string[] },
   maxLength = MAX_QUERY_LENGTH,
+  perSearch = VIDEOS_PER_SEARCH,
 ): SearchBatch[] {
   const target = parseTargetUrl(state.url);
   if (!target) return [];
   const tail = tailParts(state, scope.owners ?? []);
   const head = [...uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm), ...wordTerms(state)];
+  const terms = scope.videoIds.map(linkTerm);
+  let per = perSearch;
+  while (per > 1 && compose(terms.slice(0, per), tail).length > maxLength) per -= 1;
+
   const batches: SearchBatch[] = [];
-  let current = head;
-  let from = 1;
-  scope.videoIds.forEach((id, index) => {
-    const term = linkTerm(id);
-    if (current.length && compose([...current, term], tail).length > maxLength) {
-      batches.push({ query: compose(current, tail), from, to: index });
-      current = [];
-      from = index + 1;
-    }
-    current = [...current, term];
-  });
-  if (current.length) batches.push({ query: compose(current, tail), from, to: scope.videoIds.length });
-  return batches;
+  for (let start = 0; start < terms.length; start += per) {
+    const chunk = terms.slice(start, start + per);
+    batches.push({ query: compose(chunk, tail), from: start + 1, to: start + chunk.length });
+  }
+  if (!head.length) return batches;
+  const last = batches.at(-1);
+  const merged = last ? compose([...head, ...terms.slice(last.from - 1)], tail) : "";
+  if (last && merged.length <= maxLength) return [...batches.slice(0, -1), { ...last, query: merged }];
+  return [...batches, { query: compose(head, tail), from: terms.length + 1, to: terms.length }];
+}
+
+// チャンネルごとの言葉を書き換える。空にしたチャンネルは消す
+export function withChannelWords(map: Record<string, string[]>, key: string, words: string[]): Record<string, string[]> {
+  const rest = { ...map };
+  delete rest[key];
+  return words.length ? { ...rest, [key]: words } : rest;
 }
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+// 言葉が空のチャンネルは残さない
+function wordMap(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, words]) => [key, strings(words)] as const)
+      .filter(([, words]) => words.length > 0),
+  );
+}
+
+function period(value: unknown, dateMode: unknown): UrlPeriod {
+  // 以前は「1日」と、区間・日付の前後をまとめた「日付を指定」があった
+  if (value === "day") return "week";
+  if (value === "custom") return dateMode === "around" ? "around" : "range";
+  return URL_PERIODS.includes(value as UrlPeriod) ? (value as UrlPeriod) : "all";
 }
 
 function text(value: unknown): string {
@@ -310,17 +330,17 @@ export function loadUrlSearch(): UrlSearchState {
   try {
     const raw = window.localStorage.getItem(URL_SEARCH_STORAGE_KEY);
     if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown };
+    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown; dateMode?: unknown };
     // 以前は種類を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ（公開年の絞り込みは期間に置き換えた）
     const oldKinds = strings(parsed.videoKinds);
     const kind = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
     return {
       url: text(parsed.url),
       words: strings(parsed.words),
+      channelWords: wordMap(parsed.channelWords),
       excluded: strings(parsed.excluded),
       excludeOwner: parsed.excludeOwner !== false,
-      period: URL_PERIODS.includes(parsed.period as UrlPeriod) ? (parsed.period as UrlPeriod) : "all",
-      dateMode: parsed.dateMode === "around" ? "around" : "range",
+      period: period(parsed.period, parsed.dateMode),
       rangeStart: text(parsed.rangeStart),
       rangeEnd: text(parsed.rangeEnd),
       aroundDate: text(parsed.aroundDate),

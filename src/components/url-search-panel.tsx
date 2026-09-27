@@ -27,8 +27,9 @@ import {
   type SearchBatch,
   type UrlSearchState,
   type UrlTarget,
+  postWindow,
   videosInScope,
-  videoWindow,
+  withChannelWords,
 } from "@/lib/url-search";
 import {
   type ChannelData,
@@ -115,9 +116,17 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     channel ?? (videoInfo ? (channels.find((data) => data.channel.id === videoInfo.channelId) ?? null) : null);
   const owners = ownerChannel?.channel.xHandles ?? [];
   const handle = ownerChannel?.channel.handle ?? "";
+  // ハッシュタグ・言葉はチャンネルごとに覚える。チャンネルが分からない対象（ページなど）は words に置く
+  const wordsKey = ownerChannel?.channel.id ?? videoInfo?.channelId ?? (target?.kind === "channel" ? target.token.toLowerCase() : "");
+  const words = wordsKey ? (state.channelWords[wordsKey] ?? []) : state.words;
+  const setWords = (next: string[]) =>
+    setState((prev) =>
+      wordsKey ? { ...prev, channelWords: withChannelWords(prev.channelWords, wordsKey, next) } : { ...prev, words: next },
+    );
+  const view = { ...state, words };
   const nameWords = channelNameWords(ownerChannel?.channel.title ?? videoInfo?.channelTitle ?? "");
   // 曲名などと一緒に書かれていてほしい名前
-  const names = uniqueWords([...nameWords, ...state.words]);
+  const names = uniqueWords([...nameWords, ...words]);
   // 配信のタイトルは感想に書かれないので、タイトルの言葉は動画・ショートだけ
   const videoKind = target?.kind === "video" ? ownerChannel?.videos.find((item) => item.id === target.token)?.kind : undefined;
   const keyword = videoInfo && videoKind !== "live" ? titleKeyword(videoInfo.title, [...names, handle]) : "";
@@ -128,9 +137,9 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   let batches: SearchBatch[] = [];
   if (channel) {
     const links = [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""];
-    batches = buildChannelBatches(state, { links, owners, videoIds: matched.map((video) => video.id) });
+    batches = buildChannelBatches(view, { links, owners, videoIds: matched.map((video) => video.id) });
   } else {
-    const query = buildMainQuery(state, { owners, keyword, names });
+    const query = buildMainQuery(view, { owners, keyword, names });
     if (query) batches = [{ query, from: 1, to: 0 }];
   }
   const hrefOf = (query: string) => buildSearchUrl(query, "posts", state.sort);
@@ -139,12 +148,12 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   if (target?.kind === "video") scope = { kind: "video", keyword, names };
   if (target?.kind === "channel") {
     scope = channel
-      ? { kind: "channel", count: matched.length, window: videoWindow(state), videoKind: state.videoKind, batches }
+      ? { kind: "channel", count: matched.length, window: postWindow(state), videoKind: state.videoKind, batches }
       : { kind: "channelOnly" };
   }
-  const summary = <YoutubeScopeSummary t={t} info={scope} words={state.words} />;
+  const summary = <YoutubeScopeSummary t={t} info={scope} words={words} />;
 
-  const lowerWords = new Set(state.words.map((word) => word.toLowerCase()));
+  const lowerWords = new Set(words.map((word) => word.toLowerCase()));
   const wordSuggestions = uniqueWords([...(ownerChannel?.channel.hashtags ?? []), ...nameWords]).filter(
     (word) => !lowerWords.has(word.toLowerCase()),
   );
@@ -183,7 +192,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     }
   };
 
-  // 別のチャンネルに変えたら、前の対象に合わせた言葉と動画の絞り込みは持ち越さない。
+  // 別の対象に変えたら、動画の絞り込みは持ち越さない（言葉はチャンネルごとに覚えているので、ページ用の words だけ消す）。
   // 同じチャンネルの中で動画 1 本とチャンネル全体を行き来するときは keep で残す
   const selectUrl = (url: string, keep = false): UrlTarget | null => {
     const next = parseTargetUrl(url);
@@ -227,7 +236,6 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
             batches={batches}
             videos={matched}
             hrefOf={hrefOf}
-            withChannel={channel !== null}
           />
         }
       />
@@ -297,8 +305,8 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                   id="url-search-words"
                   label={t("urlWords")}
                   placeholder={t("urlWordsPlaceholder")}
-                  values={state.words}
-                  onChange={(words) => patch({ words })}
+                  values={words}
+                  onChange={setWords}
                   addLabel={t("addKeyword")}
                   savedToast={t("savedToast")}
                   testId="url-words"
@@ -306,7 +314,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                 <Suggestions
                   t={t}
                   items={wordSuggestions}
-                  onAdd={(word) => patch({ words: [...state.words, word] })}
+                  onAdd={(word) => setWords([...words, word])}
                   testId="url-suggestions"
                 />
                 <p className="text-xs text-muted-foreground">{t("urlWordsHint")}</p>

@@ -60,7 +60,6 @@ export function scopeLines(t: (key: MessageKey) => string, info: ScopeInfo, word
   if (info.kind === "channel") {
     const noun = t(NOUNS[info.videoKind]);
     main = info.count ? t("urlSumChannel").replace("{videos}", videosPhrase(t, info)) : t("urlSumNoVideos").replace("{kind}", noun);
-    if (info.count && info.window.since) notes.push(t("urlSumLead").replaceAll("{kind}", noun));
   }
   if (words.length) main = append(main, t("urlSumWords").replace("{words}", words.join("・")));
   if (info.kind === "channel" && info.batches.length > 1) {
