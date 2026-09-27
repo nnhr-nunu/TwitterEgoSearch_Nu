@@ -133,50 +133,58 @@ export function YoutubeChannelVideos({
   summary,
 }: YoutubeChannelVideosProps) {
   const kindCounts = countBy(inPeriod.map((video) => video.kind));
-  // 種類の切り替えは、チャンネルに 2 種類以上あるときだけ出す。期間を変えても並びが動かないよう、0 本の種類も残す
-  const kinds = VIDEO_KINDS.filter((kind) => channelKinds.includes(kind) || kind === state.videoKind);
+  // 動画の種類は、チャンネルに 2 種類以上あるときだけ分けて出す。期間を変えても並びが動かないよう、0 本の種類も残す
+  const found = VIDEO_KINDS.filter((kind) => channelKinds.includes(kind) || kind === state.videoKind);
+  const kinds = found.length > 1 ? found : [];
+  // 「チャンネル」はチャンネルそのもののリンクを探すので、動画の絞り込みと一覧は出さない
+  const channelOnly = state.videoKind === "channel";
   const listKey = [state.url, state.period, state.rangeStart, state.rangeEnd, state.aroundDate, state.dateSpan, state.videoKind, state.videoTitle].join("|");
 
   return (
     <div className="space-y-3" data-testid="yt-channel">
-      {kinds.length > 1 ? (
-        <div className="space-y-2">
-          <p className="text-sm font-medium">{t("ytKind")}</p>
-          <Segmented<VideoKindFilter>
-            options={[
-              { id: "all", label: t("ytAll"), count: inPeriod.length },
-              ...kinds.map((kind) => ({ id: kind, label: t(KIND_LABELS[kind]), count: kindCounts.get(kind) ?? 0 })),
-            ]}
-            value={state.videoKind}
-            label={t("ytKind")}
-            onChange={(videoKind) => patch({ videoKind })}
-            testId="yt-kind"
-          />
-        </div>
-      ) : null}
-
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input
-          type="search"
-          value={state.videoTitle}
-          placeholder={t("ytTitleFilter")}
-          aria-label={t("ytTitleFilter")}
-          className="h-10 pl-9 text-base md:text-sm"
-          data-testid="yt-title-filter"
-          onChange={(event) => patch({ videoTitle: event.target.value })}
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("ytKind")}</p>
+        <Segmented<VideoKindFilter>
+          options={[
+            { id: "all", label: t("ytAll"), count: inPeriod.length },
+            ...kinds.map((kind) => ({ id: kind, label: t(KIND_LABELS[kind]), count: kindCounts.get(kind) ?? 0 })),
+            { id: "channel", label: t("ytKindChannel") },
+          ]}
+          value={state.videoKind}
+          label={t("ytKind")}
+          onChange={(videoKind) => patch({ videoKind })}
+          testId="yt-kind"
         />
       </div>
 
+      {channelOnly ? null : (
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
+            type="search"
+            value={state.videoTitle}
+            placeholder={t("ytTitleFilter")}
+            aria-label={t("ytTitleFilter")}
+            className="h-10 pl-9 text-base md:text-sm"
+            data-testid="yt-title-filter"
+            onChange={(event) => patch({ videoTitle: event.target.value })}
+          />
+        </div>
+      )}
+
       {summary}
 
-      <div className="flex items-baseline justify-between gap-2 pt-1">
-        <p className="text-sm font-medium">{t("ytListTitle")}</p>
-        <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
-          {matched.length} / {total}
-        </p>
-      </div>
-      <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 1} onFocus={onFocus} />
+      {channelOnly ? null : (
+        <>
+          <div className="flex items-baseline justify-between gap-2 pt-1">
+            <p className="text-sm font-medium">{t("ytListTitle")}</p>
+            <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
+              {matched.length} / {total}
+            </p>
+          </div>
+          <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 0} onFocus={onFocus} />
+        </>
+      )}
     </div>
   );
 }

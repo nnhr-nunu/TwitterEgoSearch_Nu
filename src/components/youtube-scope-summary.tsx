@@ -11,14 +11,17 @@ export type ScopeInfo =
       // 検索に入れる動画の本数と、その公開日の範囲
       count: number;
       window: DateWindow;
-      videoKind: VideoKindFilter;
+      videoKind: VideoNoun;
       batches: SearchBatch[];
     }
   | { kind: "channelOnly" }
   | { kind: "video"; keyword: string; names: string[] }
   | { kind: "page" };
 
-const NOUNS: Record<VideoKindFilter, MessageKey> = {
+// 種類が「チャンネル」のときは動画を数えないので、名前は要らない
+type VideoNoun = Exclude<VideoKindFilter, "channel">;
+
+const NOUNS: Record<VideoNoun, MessageKey> = {
   all: "ytNounAll",
   video: "ytNounVideo",
   short: "ytNounShort",

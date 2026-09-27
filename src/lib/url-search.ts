@@ -18,14 +18,15 @@ export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 // "around" はある日付の前後、"range" は区間（開始日〜終了日）。投稿も動画の公開日も同じ期間で絞る
 export type UrlPeriod = "all" | "week" | "month" | "year" | "around" | "range";
 
-export const URL_PERIODS: UrlPeriod[] = ["all", "week", "month", "year", "around", "range"];
+export const URL_PERIODS: UrlPeriod[] = ["week", "month", "year", "around", "range", "all"];
 
 const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all" | "around" | "range">, number> = { week: 7, month: 30, year: 365 };
 
 // チャンネルの検索で 1 回に入れる動画の本数。X の検索は約 500 文字までで、回ごとに本数がばらつかないようそろえる
 export const VIDEOS_PER_SEARCH = 20;
 
-export type VideoKindFilter = VideoKind | "all";
+// "channel" は動画ではなく、チャンネルそのもののリンクを貼った投稿を探す
+export type VideoKindFilter = VideoKind | "all" | "channel";
 
 export type UrlSearchState = {
   // 読み込んだ URL。入力途中の値は画面側で持つ
@@ -45,7 +46,7 @@ export type UrlSearchState = {
   aroundDate: string;
   dateSpan: DateSpanId;
   sort: ResultSort;
-  // チャンネルの動画の絞り込み。"all" と "" は「すべて」
+  // チャンネルの動画の絞り込み。"all" と "" は「すべて」、"channel" はチャンネルのリンクだけを探す
   videoKind: VideoKindFilter;
   videoTitle: string;
 };
@@ -87,7 +88,7 @@ export function createDefaultUrlSearch(): UrlSearchState {
     channelWords: {},
     excluded: [],
     excludeOwner: true,
-    period: "all",
+    period: "week",
     rangeStart: "",
     rangeEnd: "",
     aroundDate: "",
@@ -248,6 +249,7 @@ export function videosInScope(videos: ChannelVideo[], state: UrlSearchState): Ch
     return (
       (!since || date >= since) &&
       (!until || date < until) &&
+      state.videoKind !== "channel" &&
       (state.videoKind === "all" || item.kind === state.videoKind) &&
       (!title || item.title.toLowerCase().includes(title))
     );
@@ -261,9 +263,9 @@ export type SearchBatch = {
   to: number;
 };
 
-// チャンネルの検索。動画の共有リンクにはチャンネルが入らないので、動画のリンクも OR でつなぐ。
-// 動画は 1 回に perSearch 本ずつ入れ、チャンネルのリンクと言葉はいちばん空きのある最後の回にだけ入れる（同じ投稿が毎回出ないように）。
-// 入りきらなければチャンネルのリンクと言葉だけの回を最後に足す。20 本すら入らないほど除外が長いときは本数を減らしてそろえる
+// チャンネルの検索。種類が "channel" ならチャンネルのリンクを、それ以外は動画のリンクを OR でつなぐ。
+// 動画は 1 回に perSearch 本ずつ入れ、言葉はいちばん空きのある最後の回にだけ入れる（同じ投稿が毎回出ないように）。
+// 入りきらなければ言葉だけの回を最後に足す。20 本すら入らないほど除外が長いときは本数を減らしてそろえる
 export function buildChannelBatches(
   state: UrlSearchState,
   scope: UrlScope & { videoIds: string[] },
@@ -273,7 +275,11 @@ export function buildChannelBatches(
   const target = parseTargetUrl(state.url);
   if (!target) return [];
   const tail = tailParts(state, scope.owners ?? []);
-  const head = [...uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm), ...wordTerms(state)];
+  if (state.videoKind === "channel") {
+    const links = uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm);
+    return [{ query: compose([...links, ...wordTerms(state)], tail), from: 1, to: 0 }];
+  }
+  const head = wordTerms(state);
   const terms = scope.videoIds.map(linkTerm);
   let per = perSearch;
   while (per > 1 && compose(terms.slice(0, per), tail).length > maxLength) per -= 1;
@@ -333,7 +339,7 @@ export function loadUrlSearch(): UrlSearchState {
     const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown; dateMode?: unknown };
     // 以前は種類を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ（公開年の絞り込みは期間に置き換えた）
     const oldKinds = strings(parsed.videoKinds);
-    const kind = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
+    const kind: string = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
     return {
       url: text(parsed.url),
       words: strings(parsed.words),
@@ -346,7 +352,7 @@ export function loadUrlSearch(): UrlSearchState {
       aroundDate: text(parsed.aroundDate),
       dateSpan: DATE_SPANS.includes(parsed.dateSpan as DateSpanId) ? (parsed.dateSpan as DateSpanId) : "7",
       sort: parsed.sort === "likes" ? "likes" : "latest",
-      videoKind: (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKind) : "all",
+      videoKind: kind === "channel" || (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKindFilter) : "all",
       videoTitle: text(parsed.videoTitle),
     };
   } catch {
