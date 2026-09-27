@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { type ChannelData, fetchVideoInfo, type VideoInfo, youtubeApiKey } from "@/lib/youtube";
 import { findVideoInChannels, loadVideoInfo, saveVideoInfo } from "@/lib/youtube-cache";
 
-// URL検索に貼った動画のタイトルとチャンネル名。保存済みのチャンネル一覧か、前に取った情報があれば API を呼ばない
+// YouTube タブに貼った動画のタイトルとチャンネル名。保存済みのチャンネル一覧か、前に取った情報があれば API を呼ばない
 export function useYoutubeVideoInfo(videoId: string | null, channels: ChannelData[]): VideoInfo | null {
   // 取れなかった動画も null で覚え、同じ動画で呼び直さない
   const [fetched, setFetched] = useState<Record<string, VideoInfo | null>>({});

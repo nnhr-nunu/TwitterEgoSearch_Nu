@@ -22,7 +22,7 @@ Cursor で開発するときの最短導線。全文読み込みを避け、触�
 ## 制約
 
 - X Search API は呼ばない。`x.com/search` と intent URL だけを生成する。
-- 例外として、URL検索のチャンネル動画一覧だけ YouTube Data API v3 をブラウザから呼ぶ（[`youtube.ts`](./src/lib/youtube.ts)）。無料枠に収めるため `*.list` の 1 ユニット系だけを使い、`search.list`（100 ユニット）は使わない。キーは `NEXT_PUBLIC_YOUTUBE_API_KEY`（リファラー制限）だけで、利用者にキーを入れさせない。
+- 例外として、YouTube タブ（旧 URL検索）のチャンネル情報・動画一覧だけ YouTube Data API v3 をブラウザから呼ぶ（[`youtube.ts`](./src/lib/youtube.ts)）。無料枠に収めるため `*.list` の 1 ユニット系だけを使い、`search.list`（100 ユニット）は使わない。キーは `NEXT_PUBLIC_YOUTUBE_API_KEY`（リファラー制限）だけで、利用者にキーを入れさせない。
 - 認証・データベース・有料 API を足さない。プリセットは `localStorage`。
 - 静的エクスポート（`output: "export"`）を維持する。
 

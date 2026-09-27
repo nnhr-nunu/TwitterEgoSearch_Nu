@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type ChannelData,
+  channelDescriptionLinks,
   classifyVideo,
   fetchChannelVideos,
   fetchVideoInfo,
@@ -52,7 +53,12 @@ function channelRoutes(playlists: Record<string, string[] | null>): Record<strin
         items: [
           {
             id: CHANNEL_ID,
-            snippet: { title: "ぬぬはら", customUrl: "@nnhr_nunu" },
+            snippet: {
+              title: "ぬぬはら",
+              customUrl: "@nnhr_nunu",
+              description: "感想は #ぬぬ絵 へ https://twitter.com/nnhr_nunu",
+              thumbnails: { default: { url: "https://yt3.ggpht.com/icon" } },
+            },
             contentDetails: { relatedPlaylists: { uploads: `UU${SUFFIX}` } },
           },
         ],
@@ -83,6 +89,21 @@ describe("parseIsoDuration", () => {
   });
 });
 
+describe("channelDescriptionLinks", () => {
+  it("reads x accounts and hashtags from the description", () => {
+    const description = [
+      "Twitter: https://twitter.com/nnhr_nunu",
+      "X：x.com/@Nunu_Sub / https://x.com/intent/follow?screen_name=nnhr_nunu",
+      "https://www.dropbox.com/share/abc",
+      "配信タグ #ぬぬ配信 ファンアート＃ぬぬ絵、#shorts #2026",
+    ].join("\n");
+    expect(channelDescriptionLinks(description)).toEqual({
+      xHandles: ["nnhr_nunu", "Nunu_Sub"],
+      hashtags: ["#ぬぬ配信", "#ぬぬ絵"],
+    });
+  });
+});
+
 describe("classifyVideo", () => {
   it("falls back to duration and live details without playlists", () => {
     expect(classifyVideo({ id: "a", seconds: 45, hasLive: false }, null, null)).toBe("short");
@@ -110,7 +131,14 @@ describe("fetchChannelVideos", () => {
     const data = await fetchChannelVideos("nnhr_nunu", "KEY", impl);
     expect(calls[0]).toContain("forHandle=%40nnhr_nunu");
     expect(calls.every((call) => call.includes("key=KEY"))).toBe(true);
-    expect(data.channel).toEqual({ id: CHANNEL_ID, title: "ぬぬはら", handle: "nnhr_nunu" });
+    expect(data.channel).toEqual({
+      id: CHANNEL_ID,
+      title: "ぬぬはら",
+      handle: "nnhr_nunu",
+      thumbnail: "https://yt3.ggpht.com/icon",
+      xHandles: ["nnhr_nunu"],
+      hashtags: ["#ぬぬ絵"],
+    });
     expect(data.truncated).toBe(false);
     expect(data.videos.map((v) => [v.id, v.kind])).toEqual([
       ["ccccccccccc", "live"],
@@ -169,7 +197,7 @@ describe("refreshChannelVideos", () => {
     truncated: false,
   };
 
-  it("adds only the new uploads without looking up the channel again", async () => {
+  it("adds only the new uploads and refreshes the channel name", async () => {
     const { impl, calls } = fakeFetch(
       channelRoutes({
         [`UU${SUFFIX}`]: ["ccccccccccc", "bbbbbbbbbbb", "eeeeeeeeeee", "aaaaaaaaaaa", "ddddddddddd"],
@@ -178,7 +206,8 @@ describe("refreshChannelVideos", () => {
       }),
     );
     const { data, added } = await refreshChannelVideos(previous, "KEY", impl);
-    expect(calls.some((call) => call.startsWith("channels"))).toBe(false);
+    expect(calls.filter((call) => call.startsWith("channels"))).toEqual([expect.stringContaining(`id=${CHANNEL_ID}`)]);
+    expect(data.channel.thumbnail).toBe("https://yt3.ggpht.com/icon");
     expect(calls.filter((call) => call.startsWith("videos"))).toHaveLength(1);
     expect(added).toBe(2);
     expect(data.videos.map((v) => [v.id, v.kind, v.title])).toEqual([
@@ -195,7 +224,7 @@ describe("refreshChannelVideos", () => {
     const { impl, calls } = fakeFetch(channelRoutes({ [`UU${SUFFIX}`]: ["eeeeeeeeeee", "aaaaaaaaaaa"] }));
     const { added } = await refreshChannelVideos(previous, "KEY", impl);
     expect(added).toBe(0);
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
   });
 });
 

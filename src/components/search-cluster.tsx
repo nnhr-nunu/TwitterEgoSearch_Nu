@@ -1,24 +1,33 @@
 "use client";
 
 import { SearchIcon, Share2Icon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Segmented } from "@/components/segmented";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MessageKey } from "@/lib/i18n";
 import { MIN_FAVES_OPTIONS, type MinFaves, type ResultSort } from "@/lib/types";
 
+// 画面上部の「検索」ボタンと並び順。設定1〜3 と YouTube タブで共通
 type SearchClusterProps = {
   url: string;
   postsOk: boolean;
   sort: ResultSort;
-  minFaves: MinFaves;
-  mediaOnly: boolean;
+  minFaves?: MinFaves;
+  mediaOnly?: boolean;
   onSort: (sort: ResultSort) => void;
-  onMinFaves: (minFaves: MinFaves) => void;
-  onMedia: (mediaOnly: boolean) => void;
-  onShare: () => void;
+  onMinFaves?: (minFaves: MinFaves) => void;
+  onMedia?: (mediaOnly: boolean) => void;
+  // シェアできない画面では渡さない
+  onShare?: () => void;
   t: (key: MessageKey) => string;
   testId: string;
+  // ボタンの文言と、押せないときの説明。省略すると設定1〜3 の文言
+  label?: string;
+  emptyHint?: string;
+  // ボタンの下に出す補足（何を探すか）
+  children?: ReactNode;
 };
 
 const SORTS: { id: ResultSort; label: MessageKey }[] = [
@@ -38,15 +47,19 @@ export function SearchCluster({
   url,
   postsOk,
   sort,
-  minFaves,
-  mediaOnly,
+  minFaves = 0,
+  mediaOnly = false,
   onSort,
   onMinFaves,
   onMedia,
   onShare,
   t,
   testId,
+  label,
+  emptyHint,
+  children,
 }: SearchClusterProps) {
+  const buttonLabel = label ?? t("searchPosts");
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" data-testid={testId}>
       <div className="space-y-2">
@@ -54,42 +67,27 @@ export function SearchCluster({
           {postsOk ? (
             <a href={url} target="_blank" rel="noopener noreferrer" data-testid={`${testId}-open`}>
               <SearchIcon data-icon="inline-start" />
-              {t("searchPosts")}
+              {buttonLabel}
             </a>
           ) : (
             <>
               <SearchIcon data-icon="inline-start" />
-              {t("searchPosts")}
+              {buttonLabel}
             </>
           )}
         </Button>
-        {!postsOk ? <p className="text-sm text-muted-foreground">{t("emptyKeywords")}</p> : null}
+        {!postsOk ? <p className="text-sm text-muted-foreground">{emptyHint ?? t("emptyKeywords")}</p> : null}
+        {postsOk ? children : null}
       </div>
 
-      <div
-        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1"
-        role="radiogroup"
-        aria-label={t("searchPosts")}
-        data-testid={`${testId}-sort`}
-      >
-        {SORTS.map((option) => {
-          const selected = sort === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              data-testid={`${testId}-sort-${option.id}`}
-              className={segmentClass(selected)}
-              onClick={() => onSort(option.id)}
-            >
-              {t(option.label)}
-            </button>
-          );
-        })}
-      </div>
-      {postsOk ? (
+      <Segmented
+        options={SORTS.map((option) => ({ id: option.id, label: t(option.label) }))}
+        value={sort}
+        label={buttonLabel}
+        onChange={onSort}
+        testId={`${testId}-sort`}
+      />
+      {postsOk && onShare ? (
         <Button
           type="button"
           variant="ghost"
@@ -126,7 +124,7 @@ export function SearchCluster({
                 aria-checked={selected}
                 data-testid={`${testId}-faves-${option}`}
                 className={segmentClass(selected)}
-                onClick={() => onMinFaves(option)}
+                onClick={() => onMinFaves?.(option)}
               >
                 {option === 0 ? t("minFavesAny") : `${option.toLocaleString()}+`}
               </button>
@@ -145,7 +143,7 @@ export function SearchCluster({
         <Switch
           id={`${testId}-media`}
           checked={mediaOnly}
-          onCheckedChange={onMedia}
+          onCheckedChange={(checked) => onMedia?.(checked)}
           aria-label={t("media")}
           data-testid={`${testId}-media`}
         />

@@ -5,7 +5,7 @@ import type { MessageKey } from "@/lib/i18n";
 import type { SlotIndex } from "@/lib/types";
 import { SLOT_COUNT } from "@/lib/types";
 
-// 設定1〜3 と、その隣の URL検索
+// 設定1〜3 と、その隣の YouTube（URL から反応を探す）
 export type TabValue = SlotIndex | "url";
 
 type SlotTabsProps = {
