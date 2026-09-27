@@ -28,6 +28,8 @@ type SearchClusterProps = {
   emptyHint?: string;
   // ボタンの下に出す補足（何を探すか）
   children?: ReactNode;
+  // 検索ボタンの代わりに置くもの（YouTube タブの、何回かに分けて開くボタン）
+  action?: ReactNode;
 };
 
 const SORTS: { id: ResultSort; label: MessageKey }[] = [
@@ -58,11 +60,13 @@ export function SearchCluster({
   label,
   emptyHint,
   children,
+  action,
 }: SearchClusterProps) {
   const buttonLabel = label ?? t("searchPosts");
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" data-testid={testId}>
       <div className="space-y-2">
+        {postsOk && action ? action : (
         <Button type="button" size="lg" className="h-12 w-full text-base" disabled={!postsOk} asChild={postsOk}>
           {postsOk ? (
             <a href={url} target="_blank" rel="noopener noreferrer" data-testid={`${testId}-open`}>
@@ -76,6 +80,7 @@ export function SearchCluster({
             </>
           )}
         </Button>
+        )}
         {!postsOk ? <p className="text-sm text-muted-foreground">{emptyHint ?? t("emptyKeywords")}</p> : null}
         {postsOk ? children : null}
       </div>

@@ -15,17 +15,20 @@ export function Segmented<T extends string>({
   label,
   onChange,
   testId,
+  columns,
 }: {
   options: SegmentedOption<T>[];
   value: T;
   label: string;
   onChange: (value: T) => void;
   testId: string;
+  // 選択肢が多くて 1 行に入らないときの列指定（例: "grid-cols-3 sm:grid-cols-6"）。省略すると 1 行に並べる
+  columns?: string;
 }) {
   return (
     <div
-      className="grid gap-1 rounded-xl border border-border bg-background p-1"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      className={`grid gap-1 rounded-xl border border-border bg-background p-1 ${columns ?? ""}`}
+      style={columns ? undefined : { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
       role="radiogroup"
       aria-label={label}
       data-testid={testId}

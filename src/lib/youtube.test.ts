@@ -232,7 +232,14 @@ describe("fetchVideoInfo", () => {
   it("reads the title and channel of one video", async () => {
     const { impl, calls } = fakeFetch({
       videos: () => ({
-        body: { items: [{ id: "aaaaaaaaaaa", snippet: { title: "シャルル", channelId: CHANNEL_ID, channelTitle: "ぬぬはら" } }] },
+        body: {
+          items: [
+            {
+              id: "aaaaaaaaaaa",
+              snippet: { title: "シャルル", channelId: CHANNEL_ID, channelTitle: "ぬぬはら", publishedAt: "2026-09-01T10:00:00Z" },
+            },
+          ],
+        },
       }),
     });
     expect(await fetchVideoInfo("aaaaaaaaaaa", "KEY", impl)).toEqual({
@@ -240,8 +247,9 @@ describe("fetchVideoInfo", () => {
       title: "シャルル",
       channelId: CHANNEL_ID,
       channelTitle: "ぬぬはら",
+      publishedAt: "2026-09-01T10:00:00Z",
     });
-    expect(calls[0]).toContain("part=snippet&id=aaaaaaaaaaa");
+    expect(calls[0]).toContain("part=snippet%2CliveStreamingDetails&id=aaaaaaaaaaa");
   });
 
   it("returns null for an unknown video", async () => {

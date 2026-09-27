@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { MessageKey } from "@/lib/i18n";
 import type { UrlTarget, UrlTargetKind } from "@/lib/url-search";
-import type { ChannelData, VideoInfo } from "@/lib/youtube";
+import { type ChannelData, type VideoInfo, videoDate } from "@/lib/youtube";
 
 export type Notice = { tone: "info" | "error"; text: string };
 
@@ -23,6 +23,8 @@ type YoutubeTargetProps = {
   recent: ChannelData[];
   // この環境で YouTube の API を呼べるか
   canLoad: boolean;
+  // 動画のとき、そのチャンネル全体に切り替えられるか（API を呼べるか、チャンネルを読み込み済み）
+  canOpenChannel: boolean;
   // 読み取れない URL なら false を返す
   onSubmit: (raw: string) => boolean;
   onClear: () => void;
@@ -63,12 +65,13 @@ function TargetCard({
   video,
   loading,
   canLoad,
+  canOpenChannel,
   onClear,
   onRefresh,
   onOpenChannel,
 }: Pick<
   YoutubeTargetProps,
-  "t" | "channel" | "video" | "loading" | "canLoad" | "onClear" | "onRefresh" | "onOpenChannel"
+  "t" | "channel" | "video" | "loading" | "canLoad" | "canOpenChannel" | "onClear" | "onRefresh" | "onOpenChannel"
 > & { target: UrlTarget }) {
   let title = target.token;
   let sub = t(KIND_LABELS[target.kind]);
@@ -81,7 +84,8 @@ function TargetCard({
 
   if (target.kind === "video") {
     title = video?.title ?? t("urlKindVideo");
-    sub = video?.channelTitle ?? t("urlKindVideo");
+    const published = video?.publishedAt ? videoDate({ publishedAt: video.publishedAt }).replaceAll("-", "/") : "";
+    sub = [video?.channelTitle ?? t("urlKindVideo"), published].filter(Boolean).join(" · ");
     media = (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -90,7 +94,7 @@ function TargetCard({
         className="aspect-video w-24 shrink-0 rounded-md bg-muted object-cover sm:w-28"
       />
     );
-    if (video?.channelId && canLoad) {
+    if (video?.channelId && canOpenChannel) {
       action = (
         <Button type="button" variant="ghost" size="sm" className="-ml-2 text-primary" onClick={() => onOpenChannel(video.channelId)}>
           <ListVideoIcon data-icon="inline-start" />

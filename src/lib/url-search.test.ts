@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildChannelBatches,
   buildMainQuery,
-  buildVideoBatches,
   createDefaultUrlSearch,
-  filterVideos,
   linkTerm,
   parseTargetUrl,
-  videoItemOf,
-  videoQuery,
+  postWindow,
+  videosInScope,
+  videoWindow,
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
 
@@ -84,7 +84,7 @@ describe("linkTerm", () => {
 
 describe("buildMainQuery", () => {
   it("combines the link and words and appends exclusions and since", () => {
-    const { query } = buildMainQuery({
+    const query = buildMainQuery({
       ...createDefaultUrlSearch(),
       url: "https://youtu.be/dQw4w9WgXcQ",
       words: ["#新作MV", "ぬぬ MV"],
@@ -95,126 +95,170 @@ describe("buildMainQuery", () => {
   });
 
   it("returns nothing without a readable url", () => {
-    expect(buildMainQuery({ ...createDefaultUrlSearch(), period: "week" })).toEqual({ query: "", videoCount: 0 });
-    expect(buildMainQuery({ ...createDefaultUrlSearch(), url: "abc", words: ["ぬぬ"] }).query).toBe("");
+    expect(buildMainQuery({ ...createDefaultUrlSearch(), period: "week" })).toBe("");
+    expect(buildMainQuery({ ...createDefaultUrlSearch(), url: "abc", words: ["ぬぬ"] })).toBe("");
   });
 
   it("adds the title words of a single video only together with a name", () => {
     const state = { ...createDefaultUrlSearch(), url: "https://youtu.be/dQw4w9WgXcQ" };
-    expect(buildMainQuery(state, { keyword: "シャルル", names: ["ぬぬはら"] }).query).toBe(
-      '(url:dQw4w9WgXcQ OR ("シャルル" ぬぬはら))',
-    );
-    expect(buildMainQuery(state, { keyword: "シャルル" }).query).toBe("url:dQw4w9WgXcQ");
+    expect(buildMainQuery(state, { keyword: "シャルル", names: ["ぬぬはら"] })).toBe('(url:dQw4w9WgXcQ OR ("シャルル" ぬぬはら))');
+    expect(buildMainQuery(state, { keyword: "シャルル" })).toBe("url:dQw4w9WgXcQ");
   });
 
   it("excludes the owner only while the switch is on", () => {
     const state = { ...createDefaultUrlSearch(), url: "https://youtu.be/dQw4w9WgXcQ", excluded: ["other"] };
-    expect(buildMainQuery(state, { owners: ["nnhr_nunu"] }).query).toBe(
-      "url:dQw4w9WgXcQ -from:other -from:nnhr_nunu",
-    );
-    expect(buildMainQuery({ ...state, excludeOwner: false }, { owners: ["nnhr_nunu"] }).query).toBe(
-      "url:dQw4w9WgXcQ -from:other",
-    );
+    expect(buildMainQuery(state, { owners: ["nnhr_nunu"] })).toBe("url:dQw4w9WgXcQ -from:other -from:nnhr_nunu");
+    expect(buildMainQuery({ ...state, excludeOwner: false }, { owners: ["nnhr_nunu"] })).toBe("url:dQw4w9WgXcQ -from:other");
   });
-});
 
-describe("buildMainQuery for channels", () => {
   it("searches the channel link and the channel id, not the bare handle", () => {
-    const { query } = buildMainQuery(
+    const query = buildMainQuery(
       { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu" },
       { links: ["UCqYpbbypex0iOikcZRenxGA", "youtube.com/@NNHR_NUNU", ""] },
     );
     expect(query).toBe('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA)');
   });
 
-  it("adds the newest channel videos up to the length limit", () => {
-    const state = { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu", words: ["ぬぬはら"] };
-    const ids = Array.from({ length: 40 }, (_, i) => `video${String(i).padStart(6, "0")}`);
-    const { query, videoCount } = buildMainQuery(state, { videoIds: ids }, 200);
-    expect(videoCount).toBeGreaterThan(0);
-    expect(videoCount).toBeLessThan(40);
-    expect(query.length).toBeLessThanOrEqual(200);
-    expect(query.startsWith('(url:"youtube.com/@nnhr_nunu" OR url:video000000 OR ')).toBe(true);
-    expect(query.endsWith(" OR ぬぬはら)")).toBe(true);
-    expect(query).toContain(`url:video${String(videoCount - 1).padStart(6, "0")}`);
+  it("uses since and until for a custom range", () => {
+    const state = {
+      ...createDefaultUrlSearch(),
+      url: "https://youtu.be/dQw4w9WgXcQ",
+      period: "custom" as const,
+      rangeStart: "2026-08-01",
+      rangeEnd: "2026-08-10",
+    };
+    expect(buildMainQuery(state)).toBe("url:dQw4w9WgXcQ since:2026-08-01 until:2026-08-11");
+  });
+});
+
+describe("postWindow", () => {
+  const base = createDefaultUrlSearch();
+
+  it("counts relative periods from today", () => {
+    expect(postWindow(base)).toEqual({ since: "", until: "" });
+    expect(postWindow({ ...base, period: "day" })).toEqual({ since: "2026-09-26", until: "" });
+    expect(postWindow({ ...base, period: "year" })).toEqual({ since: "2025-09-27", until: "" });
   });
 
-  it("ignores video ids when the target is not a channel", () => {
-    const state = { ...createDefaultUrlSearch(), url: "https://youtu.be/dQw4w9WgXcQ" };
-    expect(buildMainQuery(state, { videoIds: ["aaaaaaaaaaa"] })).toEqual({ query: "url:dQw4w9WgXcQ", videoCount: 0 });
+  it("reads a range with blank ends and swaps a reversed one", () => {
+    const custom = { ...base, period: "custom" as const };
+    expect(postWindow(custom)).toEqual({ since: "", until: "" });
+    expect(postWindow({ ...custom, rangeStart: "2026-08-01" })).toEqual({ since: "2026-08-01", until: "" });
+    expect(postWindow({ ...custom, rangeEnd: "2026-08-10" })).toEqual({ since: "", until: "2026-08-11" });
+    expect(postWindow({ ...custom, rangeStart: "2026-08-10", rangeEnd: "2026-08-01" })).toEqual({
+      since: "2026-08-01",
+      until: "2026-08-11",
+    });
+  });
+
+  it("reads a window around a date, or around today when blank", () => {
+    const around = { ...base, period: "custom" as const, dateMode: "around" as const };
+    expect(postWindow({ ...around, aroundDate: "2026-08-15" })).toEqual({ since: "2026-08-08", until: "2026-08-23" });
+    expect(postWindow({ ...around, dateSpan: "month" })).toEqual({ since: "2026-08-27", until: "2026-10-28" });
+  });
+
+  it("starts the video window a week before the posts", () => {
+    expect(videoWindow({ ...base, period: "week" })).toEqual({ since: "2026-09-13", until: "" });
+    expect(videoWindow(base)).toEqual({ since: "", until: "" });
   });
 });
 
 const videos: ChannelVideo[] = [
-  { id: "aaaaaaaaaaa", title: "新作MV", publishedAt: "2026-05-01T12:00:00Z", kind: "video" },
-  { id: "bbbbbbbbbbb", title: "雑談配信", publishedAt: "2025-08-01T12:00:00Z", kind: "live" },
-  { id: "ccccccccccc", title: "MV の裏側", publishedAt: "2025-03-01T12:00:00Z", kind: "short" },
+  { id: "aaaaaaaaaaa", title: "新作MV", publishedAt: "2026-09-25T12:00:00", kind: "video" },
+  { id: "bbbbbbbbbbb", title: "雑談配信", publishedAt: "2026-09-14T12:00:00", kind: "live" },
+  { id: "ccccccccccc", title: "MV の裏側", publishedAt: "2026-09-12T12:00:00", kind: "short" },
+  { id: "ddddddddddd", title: "去年の MV", publishedAt: "2025-03-01T12:00:00", kind: "video" },
 ];
 
-describe("filterVideos", () => {
+describe("videosInScope", () => {
+  const state = createDefaultUrlSearch();
+
   it("keeps everything when no filter is set", () => {
-    expect(filterVideos(videos, createDefaultUrlSearch())).toHaveLength(3);
+    expect(videosInScope(videos, state)).toHaveLength(4);
   });
 
-  it("filters by kind, year and title together", () => {
-    const state = createDefaultUrlSearch();
-    expect(filterVideos(videos, { ...state, videoKind: "short" }).map((v) => v.id)).toEqual(["ccccccccccc"]);
-    expect(filterVideos(videos, { ...state, videoYear: "2025" }).map((v) => v.id)).toEqual([
-      "bbbbbbbbbbb",
+  it("keeps videos published in the period and the week before it", () => {
+    expect(videosInScope(videos, { ...state, period: "week" }).map((v) => v.id)).toEqual(["aaaaaaaaaaa", "bbbbbbbbbbb"]);
+    const range = { ...state, period: "custom" as const, rangeStart: "2025-03-05", rangeEnd: "2025-03-31" };
+    expect(videosInScope(videos, range).map((v) => v.id)).toEqual(["ddddddddddd"]);
+    expect(videosInScope(videos, { ...range, rangeStart: "", rangeEnd: "2026-09-13" }).map((v) => v.id)).toEqual([
       "ccccccccccc",
+      "ddddddddddd",
     ]);
-    expect(filterVideos(videos, { ...state, videoTitle: "mv" }).map((v) => v.id)).toEqual([
+  });
+
+  it("filters by kind and title together with the period", () => {
+    expect(videosInScope(videos, { ...state, videoKind: "short" }).map((v) => v.id)).toEqual(["ccccccccccc"]);
+    expect(videosInScope(videos, { ...state, videoTitle: "mv" }).map((v) => v.id)).toEqual([
+      "aaaaaaaaaaa",
+      "ccccccccccc",
+      "ddddddddddd",
+    ]);
+    expect(videosInScope(videos, { ...state, videoTitle: "mv", period: "month" }).map((v) => v.id)).toEqual([
       "aaaaaaaaaaa",
       "ccccccccccc",
     ]);
-    expect(filterVideos(videos, { ...state, videoKind: "video", videoYear: "2025" })).toEqual([]);
   });
 });
 
-describe("buildVideoBatches", () => {
+describe("buildChannelBatches", () => {
   const ids = Array.from({ length: 30 }, (_, i) => `video${String(i).padStart(6, "0")}`);
-  const state = { ...createDefaultUrlSearch(), excluded: ["nnhr_nunu"], period: "year" as const };
+  const state = {
+    ...createDefaultUrlSearch(),
+    url: "https://www.youtube.com/@nnhr_nunu",
+    words: ["#ぬぬ配信"],
+    excluded: ["someone"],
+    period: "year" as const,
+  };
+  const scope = { links: ["UCqYpbbypex0iOikcZRenxGA"], owners: ["nnhr_nunu"], videoIds: ids };
 
-  it("splits the ids so each query fits the length limit", () => {
-    const batches = buildVideoBatches(ids, state, [], 200);
+  it("puts the channel links and words only in the first search", () => {
+    const batches = buildChannelBatches(state, scope, 200);
     expect(batches.length).toBeGreaterThan(1);
+    expect(
+      batches[0].query.startsWith('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA OR #ぬぬ配信 OR url:video000000'),
+    ).toBe(true);
+    for (const batch of batches.slice(1)) {
+      expect(batch.query).not.toContain("youtube.com");
+      expect(batch.query).not.toContain("#ぬぬ配信");
+    }
+  });
+
+  it("splits the videos so each search fits the length limit", () => {
+    const batches = buildChannelBatches(state, scope, 200);
     for (const batch of batches) {
       expect(batch.query.length).toBeLessThanOrEqual(200);
-      expect(batch.query.endsWith(" -from:nnhr_nunu since:2025-09-27")).toBe(true);
+      expect(batch.query.endsWith(" -from:someone -from:nnhr_nunu since:2025-09-27")).toBe(true);
     }
     expect(batches[0].from).toBe(1);
     expect(batches.at(-1)?.to).toBe(30);
+    batches.slice(1).forEach((batch, index) => expect(batch.from).toBe(batches[index].to + 1));
     const joined = batches.map((batch) => batch.query).join(" ");
     for (const id of ids) expect(joined).toContain(`url:${id}`);
   });
 
-  it("fits 25 video links in one search", () => {
-    const real = Array.from({ length: 30 }, (_, i) => `NUCX55gmk${String(i).padStart(2, "0")}`);
-    expect(buildVideoBatches(real, createDefaultUrlSearch())[0].to).toBe(25);
+  it("fits the channel and about 24 video links in one search", () => {
+    const real = Array.from({ length: 60 }, (_, i) => `NUCX55gmk${String(i).padStart(2, "0")}`);
+    const batches = buildChannelBatches(
+      { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu" },
+      { links: ["UCqYpbbypex0iOikcZRenxGA"], videoIds: real },
+    );
+    expect(batches[0].to).toBeGreaterThanOrEqual(22);
+    expect(batches[1].to - batches[1].from + 1).toBeGreaterThanOrEqual(25);
+    for (const batch of batches) expect(batch.query.length).toBeLessThanOrEqual(480);
   });
 
-  it("uses a single term without parentheses", () => {
-    expect(buildVideoBatches(["aaaaaaaaaaa"], createDefaultUrlSearch())).toEqual([
-      { query: "url:aaaaaaaaaaa", from: 1, to: 1 },
+  it("searches the channel link alone when no video is in scope", () => {
+    expect(buildChannelBatches({ ...state, words: [] }, { ...scope, videoIds: [] })).toEqual([
+      {
+        query: '(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA) -from:someone -from:nnhr_nunu since:2025-09-27',
+        from: 1,
+        to: 0,
+      },
     ]);
   });
 
-  it("returns nothing for no ids", () => {
-    expect(buildVideoBatches([], state)).toEqual([]);
-  });
-});
-
-describe("videoQuery", () => {
-  it("adds the title words only together with a name", () => {
-    const state = createDefaultUrlSearch();
-    const item = { id: "aaaaaaaaaaa", keyword: "シャルル" };
-    expect(videoQuery(item, state, ["ぬぬはら", "nnhr"])).toBe('(url:aaaaaaaaaaa OR ("シャルル" (ぬぬはら OR nnhr)))');
-    expect(videoQuery(item, state)).toBe("url:aaaaaaaaaaa");
-    expect(videoQuery({ id: "aaaaaaaaaaa", keyword: "" }, state, ["ぬぬはら"])).toBe("url:aaaaaaaaaaa");
-  });
-
-  it("does not take title words from streams", () => {
-    expect(videoItemOf(videos[0], []).keyword).toBe("新作");
-    expect(videoItemOf(videos[1], []).keyword).toBe("");
+  it("returns nothing without a readable url", () => {
+    expect(buildChannelBatches(createDefaultUrlSearch(), scope)).toEqual([]);
   });
 });

@@ -4,32 +4,39 @@ import { PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ChipInput } from "@/components/chip-input";
 import { SearchCluster } from "@/components/search-cluster";
-import { Segmented } from "@/components/segmented";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useYoutubeVideoInfo } from "@/components/use-youtube-video-info";
 import { YoutubeChannelVideos } from "@/components/youtube-channel-videos";
+import { YoutubePeriod } from "@/components/youtube-period";
+import { type ScopeInfo, YoutubeScopeSummary } from "@/components/youtube-scope-summary";
+import { YoutubeSearchButton } from "@/components/youtube-search-button";
 import { type Notice, YoutubeTarget } from "@/components/youtube-target";
 import { isLikelyHandle } from "@/lib/handle";
 import type { MessageKey } from "@/lib/i18n";
 import { buildSearchUrl } from "@/lib/query";
 import { channelNameWords, titleKeyword } from "@/lib/title-keywords";
 import {
+  buildChannelBatches,
   buildMainQuery,
   channelLink,
   loadUrlSearch,
   parseTargetUrl,
   saveUrlSearch,
-  URL_PERIODS,
-  type UrlPeriod,
+  type SearchBatch,
   type UrlSearchState,
   type UrlTarget,
+  videosInScope,
+  videoWindow,
 } from "@/lib/url-search";
 import {
   type ChannelData,
+  type ChannelVideo,
   fetchChannelVideos,
   refreshChannelVideos,
+  VIDEO_KINDS,
+  videoDate,
   YoutubeApiError,
   youtubeApiKey,
 } from "@/lib/youtube";
@@ -37,14 +44,6 @@ import { findChannel, isStaleChannel, loadChannelCache, saveChannelCache, upsert
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
-};
-
-const PERIOD_LABELS: Record<UrlPeriod, MessageKey> = {
-  all: "urlPeriodAll",
-  day: "urlPeriodDay",
-  week: "urlPeriodWeek",
-  month: "urlPeriodMonth",
-  year: "urlPeriodYear",
 };
 
 function errorMessage(error: unknown): MessageKey {
@@ -122,13 +121,28 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   // 配信のタイトルは感想に書かれないので、タイトルの言葉は動画・ショートだけ
   const videoKind = target?.kind === "video" ? ownerChannel?.videos.find((item) => item.id === target.token)?.kind : undefined;
   const keyword = videoInfo && videoKind !== "live" ? titleKeyword(videoInfo.title, [...names, handle]) : "";
-  const main = buildMainQuery(state, {
-    links: channel ? [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""] : [],
-    videoIds: channel ? channel.videos.map((item) => item.id) : [],
-    owners,
-    keyword,
-    names,
-  });
+
+  // チャンネル全体のときは、期間・種類・タイトルに当てはまる動画のリンクも探す
+  const inPeriod = channel ? videosInScope(channel.videos, { ...state, videoKind: "all" }) : [];
+  const matched = state.videoKind === "all" ? inPeriod : inPeriod.filter((video) => video.kind === state.videoKind);
+  let batches: SearchBatch[] = [];
+  if (channel) {
+    const links = [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""];
+    batches = buildChannelBatches(state, { links, owners, videoIds: matched.map((video) => video.id) });
+  } else {
+    const query = buildMainQuery(state, { owners, keyword, names });
+    if (query) batches = [{ query, from: 1, to: 0 }];
+  }
+  const hrefOf = (query: string) => buildSearchUrl(query, "posts", state.sort);
+
+  let scope: ScopeInfo = { kind: "page" };
+  if (target?.kind === "video") scope = { kind: "video", keyword, names };
+  if (target?.kind === "channel") {
+    scope = channel
+      ? { kind: "channel", count: matched.length, window: videoWindow(state), videoKind: state.videoKind, batches }
+      : { kind: "channelOnly" };
+  }
+  const summary = <YoutubeScopeSummary t={t} info={scope} words={state.words} />;
 
   const lowerWords = new Set(state.words.map((word) => word.toLowerCase()));
   const wordSuggestions = uniqueWords([...(ownerChannel?.channel.hashtags ?? []), ...nameWords]).filter(
@@ -139,18 +153,6 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     !owners.length && handle && isLikelyHandle(handle) && !state.excluded.some((item) => item.toLowerCase() === handle.toLowerCase())
       ? [`@${handle}`]
       : [];
-
-  let scope = t("urlScopePage");
-  if (target?.kind === "video") {
-    scope = t("urlScopeVideo");
-    if (keyword && names.length) {
-      scope += ` ${t("urlScopeTitle").replace("{title}", keyword).replace("{names}", names.join("・"))}`;
-    }
-  }
-  if (target?.kind === "channel") {
-    scope = main.videoCount ? t("urlScopeChannel").replace("{count}", String(main.videoCount)) : t("urlScopeChannelOnly");
-  }
-  if (state.words.length) scope += ` ${t("urlScopeWords").replace("{words}", state.words.join("・"))}`;
 
   const saveChannel = (data: ChannelData) => {
     setChannels((prev) => {
@@ -181,16 +183,14 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     }
   };
 
-  // 別の動画・チャンネルに変えたら、前の対象に合わせた言葉と動画の絞り込みは持ち越さない
-  const selectUrl = (url: string, keepWords = false): UrlTarget | null => {
+  // 別のチャンネルに変えたら、前の対象に合わせた言葉と動画の絞り込みは持ち越さない。
+  // 同じチャンネルの中で動画 1 本とチャンネル全体を行き来するときは keep で残す
+  const selectUrl = (url: string, keep = false): UrlTarget | null => {
     const next = parseTargetUrl(url);
     if (!next) return null;
     setNotice(null);
     const changed = !sameTarget(next, target);
-    patch({
-      url: url.trim(),
-      ...(changed ? { videoKind: "all", videoYear: "", videoTitle: "", ...(keepWords ? {} : { words: [] }) } : {}),
-    });
+    patch({ url: url.trim(), ...(changed && !keep ? { words: [], videoKind: "all", videoTitle: "" } : {}) });
     if (next.kind !== "channel") return next;
     const cached = findChannel(channels, next.token);
     // キーの無いビルドでも、保存済みの一覧はそのまま使える
@@ -202,26 +202,39 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     return next;
   };
 
+  // 一覧で選んだ動画だけを探す。検索ボタンのある上まで戻す
+  const focusVideo = (video: ChannelVideo) => {
+    selectUrl(`https://www.youtube.com/watch?v=${video.id}`, true);
+    requestAnimationFrame(() => document.querySelector('[data-testid="url-search"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   return (
     <>
       <SearchCluster
-        url={buildSearchUrl(main.query, "posts", state.sort)}
-        postsOk={Boolean(main.query)}
+        url={hrefOf(batches[0]?.query ?? "")}
+        postsOk={batches.length > 0}
         sort={state.sort}
         onSort={(sort) => patch({ sort })}
         t={t}
         testId="url-search"
         label={t("urlSearch")}
         emptyHint={t("urlEmpty")}
-      >
-        <p className="text-xs text-muted-foreground" data-testid="url-scope">
-          {scope}
-        </p>
-      </SearchCluster>
+        action={
+          <YoutubeSearchButton
+            // 条件が変わったら、何回目まで開いたかを最初に戻す
+            key={batches.map((batch) => batch.query).join("\n")}
+            t={t}
+            batches={batches}
+            videos={matched}
+            hrefOf={hrefOf}
+            withChannel={channel !== null}
+          />
+        }
+      />
       <p className="px-1 text-center text-xs text-muted-foreground">{t("autoSaveNote")}</p>
 
       <Card>
-        <CardContent className="space-y-6 pt-6" data-testid="url-options">
+        <CardContent className="pt-6" data-testid="url-options">
           <YoutubeTarget
             t={t}
             target={target}
@@ -231,10 +244,11 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
             notice={notice}
             recent={channels.filter((data) => data !== channel).slice(0, 4)}
             canLoad={Boolean(apiKey)}
+            canOpenChannel={Boolean(apiKey) || ownerChannel !== null}
             onSubmit={(raw) => selectUrl(raw) !== null}
             onClear={() => {
               setNotice(null);
-              patch({ url: "", words: [], videoKind: "all", videoYear: "", videoTitle: "" });
+              patch({ url: "", words: [], videoKind: "all", videoTitle: "" });
             }}
             onRefresh={() => {
               if (channel && !loading) void loadChannel(channel.ref, channel);
@@ -245,9 +259,59 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
               selectUrl(known ? channelUrl(known) : `https://www.youtube.com/channel/${channelId}`, true);
             }}
           />
+        </CardContent>
+      </Card>
 
-          {target ? (
-            <>
+      {target ? (
+        <>
+          <Card>
+            <CardContent className="space-y-4 pt-6" data-testid="url-range">
+              <YoutubePeriod
+                t={t}
+                state={state}
+                patch={patch}
+                publishedDate={target.kind === "video" && videoInfo?.publishedAt ? videoDate({ publishedAt: videoInfo.publishedAt }) : undefined}
+              />
+              {channel ? (
+                <YoutubeChannelVideos
+                  t={t}
+                  state={state}
+                  patch={patch}
+                  inPeriod={inPeriod}
+                  matched={matched}
+                  total={channel.videos.length}
+                  channelKinds={VIDEO_KINDS.filter((kind) => channel.videos.some((video) => video.kind === kind))}
+                  onFocus={focusVideo}
+                  summary={summary}
+                />
+              ) : (
+                summary
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-6 pt-6" data-testid="url-refine">
+              <div className="space-y-2">
+                <ChipInput
+                  id="url-search-words"
+                  label={t("urlWords")}
+                  placeholder={t("urlWordsPlaceholder")}
+                  values={state.words}
+                  onChange={(words) => patch({ words })}
+                  addLabel={t("addKeyword")}
+                  savedToast={t("savedToast")}
+                  testId="url-words"
+                />
+                <Suggestions
+                  t={t}
+                  items={wordSuggestions}
+                  onAdd={(word) => patch({ words: [...state.words, word] })}
+                  testId="url-suggestions"
+                />
+                <p className="text-xs text-muted-foreground">{t("urlWordsHint")}</p>
+              </div>
+
               {owners.length ? (
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-0.5">
@@ -269,37 +333,6 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
               ) : null}
 
               <div className="space-y-2">
-                <p className="text-sm font-medium">{t("urlPeriod")}</p>
-                <Segmented
-                  options={URL_PERIODS.map((period) => ({ id: period, label: t(PERIOD_LABELS[period]) }))}
-                  value={state.period}
-                  label={t("urlPeriod")}
-                  onChange={(period) => patch({ period })}
-                  testId="url-period"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <ChipInput
-                  id="url-search-words"
-                  label={t("urlWords")}
-                  placeholder={t("urlWordsPlaceholder")}
-                  values={state.words}
-                  onChange={(words) => patch({ words })}
-                  addLabel={t("addKeyword")}
-                  savedToast={t("savedToast")}
-                  testId="url-words"
-                />
-                <Suggestions
-                  t={t}
-                  items={wordSuggestions}
-                  onAdd={(word) => patch({ words: [...state.words, word] })}
-                  testId="url-suggestions"
-                />
-                <p className="text-xs text-muted-foreground">{t("urlWordsHint")}</p>
-              </div>
-
-              <div className="space-y-2">
                 <ChipInput
                   id="url-search-exclude"
                   label={t("urlExclude")}
@@ -319,13 +352,9 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                   testId="url-exclude-suggestions"
                 />
               </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {channel ? (
-        <YoutubeChannelVideos t={t} data={channel} state={state} patch={patch} names={names} owners={owners} />
+            </CardContent>
+          </Card>
+        </>
       ) : null}
     </>
   );

@@ -71,7 +71,15 @@ export function saveChannelCache(channels: ChannelData[]): void {
 export function findVideoInChannels(channels: ChannelData[], id: string): VideoInfo | null {
   for (const data of channels) {
     const video = data.videos.find((item) => item.id === id);
-    if (video) return { id, title: video.title, channelId: data.channel.id, channelTitle: data.channel.title };
+    if (video) {
+      return {
+        id,
+        title: video.title,
+        channelId: data.channel.id,
+        channelTitle: data.channel.title,
+        publishedAt: video.publishedAt,
+      };
+    }
   }
   return null;
 }
