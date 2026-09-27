@@ -1,9 +1,8 @@
-import { daysAgoIso } from "./dates";
+import { daysAgoIso, rangeWindow, shiftIso, windowAround } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
-import { titleKeyword } from "./title-keywords";
-import type { ResultSort } from "./types";
-import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoYear } from "./youtube";
+import type { DateSpanId, ResultSort } from "./types";
+import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./youtube";
 
 // YouTube タブ（旧 URL検索）の条件と、X の検索クエリの組み立て。
 // X で実際に検索して分かったこと（2026-09-28, @nnhr_nunu）:
@@ -15,35 +14,57 @@ import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoYear } from "./you
 
 export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 
-// 期間の絞り込み。保存するのは相対の期間で、since: の日付は検索のたびに今日から数える
-export type UrlPeriod = "all" | "day" | "week" | "month" | "year";
+// 期間の絞り込み。1日〜1年は相対の期間で、since: の日付は検索のたびに今日から数える。
+// "custom" は設定1〜3 と同じく、区間（開始日〜終了日）か、ある日付の前後を指定する
+export type UrlPeriod = "all" | "day" | "week" | "month" | "year" | "custom";
 
-export const URL_PERIODS: UrlPeriod[] = ["all", "day", "week", "month", "year"];
+export const URL_PERIODS: UrlPeriod[] = ["all", "day", "week", "month", "year", "custom"];
 
-const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all">, number> = { day: 1, week: 7, month: 30, year: 365 };
+export type UrlDateMode = "range" | "around";
 
-export function periodSince(period: UrlPeriod): string {
-  return period === "all" ? "" : daysAgoIso(PERIOD_DAYS[period]);
-}
+const PERIOD_DAYS: Record<Exclude<UrlPeriod, "all" | "custom">, number> = { day: 1, week: 7, month: 30, year: 365 };
+
+// 投稿の期間より少し前に出た動画も、期間中に共有されることが多いので対象に含める
+export const VIDEO_LEAD_DAYS = 7;
 
 export type VideoKindFilter = VideoKind | "all";
 
 export type UrlSearchState = {
   // 読み込んだ URL。入力途中の値は画面側で持つ
   url: string;
-  // リンクを貼らずに感想を書く人を拾うための言葉（配信タグ・呼び名など）
+  // リンクと一緒に探す言葉（配信タグ・ファンアートタグ・呼び名など）
   words: string[];
   // 反応として数えたくないアカウント
   excluded: string[];
   // チャンネルの説明欄にある本人の X アカウントの投稿を除く
   excludeOwner: boolean;
   period: UrlPeriod;
+  // period が "custom" のときの指定。空欄はその側を区切らない（対象の日付の空欄は今日）
+  dateMode: UrlDateMode;
+  rangeStart: string;
+  rangeEnd: string;
+  aroundDate: string;
+  dateSpan: DateSpanId;
   sort: ResultSort;
-  // チャンネルの動画一覧の絞り込み。"all" と "" は「すべて」
+  // チャンネルの動画の絞り込み。"all" と "" は「すべて」
   videoKind: VideoKindFilter;
-  videoYear: string;
   videoTitle: string;
 };
+
+// X の since:（その日を含む）と until:（その日を含まない）
+export type DateWindow = { since: string; until: string };
+
+export function postWindow(state: Pick<UrlSearchState, "period" | "dateMode" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">): DateWindow {
+  if (state.period === "all") return { since: "", until: "" };
+  if (state.period !== "custom") return { since: daysAgoIso(PERIOD_DAYS[state.period]), until: "" };
+  return state.dateMode === "around" ? windowAround(state.aroundDate, state.dateSpan) : rangeWindow(state.rangeStart, state.rangeEnd);
+}
+
+// 対象にする動画の公開日の範囲。投稿の期間の VIDEO_LEAD_DAYS 日前から
+export function videoWindow(state: Parameters<typeof postWindow>[0]): DateWindow {
+  const { since, until } = postWindow(state);
+  return { since: since ? shiftIso(since, -VIDEO_LEAD_DAYS) : "", until };
+}
 
 export type UrlTargetKind = "video" | "channel" | "niconico" | "page";
 
@@ -72,9 +93,13 @@ export function createDefaultUrlSearch(): UrlSearchState {
     excluded: [],
     excludeOwner: true,
     period: "all",
+    dateMode: "range",
+    rangeStart: "",
+    rangeEnd: "",
+    aroundDate: "",
+    dateSpan: "7",
     sort: "latest",
     videoKind: "all",
-    videoYear: "",
     videoTitle: "",
   };
 }
@@ -181,8 +206,9 @@ export function excludedHandles(state: UrlSearchState, owners: string[] = []): s
 
 function tailParts(state: UrlSearchState, owners: string[]): string[] {
   const parts = excludedHandles(state, owners).map((handle) => `-from:${handle}`);
-  const since = periodSince(state.period);
+  const { since, until } = postWindow(state);
   if (since) parts.push(`since:${since}`);
+  if (until) parts.push(`until:${until}`);
   return parts;
 }
 
@@ -193,8 +219,6 @@ function compose(terms: string[], tail: string[]): string {
 export type UrlScope = {
   // 対象の URL のほかに探すリンク（読み込んだチャンネルの ID・ハンドル）
   links?: string[];
-  // チャンネルの動画 ID（新しい順）。メインの検索に入るだけ足す
-  videoIds?: string[];
   // 本人の X アカウント
   owners?: string[];
   // 動画 1 本のとき、タイトルから取った言葉と、それと一緒に書かれていてほしい名前
@@ -208,85 +232,65 @@ function titleTerm(keyword: string, names: string[]): string {
   return keyword.trim() && nameGroup ? `(${quoteTerm(keyword, true)} ${nameGroup})` : "";
 }
 
-export type MainQuery = {
-  query: string;
-  // チャンネルのとき、メインの検索に入れた動画リンクの本数（新しい順）
-  videoCount: number;
-};
+function wordTerms(state: UrlSearchState): string[] {
+  return state.words.map((word) => quoteTerm(word, false)).filter(Boolean);
+}
 
-// メインの検索。リンクと言葉のどちらかを含む投稿を探す。
-// チャンネルのときは新しい動画のリンクも X に入る長さまで足す（動画の共有リンクにはチャンネルが入らないため）
-export function buildMainQuery(state: UrlSearchState, scope: UrlScope = {}, maxLength = MAX_QUERY_LENGTH): MainQuery {
+// 動画 1 本・ページ・動画一覧を読み込めていないチャンネルの検索。リンクと言葉のどちらかを含む投稿を探す
+export function buildMainQuery(state: UrlSearchState, scope: UrlScope = {}): string {
   const target = parseTargetUrl(state.url);
-  if (!target) return { query: "", videoCount: 0 };
-  const tail = tailParts(state, scope.owners ?? []);
+  if (!target) return "";
   const links = uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm);
   if (target.kind === "video") links.push(titleTerm(scope.keyword ?? "", scope.names ?? []));
-  const words = state.words.map((word) => quoteTerm(word, false)).filter(Boolean);
-  const videoLinks: string[] = [];
-  for (const id of target.kind === "channel" ? (scope.videoIds ?? []) : []) {
-    const term = linkTerm(id);
-    if (compose([...links, ...videoLinks, term, ...words], tail).length > maxLength) break;
-    videoLinks.push(term);
-  }
-  return { query: compose([...links, ...videoLinks, ...words].filter(Boolean), tail), videoCount: videoLinks.length };
+  return compose([...links, ...wordTerms(state)].filter(Boolean), tailParts(state, scope.owners ?? []));
 }
 
-export function filterVideos(videos: ChannelVideo[], state: UrlSearchState): ChannelVideo[] {
+// チャンネルの動画のうち、期間・種類・タイトルに当てはまるもの（新しい順のまま）
+export function videosInScope(videos: ChannelVideo[], state: UrlSearchState): ChannelVideo[] {
+  const { since, until } = videoWindow(state);
   const title = state.videoTitle.trim().toLowerCase();
-  return videos.filter(
-    (item) =>
+  return videos.filter((item) => {
+    const date = videoDate(item);
+    return (
+      (!since || date >= since) &&
+      (!until || date < until) &&
       (state.videoKind === "all" || item.kind === state.videoKind) &&
-      (!state.videoYear || videoYear(item) === state.videoYear) &&
-      (!title || item.title.toLowerCase().includes(title)),
-  );
+      (!title || item.title.toLowerCase().includes(title))
+    );
+  });
 }
 
-export type VideoItem = {
-  id: string;
-  // タイトルから取った言葉（曲名など）。取れないときと配信は空
-  keyword: string;
-};
-
-// 配信のタイトルは「【原神】〇〇を進める」のような説明で、感想に書かれることはまずないので使わない
-export function videoItemOf(item: ChannelVideo, names: string[]): VideoItem {
-  return { id: item.id, keyword: item.kind === "live" ? "" : titleKeyword(item.title, names) };
-}
-
-// 1 本の動画の反応。リンクに加えて、曲名などを名前と一緒に書いた感想も拾う
-export function videoQuery(item: VideoItem, state: UrlSearchState, names: string[] = [], owners: string[] = []): string {
-  const terms = [linkTerm(item.id), titleTerm(item.keyword, names)].filter(Boolean);
-  return compose(terms, tailParts(state, owners));
-}
-
-export type VideoBatch = {
+export type SearchBatch = {
   query: string;
-  // 何本目から何本目か（1 始まり）
+  // この回に入れた動画が何本目から何本目か（1 始まり）。動画が無い回は to = from - 1
   from: number;
   to: number;
 };
 
-// 動画のリンクを OR でつなぎ、X に入る長さごとに分ける。まとめて探すときはリンクだけにして回数を減らす
-export function buildVideoBatches(
-  ids: string[],
+// チャンネルの検索。動画の共有リンクにはチャンネルが入らないので、動画のリンクも 1 本ずつ OR でつなぐ。
+// X に入る長さを超えるときは何回かに分け、チャンネルのリンクと言葉は 1 回目にだけ入れる（同じ投稿が毎回出ないように）
+export function buildChannelBatches(
   state: UrlSearchState,
-  owners: string[] = [],
+  scope: UrlScope & { videoIds: string[] },
   maxLength = MAX_QUERY_LENGTH,
-): VideoBatch[] {
-  const tail = tailParts(state, owners);
-  const batches: VideoBatch[] = [];
-  let current: string[] = [];
+): SearchBatch[] {
+  const target = parseTargetUrl(state.url);
+  if (!target) return [];
+  const tail = tailParts(state, scope.owners ?? []);
+  const head = [...uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm), ...wordTerms(state)];
+  const batches: SearchBatch[] = [];
+  let current = head;
   let from = 1;
-  ids.forEach((id, index) => {
+  scope.videoIds.forEach((id, index) => {
     const term = linkTerm(id);
     if (current.length && compose([...current, term], tail).length > maxLength) {
       batches.push({ query: compose(current, tail), from, to: index });
       current = [];
       from = index + 1;
     }
-    current.push(term);
+    current = [...current, term];
   });
-  if (current.length) batches.push({ query: compose(current, tail), from, to: ids.length });
+  if (current.length) batches.push({ query: compose(current, tail), from, to: scope.videoIds.length });
   return batches;
 }
 
@@ -294,28 +298,36 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
+
 export function loadUrlSearch(): UrlSearchState {
   const fallback = createDefaultUrlSearch();
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(URL_SEARCH_STORAGE_KEY);
     if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown; videoYears?: unknown };
-    // 以前は種類と公開年を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ
+    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown };
+    // 以前は種類を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ（公開年の絞り込みは期間に置き換えた）
     const oldKinds = strings(parsed.videoKinds);
-    const oldYears = strings(parsed.videoYears);
     const kind = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
     return {
-      url: typeof parsed.url === "string" ? parsed.url : "",
+      url: text(parsed.url),
       words: strings(parsed.words),
       excluded: strings(parsed.excluded),
       excludeOwner: parsed.excludeOwner !== false,
       period: URL_PERIODS.includes(parsed.period as UrlPeriod) ? (parsed.period as UrlPeriod) : "all",
+      dateMode: parsed.dateMode === "around" ? "around" : "range",
+      rangeStart: text(parsed.rangeStart),
+      rangeEnd: text(parsed.rangeEnd),
+      aroundDate: text(parsed.aroundDate),
+      dateSpan: DATE_SPANS.includes(parsed.dateSpan as DateSpanId) ? (parsed.dateSpan as DateSpanId) : "7",
       sort: parsed.sort === "likes" ? "likes" : "latest",
       videoKind: (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKind) : "all",
-      videoYear:
-        typeof parsed.videoYear === "string" ? parsed.videoYear : oldYears.length === 1 ? oldYears[0] : "",
-      videoTitle: typeof parsed.videoTitle === "string" ? parsed.videoTitle : "",
+      videoTitle: text(parsed.videoTitle),
     };
   } catch {
     return fallback;

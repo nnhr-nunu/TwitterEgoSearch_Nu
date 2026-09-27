@@ -311,15 +311,23 @@ export type VideoInfo = {
   title: string;
   channelId: string;
   channelTitle: string;
+  // 後から足した項目。前に保存した情報には無い。配信は開始日時
+  publishedAt?: string;
 };
 
-// 動画 1 本のタイトルとチャンネル名（1 ユニット）。見つからなければ null
+// 動画 1 本のタイトル・チャンネル名・公開日（1 ユニット。part を増やしても変わらない）。見つからなければ null
 export async function fetchVideoInfo(id: string, key: string, fetchImpl: FetchLike = fetch): Promise<VideoInfo | null> {
-  const list = await callApi(fetchImpl, "videos", { part: "snippet", id }, key);
+  const list = await callApi(fetchImpl, "videos", { part: "snippet,liveStreamingDetails", id }, key);
   const item = list.items?.[0];
   if (!item) return null;
   const snippet = obj(item.snippet);
-  return { id, title: str(snippet.title), channelId: str(snippet.channelId), channelTitle: str(snippet.channelTitle) };
+  return {
+    id,
+    title: str(snippet.title),
+    channelId: str(snippet.channelId),
+    channelTitle: str(snippet.channelTitle),
+    publishedAt: toDetail(item).publishedAt,
+  };
 }
 
 // 年の区切りは閲覧しているブラウザの時刻に合わせる

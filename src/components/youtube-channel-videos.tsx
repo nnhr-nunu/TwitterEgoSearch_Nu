@@ -1,35 +1,29 @@
 "use client";
 
-import { RotateCcwIcon, SearchIcon } from "lucide-react";
-import { useState } from "react";
+import { ChevronRightIcon, SearchIcon } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { Segmented } from "@/components/segmented";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { MessageKey } from "@/lib/i18n";
-import { buildSearchUrl } from "@/lib/query";
-import {
-  buildVideoBatches,
-  filterVideos,
-  type UrlSearchState,
-  type VideoBatch,
-  type VideoKindFilter,
-  videoItemOf,
-  videoQuery,
-} from "@/lib/url-search";
-import { type ChannelData, type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate, videoYear } from "@/lib/youtube";
+import type { UrlSearchState, VideoKindFilter } from "@/lib/url-search";
+import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "@/lib/youtube";
 
 type YoutubeChannelVideosProps = {
   t: (key: MessageKey) => string;
-  // 読み込んだチャンネルの、保存済みの動画一覧
-  data: ChannelData;
   state: UrlSearchState;
   patch: (next: Partial<UrlSearchState>) => void;
-  // 曲名などと一緒に書かれていてほしい名前（チャンネル名の呼び名と、一緒に探す言葉）
-  names: string[];
-  // 本人の X アカウント
-  owners: string[];
+  // 期間とタイトルに当てはまる動画（種類は問わない）と、そのうち種類にも当てはまる、検索に入れる動画
+  inPeriod: ChannelVideo[];
+  matched: ChannelVideo[];
+  // 読み込んだ動画の総数と、チャンネルにある種類
+  total: number;
+  channelKinds: VideoKind[];
+  // 押した動画だけを探す（対象をその動画に切り替える）
+  onFocus: (video: ChannelVideo) => void;
+  // 何を探すかの説明。絞り込みのすぐ下、一覧の上に出す
+  summary: ReactNode;
 };
 
 const KIND_LABELS: Record<VideoKind, MessageKey> = {
@@ -39,131 +33,26 @@ const KIND_LABELS: Record<VideoKind, MessageKey> = {
 };
 
 // 一覧は長くなるので、少しずつ出す（画面の中で別にスクロールさせない）
+const FIRST_PAGE = 5;
 const PAGE_SIZE = 20;
 
-function chipClass(selected: boolean): string {
-  return `shrink-0 rounded-full border px-3 py-1 text-xs font-medium tabular-nums transition-colors ${
-    selected
-      ? "border-primary bg-primary text-primary-foreground"
-      : "border-border bg-background text-foreground hover:bg-muted"
-  }`;
-}
-
 function countBy<T extends string>(values: T[]): Map<T, number> {
-  const counts = new Map<T, number>();
-  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
-  return counts;
-}
-
-function shortDate(video: ChannelVideo | undefined): string {
-  return video ? videoDate(video).replaceAll("-", "/") : "";
-}
-
-// まとめて探す。X に入る長さを超えるときは、1 つのボタンで 1 回ずつ順に開く
-function BulkSearch({
-  t,
-  videos,
-  batches,
-  hrefOf,
-}: {
-  t: (key: MessageKey) => string;
-  videos: ChannelVideo[];
-  batches: VideoBatch[];
-  hrefOf: (query: string) => string;
-}) {
-  const [step, setStep] = useState(0);
-  const title = t("ytBulk").replace("{count}", String(videos.length));
-
-  if (batches.length === 1) {
-    return (
-      <Button size="lg" className="h-11 w-full" asChild>
-        <a href={hrefOf(batches[0].query)} target="_blank" rel="noopener noreferrer" data-testid="yt-bulk-next">
-          <SearchIcon data-icon="inline-start" />
-          {title}
-        </a>
-      </Button>
-    );
-  }
-
-  const parts = String(batches.length);
-  // 一覧は新しい順なので、古い日付〜新しい日付の順に見せる
-  const rangeOf = (batch: VideoBatch) => `${shortDate(videos[batch.to - 1])}〜${shortDate(videos[batch.from - 1])}`;
-  const current = batches[step];
-
-  return (
-    <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3" data-testid="yt-bulk">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">
-          {t("ytBulkNote")
-            .replace("{per}", String(batches[0].to - batches[0].from + 1))
-            .replace("{parts}", parts)}
-        </p>
-      </div>
-      {current ? (
-        <Button size="lg" className="h-auto min-h-11 w-full flex-col gap-0 py-2" asChild>
-          <a
-            href={hrefOf(current.query)}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="yt-bulk-next"
-            onClick={() => setStep(step + 1)}
-          >
-            <span className="flex items-center gap-1.5">
-              <SearchIcon className="size-4" aria-hidden />
-              {t("ytBulkStep").replace("{step}", String(step + 1)).replace("{parts}", parts)}
-            </span>
-            <span className="text-xs font-normal tabular-nums opacity-85">{rangeOf(current)}</span>
-          </a>
-        </Button>
-      ) : (
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm" role="status">
-            {t("ytBulkDone").replace("{parts}", parts)}
-          </p>
-          <Button type="button" variant="outline" size="sm" onClick={() => setStep(0)} data-testid="yt-bulk-restart">
-            <RotateCcwIcon data-icon="inline-start" />
-            {t("ytBulkRestart")}
-          </Button>
-        </div>
-      )}
-      {/* 開いた回は濃く塗る。押すとその回から開き直せる */}
-      <div className="flex gap-1" role="group" aria-label={title}>
-        {batches.map((batch, index) => (
-          <button
-            key={batch.from}
-            type="button"
-            className="group flex h-6 flex-1 items-center"
-            aria-label={t("ytBulkPart").replace("{step}", String(index + 1)).replace("{range}", rangeOf(batch))}
-            aria-current={index === step ? "step" : undefined}
-            title={rangeOf(batch)}
-            onClick={() => setStep(index)}
-          >
-            <span
-              className={`h-1.5 w-full rounded-full transition-colors group-hover:bg-primary/60 ${
-                index < step ? "bg-primary" : index === step ? "bg-primary/35" : "bg-border"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return values.reduce((counts, value) => counts.set(value, (counts.get(value) ?? 0) + 1), new Map<T, number>());
 }
 
 function VideoList({
   t,
   videos,
   showKind,
-  hrefOfVideo,
+  onFocus,
 }: {
   t: (key: MessageKey) => string;
   videos: ChannelVideo[];
   showKind: boolean;
-  hrefOfVideo: (video: ChannelVideo) => string;
+  onFocus: (video: ChannelVideo) => void;
 }) {
-  const [limit, setLimit] = useState(PAGE_SIZE);
-  if (!videos.length) return <p className="py-4 text-center text-sm text-muted-foreground">{t("ytNone")}</p>;
+  const [limit, setLimit] = useState(FIRST_PAGE);
+  if (!videos.length) return <p className="py-2 text-center text-sm text-muted-foreground">{t("ytNone")}</p>;
   const rest = videos.length - limit;
 
   return (
@@ -190,21 +79,28 @@ function VideoList({
             </a>
             <div className="min-w-0 flex-1 space-y-0.5">
               <p className="line-clamp-2 text-sm leading-snug">{video.title}</p>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="whitespace-nowrap tabular-nums">{shortDate(video)}</span>
+              {/* 選ぶボタンは日付の行に置き、タイトルを横いっぱいに見せる */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="whitespace-nowrap tabular-nums">{videoDate(video).replaceAll("-", "/")}</span>
                 {showKind ? (
                   <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
                     {t(KIND_LABELS[video.kind])}
                   </Badge>
                 ) : null}
-              </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-my-1 ml-auto h-7 shrink-0 gap-0.5 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+                  aria-label={t("ytFocusHint").replace("{title}", video.title)}
+                  onClick={() => onFocus(video)}
+                  data-testid="yt-focus"
+                >
+                  {t("ytFocus")}
+                  <ChevronRightIcon className="size-3.5" aria-hidden />
+                </Button>
+              </div>
             </div>
-            <Button variant="outline" size="sm" className="shrink-0" asChild>
-              <a href={hrefOfVideo(video)} target="_blank" rel="noopener noreferrer" data-testid="yt-reactions">
-                <SearchIcon data-icon="inline-start" />
-                {t("ytReactions")}
-              </a>
-            </Button>
           </li>
         ))}
       </ul>
@@ -224,89 +120,63 @@ function VideoList({
   );
 }
 
-export function YoutubeChannelVideos({ t, data, state, patch, names, owners }: YoutubeChannelVideosProps) {
-  const videos = data.videos;
-  const kindCounts = countBy(videos.map((video) => video.kind));
-  const kinds = VIDEO_KINDS.filter((kind) => kindCounts.has(kind));
-  // 前に選んだ種類・年がこのチャンネルに無ければ「すべて」として扱う
-  const videoKind: VideoKindFilter = state.videoKind !== "all" && kinds.includes(state.videoKind) ? state.videoKind : "all";
-  // 公開年の件数は、選んでいる種類の中で数える
-  const ofKind = videoKind === "all" ? videos : videos.filter((video) => video.kind === videoKind);
-  const yearCounts = countBy(ofKind.map(videoYear).filter(Boolean));
-  const years = [...yearCounts.keys()].sort((a, b) => b.localeCompare(a));
-  const year = years.includes(state.videoYear) ? state.videoYear : "";
-  const matched = filterVideos(videos, { ...state, videoKind, videoYear: year });
-  const batches = buildVideoBatches(
-    matched.map((video) => video.id),
-    state,
-    owners,
-  );
-  const hrefOf = (query: string) => buildSearchUrl(query, "posts", state.sort);
-  // 名前だけの区切り（「曲名 / 名前」の名前側）はタイトルの言葉にしない
-  const nameWords = [...names, data.channel.handle];
-  const hrefOfVideo = (video: ChannelVideo) => hrefOf(videoQuery(videoItemOf(video, nameWords), state, names, owners));
-  // 絞り込みを変えたら、まとめて検索の進み具合と表示件数を最初に戻す
-  const filterKey = [data.channel.id, videos.length, videoKind, year, state.videoTitle, batches.length, batches[0]?.query].join("|");
+// チャンネル全体を探すときの「どの動画を探すか」。種類とタイトルで絞り、当てはまる動画を一覧で見せる
+export function YoutubeChannelVideos({
+  t,
+  state,
+  patch,
+  inPeriod,
+  matched,
+  total,
+  channelKinds,
+  onFocus,
+  summary,
+}: YoutubeChannelVideosProps) {
+  const kindCounts = countBy(inPeriod.map((video) => video.kind));
+  // 種類の切り替えは、チャンネルに 2 種類以上あるときだけ出す。期間を変えても並びが動かないよう、0 本の種類も残す
+  const kinds = VIDEO_KINDS.filter((kind) => channelKinds.includes(kind) || kind === state.videoKind);
+  const listKey = [state.url, state.period, state.rangeStart, state.rangeEnd, state.aroundDate, state.dateSpan, state.dateMode, state.videoKind, state.videoTitle].join("|");
 
   return (
-    <Card>
-      <CardContent className="space-y-4 pt-6" data-testid="yt-channel">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-sm font-medium">{t("ytSection")}</p>
-          <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
-            {matched.length} / {videos.length}
-          </p>
-        </div>
-
-        {kinds.length > 1 ? (
+    <div className="space-y-3" data-testid="yt-channel">
+      {kinds.length > 1 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t("ytKind")}</p>
           <Segmented<VideoKindFilter>
             options={[
-              { id: "all", label: t("ytAll"), count: videos.length },
-              ...kinds.map((kind) => ({ id: kind, label: t(KIND_LABELS[kind]), count: kindCounts.get(kind) })),
+              { id: "all", label: t("ytAll"), count: inPeriod.length },
+              ...kinds.map((kind) => ({ id: kind, label: t(KIND_LABELS[kind]), count: kindCounts.get(kind) ?? 0 })),
             ]}
-            value={videoKind}
+            value={state.videoKind}
             label={t("ytKind")}
-            onChange={(next) => patch({ videoKind: next })}
+            onChange={(videoKind) => patch({ videoKind })}
             testId="yt-kind"
           />
-        ) : null}
-
-        {years.length > 1 ? (
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none]" role="radiogroup" aria-label={t("ytYear")} data-testid="yt-years">
-            {["", ...years].map((option) => (
-              <button
-                key={option || "all"}
-                type="button"
-                role="radio"
-                aria-checked={year === option}
-                data-testid={`yt-year-${option || "all"}`}
-                className={chipClass(year === option)}
-                onClick={() => patch({ videoYear: option })}
-              >
-                {option || t("ytAll")}
-                {option ? <span className="ml-1 opacity-70">{yearCounts.get(option)}</span> : null}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="relative">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            type="search"
-            value={state.videoTitle}
-            placeholder={t("ytTitleFilter")}
-            aria-label={t("ytTitleFilter")}
-            className="h-10 pl-9 text-base md:text-sm"
-            data-testid="yt-title-filter"
-            onChange={(event) => patch({ videoTitle: event.target.value })}
-          />
         </div>
+      ) : null}
 
-        {batches.length ? <BulkSearch key={`bulk|${filterKey}`} t={t} videos={matched} batches={batches} hrefOf={hrefOf} /> : null}
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input
+          type="search"
+          value={state.videoTitle}
+          placeholder={t("ytTitleFilter")}
+          aria-label={t("ytTitleFilter")}
+          className="h-10 pl-9 text-base md:text-sm"
+          data-testid="yt-title-filter"
+          onChange={(event) => patch({ videoTitle: event.target.value })}
+        />
+      </div>
 
-        <VideoList key={`list|${filterKey}`} t={t} videos={matched} showKind={kinds.length > 1} hrefOfVideo={hrefOfVideo} />
-      </CardContent>
-    </Card>
+      {summary}
+
+      <div className="flex items-baseline justify-between gap-2 pt-1">
+        <p className="text-sm font-medium">{t("ytListTitle")}</p>
+        <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
+          {matched.length} / {total}
+        </p>
+      </div>
+      <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 1} onFocus={onFocus} />
+    </div>
   );
 }

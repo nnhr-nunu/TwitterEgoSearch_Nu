@@ -73,6 +73,7 @@ describe("youtube cache", () => {
       title: "video of nunu",
       channelId: "UC1",
       channelTitle: "title nunu",
+      publishedAt: "2026-01-01T00:00:00Z",
     });
     expect(loadVideoInfo("x")).toBeNull();
     saveVideoInfo({ id: "x", title: "t", channelId: "UC1", channelTitle: "c" });
