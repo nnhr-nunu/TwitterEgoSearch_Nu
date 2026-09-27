@@ -6,16 +6,25 @@ const BRACKETS =
   /【[^】]*】|\[[^\]]*\]|［[^］]*］|\([^)]*\)|（[^）]*）|〔[^〕]*〕|<[^>]*>|＜[^＞]*＞|≪[^≫]*≫|《[^》]*》|〖[^〗]*〗/g;
 const QUOTED = /[『「]([^』」]+)[』」]/g;
 const HASHTAG = /[#＃][^\s#＃]+/g;
-const SEPARATORS = /\s+[-–—~〜]\s+|[/／|｜]|\s(?:feat\.?|ft\.|covered by|cover by|by)\s/i;
-// それだけでは何の動画か分からない言葉。タイトルから取り除く
-const GENERIC =
-  /歌ってみた|踊ってみた|弾いてみた|叩いてみた|演奏してみた|描いてみた|やってみた|切り抜き|生配信|歌枠|雑談配信|雑談|オリジナル曲|公式|\b(?:official\s+(?:music\s+)?video|music\s+video|official|cover(?:ed)?|mv|pv|shorts?|full|ver\.?|live|original\s+song|teaser|trailer|vtuber)\b/gi;
-const EDGE_NOISE = /^[\s\p{P}\p{S}]+|[\s\p{P}\p{S}]+$/gu;
+// 絵文字や「※」の注記も区切りとみなす（感想で絵文字まで同じに書く人は少ない）
+const SEPARATORS =
+  /\s+[-–—~〜]\s+|[/／|｜※]|\p{Extended_Pictographic}+|\s(?:feat\.?|ft\.|covered by|cover by|by)\s/iu;
+// それだけでは何の動画か分からない言葉。前後にあるときだけ取り除く（途中を抜くと X の語句検索で当たらない）
+const GENERIC = String.raw`歌ってみた|踊ってみた|弾いてみた|叩いてみた|演奏してみた|描いてみた|やってみた|切り抜き|生配信|歌枠|雑談配信|雑談|オリジナル曲|公式|\b(?:official\s+(?:music\s+)?video|music\s+video|official|cover(?:ed)?|mv|pv|shorts?|full|ver\.?|live|original\s+song|teaser|trailer|vtuber)\b`;
+const GENERIC_HEAD = new RegExp(`^(?:${GENERIC})`, "i");
+const GENERIC_TAIL = new RegExp(`(?:${GENERIC})$`, "i");
+// 絵文字の異体字セレクタ（U+FE0F）などの結合文字も端から落とす
+const EDGE_NOISE = /^[\s\p{P}\p{S}\p{M}\p{Cf}]+|[\s\p{P}\p{S}\p{M}\p{Cf}]+$/gu;
 const MAX_LENGTH = 40;
 const CUT_POINT = /[\s、。！!？?,]/;
 
 function clean(text: string): string {
-  return text.replace(GENERIC, " ").replace(/\s+/g, " ").replace(EDGE_NOISE, "").trim();
+  let current = text.replace(/\s+/g, " ");
+  for (;;) {
+    const next = current.replace(EDGE_NOISE, "").replace(GENERIC_HEAD, "").replace(GENERIC_TAIL, "");
+    if (next === current) return next.trim();
+    current = next;
+  }
 }
 
 function length(text: string): number {
