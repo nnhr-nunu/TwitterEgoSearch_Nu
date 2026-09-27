@@ -131,9 +131,9 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const videoKind = target?.kind === "video" ? ownerChannel?.videos.find((item) => item.id === target.token)?.kind : undefined;
   const keyword = videoInfo && videoKind !== "live" ? titleKeyword(videoInfo.title, [...names, handle]) : "";
 
-  // チャンネル全体のときは、期間・種類・タイトルに当てはまる動画のリンクも探す
+  // チャンネル全体のときは、期間・種類・タイトルに当てはまる動画のリンクを探す（種類が「チャンネル」ならチャンネルのリンク）
   const inPeriod = channel ? videosInScope(channel.videos, { ...state, videoKind: "all" }) : [];
-  const matched = state.videoKind === "all" ? inPeriod : inPeriod.filter((video) => video.kind === state.videoKind);
+  const matched = channel ? videosInScope(channel.videos, state) : [];
   let batches: SearchBatch[] = [];
   if (channel) {
     const links = [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""];
@@ -147,9 +147,10 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   let scope: ScopeInfo = { kind: "page" };
   if (target?.kind === "video") scope = { kind: "video", keyword, names };
   if (target?.kind === "channel") {
-    scope = channel
-      ? { kind: "channel", count: matched.length, window: postWindow(state), videoKind: state.videoKind, batches }
-      : { kind: "channelOnly" };
+    scope =
+      channel && state.videoKind !== "channel"
+        ? { kind: "channel", count: matched.length, window: postWindow(state), videoKind: state.videoKind, batches }
+        : { kind: "channelOnly" };
   }
   const summary = <YoutubeScopeSummary t={t} info={scope} words={words} />;
 

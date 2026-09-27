@@ -13,6 +13,9 @@ import {
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
 
+// 既定の期間は 1 週間。期間を問わないテストは「すべて」から始める
+const defaults = () => ({ ...createDefaultUrlSearch(), period: "all" as const });
+
 // 期間は今日から数えるので、日付を固定する（2026-09-27 の 7 日前 = 2026-09-20）
 beforeEach(() => {
   vi.useFakeTimers();
@@ -87,7 +90,7 @@ describe("linkTerm", () => {
 describe("buildMainQuery", () => {
   it("combines the link and words and appends exclusions and since", () => {
     const query = buildMainQuery({
-      ...createDefaultUrlSearch(),
+      ...defaults(),
       url: "https://youtu.be/dQw4w9WgXcQ",
       words: ["#新作MV", "ぬぬ MV"],
       excluded: ["@nunuhara"],
@@ -97,25 +100,25 @@ describe("buildMainQuery", () => {
   });
 
   it("returns nothing without a readable url", () => {
-    expect(buildMainQuery({ ...createDefaultUrlSearch(), period: "week" })).toBe("");
-    expect(buildMainQuery({ ...createDefaultUrlSearch(), url: "abc", words: ["ぬぬ"] })).toBe("");
+    expect(buildMainQuery({ ...defaults(), period: "week" })).toBe("");
+    expect(buildMainQuery({ ...defaults(), url: "abc", words: ["ぬぬ"] })).toBe("");
   });
 
   it("adds the title words of a single video only together with a name", () => {
-    const state = { ...createDefaultUrlSearch(), url: "https://youtu.be/dQw4w9WgXcQ" };
+    const state = { ...defaults(), url: "https://youtu.be/dQw4w9WgXcQ" };
     expect(buildMainQuery(state, { keyword: "シャルル", names: ["ぬぬはら"] })).toBe('(url:dQw4w9WgXcQ OR ("シャルル" ぬぬはら))');
     expect(buildMainQuery(state, { keyword: "シャルル" })).toBe("url:dQw4w9WgXcQ");
   });
 
   it("excludes the owner only while the switch is on", () => {
-    const state = { ...createDefaultUrlSearch(), url: "https://youtu.be/dQw4w9WgXcQ", excluded: ["other"] };
+    const state = { ...defaults(), url: "https://youtu.be/dQw4w9WgXcQ", excluded: ["other"] };
     expect(buildMainQuery(state, { owners: ["nnhr_nunu"] })).toBe("url:dQw4w9WgXcQ -from:other -from:nnhr_nunu");
     expect(buildMainQuery({ ...state, excludeOwner: false }, { owners: ["nnhr_nunu"] })).toBe("url:dQw4w9WgXcQ -from:other");
   });
 
   it("searches the channel link and the channel id, not the bare handle", () => {
     const query = buildMainQuery(
-      { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu" },
+      { ...defaults(), url: "https://www.youtube.com/@nnhr_nunu" },
       { links: ["UCqYpbbypex0iOikcZRenxGA", "youtube.com/@NNHR_NUNU", ""] },
     );
     expect(query).toBe('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA)');
@@ -123,7 +126,7 @@ describe("buildMainQuery", () => {
 
   it("uses since and until for a range", () => {
     const state = {
-      ...createDefaultUrlSearch(),
+      ...defaults(),
       url: "https://youtu.be/dQw4w9WgXcQ",
       period: "range" as const,
       rangeStart: "2026-08-01",
@@ -134,7 +137,11 @@ describe("buildMainQuery", () => {
 });
 
 describe("postWindow", () => {
-  const base = createDefaultUrlSearch();
+  const base = defaults();
+
+  it("defaults to one week", () => {
+    expect(createDefaultUrlSearch().period).toBe("week");
+  });
 
   it("counts relative periods from today", () => {
     expect(postWindow(base)).toEqual({ since: "", until: "" });
@@ -168,7 +175,7 @@ const videos: ChannelVideo[] = [
 ];
 
 describe("videosInScope", () => {
-  const state = createDefaultUrlSearch();
+  const state = defaults();
 
   it("keeps everything when no filter is set", () => {
     expect(videosInScope(videos, state)).toHaveLength(4);
@@ -182,6 +189,10 @@ describe("videosInScope", () => {
       "ccccccccccc",
       "ddddddddddd",
     ]);
+  });
+
+  it("keeps no video for the channel kind", () => {
+    expect(videosInScope(videos, { ...state, videoKind: "channel" })).toEqual([]);
   });
 
   it("filters by kind and title together with the period", () => {
@@ -201,7 +212,7 @@ describe("videosInScope", () => {
 describe("buildChannelBatches", () => {
   const ids = Array.from({ length: 30 }, (_, i) => `video${String(i).padStart(6, "0")}`);
   const state = {
-    ...createDefaultUrlSearch(),
+    ...defaults(),
     url: "https://www.youtube.com/@nnhr_nunu",
     words: ["#ぬぬ配信"],
     excluded: ["someone"],
@@ -209,18 +220,17 @@ describe("buildChannelBatches", () => {
   };
   const scope = { links: ["UCqYpbbypex0iOikcZRenxGA"], owners: ["nnhr_nunu"], videoIds: ids };
 
-  it("searches 20 videos at a time and adds the channel links and words to the last search", () => {
+  it("searches 20 videos at a time and adds the words to the last search", () => {
     const batches = buildChannelBatches(state, scope);
     expect(batches.map((batch) => [batch.from, batch.to])).toEqual([
       [1, 20],
       [21, 30],
     ]);
-    expect(batches[0].query).not.toContain("youtube.com");
     expect(batches[0].query).not.toContain("#ぬぬ配信");
-    expect(batches[1].query.startsWith('(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA OR #ぬぬ配信 OR url:video000020')).toBe(
-      true,
-    );
+    expect(batches[1].query.startsWith("(#ぬぬ配信 OR url:video000020")).toBe(true);
     for (const batch of batches) {
+      expect(batch.query).not.toContain("youtube.com");
+      expect(batch.query).not.toContain("UCqYpbbypex0iOikcZRenxGA");
       expect(batch.query.length).toBeLessThanOrEqual(480);
       expect(batch.query.endsWith(" -from:someone -from:nnhr_nunu since:2025-09-27")).toBe(true);
     }
@@ -228,13 +238,13 @@ describe("buildChannelBatches", () => {
     for (const id of ids) expect(joined).toContain(`url:${id}`);
   });
 
-  it("searches the channel links and words on their own when they do not fit", () => {
-    const batches = buildChannelBatches(state, { ...scope, videoIds: ids.slice(0, 20) });
+  it("searches the words on their own when they do not fit", () => {
+    const batches = buildChannelBatches({ ...state, words: ["#".padEnd(80, "ぬ")] }, { ...scope, videoIds: ids.slice(0, 20) });
     expect(batches.map((batch) => [batch.from, batch.to])).toEqual([
       [1, 20],
       [21, 20],
     ]);
-    expect(batches[1].query.startsWith('(url:"youtube.com/@nnhr_nunu"')).toBe(true);
+    expect(batches[1].query.startsWith("#ぬ")).toBe(true);
   });
 
   it("uses fewer videos per search only when 20 do not fit", () => {
@@ -245,18 +255,22 @@ describe("buildChannelBatches", () => {
     for (const batch of batches) expect(batch.query.length).toBeLessThanOrEqual(200);
   });
 
-  it("searches the channel link alone when no video is in scope", () => {
-    expect(buildChannelBatches({ ...state, words: [] }, { ...scope, videoIds: [] })).toEqual([
+  it("searches only the channel links and words for the channel kind", () => {
+    expect(buildChannelBatches({ ...state, videoKind: "channel" }, scope)).toEqual([
       {
-        query: '(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA) -from:someone -from:nnhr_nunu since:2025-09-27',
+        query: '(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA OR #ぬぬ配信) -from:someone -from:nnhr_nunu since:2025-09-27',
         from: 1,
         to: 0,
       },
     ]);
   });
 
+  it("searches nothing when no video is in scope and no word is set", () => {
+    expect(buildChannelBatches({ ...state, words: [] }, { ...scope, videoIds: [] })).toEqual([]);
+  });
+
   it("returns nothing without a readable url", () => {
-    expect(buildChannelBatches(createDefaultUrlSearch(), scope)).toEqual([]);
+    expect(buildChannelBatches(defaults(), scope)).toEqual([]);
   });
 });
 
