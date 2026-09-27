@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { YoutubeChannelVideos } from "@/components/youtube-channel-videos";
 import { todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import { buildSearchUrl } from "@/lib/query";
@@ -20,6 +21,7 @@ import {
   type UrlSearchState,
   type UrlTargetKind,
 } from "@/lib/url-search";
+import { type ChannelData, loadChannelCache, sameRef } from "@/lib/youtube";
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
@@ -28,6 +30,7 @@ type UrlSearchPanelProps = {
 const KIND_LABELS: Record<UrlTargetKind, MessageKey> = {
   video: "urlKindVideo",
   channel: "urlKindChannel",
+  niconico: "urlKindNiconico",
   page: "urlKindPage",
 };
 
@@ -45,6 +48,7 @@ function segmentClass(selected: boolean): string {
 export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   // 親が ready になってから描画されるので、初期化時に localStorage を読んでよい
   const [state, setState] = useState<UrlSearchState>(loadUrlSearch);
+  const [channelData, setChannelData] = useState<ChannelData | null>(loadChannelCache);
 
   useEffect(() => {
     saveUrlSearch(state);
@@ -53,7 +57,10 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const patch = (next: Partial<UrlSearchState>) => setState((prev) => ({ ...prev, ...next }));
   const target = parseTargetUrl(state.url);
   const urlInvalid = state.url.trim().length > 0 && !target;
-  const queries = buildUrlQueries(state);
+  const channel =
+    target?.kind === "channel" && channelData && sameRef(channelData.ref, target.token) ? channelData : null;
+  // 読み込み済みなら、ハンドルとチャンネル ID のどちらで貼られたリンクも探す
+  const queries = buildUrlQueries(state, channel ? [channel.channel.id, channel.channel.handle] : []);
   const hrefOf = (query: string) => buildSearchUrl(query, "posts", state.sort);
 
   return (
@@ -162,6 +169,19 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
               </p>
             ) : null}
           </div>
+
+          {target?.kind === "channel" ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4">
+              <YoutubeChannelVideos
+                t={t}
+                channelRef={target.token}
+                data={channel}
+                onLoaded={setChannelData}
+                state={state}
+                patch={patch}
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-1.5">
             <ChipInput
