@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildUrlQueries, createDefaultUrlSearch, linkTerm, parseTargetUrl } from "./url-search";
+import {
+  buildUrlQueries,
+  buildVideoBatches,
+  createDefaultUrlSearch,
+  filterVideos,
+  linkTerm,
+  parseTargetUrl,
+} from "./url-search";
+import type { ChannelVideo } from "./youtube";
 
 describe("parseTargetUrl", () => {
   it.each([
@@ -22,10 +30,19 @@ describe("parseTargetUrl", () => {
     });
   });
 
+  it.each([
+    ["https://www.nicovideo.jp/watch/sm9/?ref=top", "sm9"],
+    ["https://sp.nicovideo.jp/watch/so123", "so123"],
+    ["nico.ms/sm9", "sm9"],
+    ["https://live.nicovideo.jp/watch/lv345678", "lv345678"],
+  ])("reads the niconico id from %s", (raw, token) => {
+    expect(parseTargetUrl(raw)).toEqual({ kind: "niconico", token });
+  });
+
   it("keeps host and path for other pages", () => {
-    expect(parseTargetUrl("https://www.nicovideo.jp/watch/sm9/?ref=top")).toEqual({
+    expect(parseTargetUrl("https://www.nicovideo.jp/user/123/?ref=top")).toEqual({
       kind: "page",
-      token: "nicovideo.jp/watch/sm9",
+      token: "nicovideo.jp/user/123",
     });
   });
 
@@ -70,5 +87,66 @@ describe("buildUrlQueries", () => {
     const queries = buildUrlQueries({ ...createDefaultUrlSearch(), url: "abc", words: ["ぬぬ"] });
     expect(queries.all).toBe("ぬぬ");
     expect(queries.link).toBe("");
+  });
+});
+
+describe("buildUrlQueries with channel tokens", () => {
+  it("searches both the handle and the channel id", () => {
+    const queries = buildUrlQueries(
+      { ...createDefaultUrlSearch(), url: "https://www.youtube.com/@nnhr_nunu" },
+      ["UCqYpbbypex0iOikcZRenxGA", "NNHR_NUNU", ""],
+    );
+    expect(queries.link).toBe("(url:nnhr_nunu OR url:UCqYpbbypex0iOikcZRenxGA)");
+    expect(queries.all).toBe(queries.link);
+  });
+});
+
+const videos: ChannelVideo[] = [
+  { id: "aaaaaaaaaaa", title: "新作MV", publishedAt: "2026-05-01T12:00:00Z", kind: "video" },
+  { id: "bbbbbbbbbbb", title: "雑談配信", publishedAt: "2025-08-01T12:00:00Z", kind: "live" },
+  { id: "ccccccccccc", title: "MV の裏側", publishedAt: "2025-03-01T12:00:00Z", kind: "short" },
+];
+
+describe("filterVideos", () => {
+  it("keeps everything when no filter is set", () => {
+    expect(filterVideos(videos, createDefaultUrlSearch())).toHaveLength(3);
+  });
+
+  it("filters by kind, year and title together", () => {
+    const state = { ...createDefaultUrlSearch(), videoKinds: ["video" as const, "short" as const] };
+    expect(filterVideos(videos, state).map((v) => v.id)).toEqual(["aaaaaaaaaaa", "ccccccccccc"]);
+    expect(filterVideos(videos, { ...state, videoYears: ["2025"] }).map((v) => v.id)).toEqual(["ccccccccccc"]);
+    expect(filterVideos(videos, { ...createDefaultUrlSearch(), videoTitle: "mv" }).map((v) => v.id)).toEqual([
+      "aaaaaaaaaaa",
+      "ccccccccccc",
+    ]);
+  });
+});
+
+describe("buildVideoBatches", () => {
+  const ids = Array.from({ length: 30 }, (_, i) => `video${String(i).padStart(6, "0")}`);
+  const state = { ...createDefaultUrlSearch(), excluded: ["nnhr_nunu"], since: "2026-01-01" };
+
+  it("splits the ids so each query fits the length limit", () => {
+    const batches = buildVideoBatches(ids, state, 200);
+    expect(batches.length).toBeGreaterThan(1);
+    for (const batch of batches) {
+      expect(batch.query.length).toBeLessThanOrEqual(200);
+      expect(batch.query.endsWith(" -from:nnhr_nunu since:2026-01-01")).toBe(true);
+    }
+    expect(batches[0].from).toBe(1);
+    expect(batches.at(-1)?.to).toBe(30);
+    const joined = batches.map((batch) => batch.query).join(" ");
+    for (const id of ids) expect(joined).toContain(`url:${id}`);
+  });
+
+  it("uses a single term without parentheses", () => {
+    expect(buildVideoBatches(["aaaaaaaaaaa"], createDefaultUrlSearch())).toEqual([
+      { query: "url:aaaaaaaaaaa", from: 1, to: 1 },
+    ]);
+  });
+
+  it("returns nothing for no ids", () => {
+    expect(buildVideoBatches([], state)).toEqual([]);
   });
 });
