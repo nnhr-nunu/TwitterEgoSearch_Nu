@@ -69,3 +69,19 @@ export function loadActiveSlot(): SlotIndex {
 export function saveActiveSlot(index: SlotIndex): void {
   window.localStorage.setItem(SLOT_INDEX_KEY, String(index));
 }
+
+// 設定1〜3 と URL検索 のどちらを開いていたか
+export const URL_VIEW_KEY = "egosearch-nu:url-view";
+
+export function loadUrlView(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(URL_VIEW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveUrlView(open: boolean): void {
+  window.localStorage.setItem(URL_VIEW_KEY, open ? "1" : "0");
+}
