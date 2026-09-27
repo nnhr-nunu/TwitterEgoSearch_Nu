@@ -3,8 +3,6 @@
 // search.list（100 ユニット）は使わない。
 // 取った一覧はブラウザに保存し（youtube-cache.ts）、読み直しは新着分だけ取る（refreshChannelVideos）。
 
-export const YOUTUBE_API_KEY_STORAGE_KEY = "egosearch-nu:youtube-api-key";
-
 // 取りすぎて無料枠を食わないよう、1 チャンネルあたりの上限を決めておく（約 45 ユニット）
 export const MAX_UPLOADS = 1000;
 
@@ -57,35 +55,10 @@ type FetchLike = (url: string) => Promise<{ ok: boolean; status: number; json: (
 type ApiItem = Record<string, unknown>;
 type ApiList = { items?: ApiItem[]; nextPageToken?: string };
 
-function builtInKey(): string {
+// サイトに組み込んだキー（リファラー制限付き）。無いビルドでは動画一覧を読み込めない
+export function youtubeApiKey(): string {
   // NEXT_PUBLIC_* はビルド時に文字列へ置き換わるので、プロパティを直接参照する
   return process.env.NEXT_PUBLIC_YOUTUBE_API_KEY?.trim() ?? "";
-}
-
-export function hasBuiltInYoutubeKey(): boolean {
-  return builtInKey().length > 0;
-}
-
-export function loadYoutubeApiKey(): string {
-  try {
-    return window.localStorage.getItem(YOUTUBE_API_KEY_STORAGE_KEY)?.trim() ?? "";
-  } catch {
-    return "";
-  }
-}
-
-export function saveYoutubeApiKey(key: string): void {
-  try {
-    if (key.trim()) window.localStorage.setItem(YOUTUBE_API_KEY_STORAGE_KEY, key.trim());
-    else window.localStorage.removeItem(YOUTUBE_API_KEY_STORAGE_KEY);
-  } catch {
-    // 保存できなくても、その場の読み込みには使える
-  }
-}
-
-// 自分のキーを優先し、なければサイトに組み込んだキーを使う
-export function effectiveYoutubeKey(userKey: string): string {
-  return userKey.trim() || builtInKey();
 }
 
 export function parseIsoDuration(value: string): number {
