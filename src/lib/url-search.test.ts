@@ -9,6 +9,7 @@ import {
   postWindow,
   URL_SEARCH_STORAGE_KEY,
   videosInScope,
+  widerPeriod,
   withChannelWords,
 } from "./url-search";
 import type { ChannelVideo } from "./youtube";
@@ -209,6 +210,26 @@ describe("videosInScope", () => {
   });
 });
 
+describe("widerPeriod", () => {
+  const state = { ...defaults(), period: "week" as const };
+
+  it("keeps the period when it already has a video", () => {
+    expect(widerPeriod(videos, state)).toBeNull();
+  });
+
+  it("widens to the shortest period with a video, ignoring kind and title", () => {
+    const older = videos.slice(1);
+    expect(widerPeriod(older, { ...state, videoKind: "video", videoTitle: "zzz" })).toBe("month");
+    expect(widerPeriod(videos.slice(3), state)).toBe("all");
+    expect(widerPeriod(videos.slice(3), { ...state, period: "year" })).toBe("all");
+  });
+
+  it("leaves chosen dates and empty channels alone", () => {
+    expect(widerPeriod(videos.slice(3), { ...state, period: "range", rangeStart: "2026-09-01" })).toBeNull();
+    expect(widerPeriod([], state)).toBeNull();
+  });
+});
+
 describe("buildChannelBatches", () => {
   const ids = Array.from({ length: 30 }, (_, i) => `video${String(i).padStart(6, "0")}`);
   const state = {
@@ -265,8 +286,14 @@ describe("buildChannelBatches", () => {
     ]);
   });
 
-  it("searches nothing when no video is in scope and no word is set", () => {
-    expect(buildChannelBatches({ ...state, words: [] }, { ...scope, videoIds: [] })).toEqual([]);
+  it("searches the channel links when no video is in scope", () => {
+    expect(buildChannelBatches({ ...state, words: [] }, { ...scope, videoIds: [] })).toEqual([
+      {
+        query: '(url:"youtube.com/@nnhr_nunu" OR url:UCqYpbbypex0iOikcZRenxGA) -from:someone -from:nnhr_nunu since:2025-09-27',
+        from: 1,
+        to: 0,
+      },
+    ]);
   });
 
   it("returns nothing without a readable url", () => {

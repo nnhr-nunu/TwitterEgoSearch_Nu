@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useYoutubeVideoInfo } from "@/components/use-youtube-video-info";
 import { YoutubeChannelVideos } from "@/components/youtube-channel-videos";
-import { YoutubePeriod } from "@/components/youtube-period";
+import { PERIOD_LABELS, YoutubePeriod } from "@/components/youtube-period";
 import { type ScopeInfo, YoutubeScopeSummary } from "@/components/youtube-scope-summary";
 import { YoutubeSearchButton } from "@/components/youtube-search-button";
 import { type Notice, YoutubeTarget } from "@/components/youtube-target";
@@ -29,6 +29,7 @@ import {
   type UrlTarget,
   postWindow,
   videosInScope,
+  widerPeriod,
   withChannelWords,
 } from "@/lib/url-search";
 import {
@@ -131,7 +132,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const videoKind = target?.kind === "video" ? ownerChannel?.videos.find((item) => item.id === target.token)?.kind : undefined;
   const keyword = videoInfo && videoKind !== "live" ? titleKeyword(videoInfo.title, [...names, handle]) : "";
 
-  // チャンネル全体のときは、期間・種類・タイトルに当てはまる動画のリンクを探す（種類が「チャンネル」ならチャンネルのリンク）
+  // チャンネル全体のときは、期間・種類・タイトルに当てはまる動画のリンクを探す（種類が「チャンネル」か、当てはまる動画が無ければチャンネルのリンク）
   const inPeriod = channel ? videosInScope(channel.videos, { ...state, videoKind: "all" }) : [];
   const matched = channel ? videosInScope(channel.videos, state) : [];
   let batches: SearchBatch[] = [];
@@ -172,19 +173,29 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     });
   };
 
-  // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルは一覧を全部取る
+  // 開いたチャンネルの動画が期間に 1 本も無ければ、1 本以上ある期間まで広げる。広げたらそのお知らせを返す
+  const widenPeriod = (videos: ChannelVideo[]): string => {
+    const period = widerPeriod(videos, state);
+    if (!period) return "";
+    patch({ period });
+    return t("ytWidened").replace("{from}", t(PERIOD_LABELS[state.period])).replace("{to}", t(PERIOD_LABELS[period]));
+  };
+
+  // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルは一覧を全部取り、期間を合わせる
   const loadChannel = async (ref: string, cached: ChannelData | null) => {
     setLoading(true);
     try {
       if (cached) {
         const result = await refreshChannelVideos(cached, apiKey);
         saveChannel(result.data);
-        setNotice({
-          tone: "info",
-          text: result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew"),
-        });
+        const text = result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew");
+        // 期間を広げたお知らせが先に出ていれば、続けて見せる
+        setNotice((prev) => ({ tone: "info", text: prev?.tone === "info" ? `${prev.text} ${text}` : text }));
       } else {
-        saveChannel(await fetchChannelVideos(ref, apiKey));
+        const data = await fetchChannelVideos(ref, apiKey);
+        saveChannel(data);
+        const widened = widenPeriod(data.videos);
+        if (widened) setNotice({ tone: "info", text: widened });
       }
     } catch (caught) {
       setNotice({ tone: "error", text: t(errorMessage(caught)) });
@@ -203,6 +214,9 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     patch({ url: url.trim(), ...(changed && !keep ? { words: [], videoKind: "all", videoTitle: "" } : {}) });
     if (next.kind !== "channel") return next;
     const cached = findChannel(channels, next.token);
+    // 保存済みのチャンネルに切り替えたときも、期間に動画が無ければ広げる
+    const widened = cached && changed ? widenPeriod(cached.videos) : "";
+    if (widened) setNotice({ tone: "info", text: widened });
     // キーの無いビルドでも、保存済みの一覧はそのまま使える
     if (!apiKey) {
       if (!cached) setNotice({ tone: "info", text: t("ytUnavailable") });
@@ -260,7 +274,9 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
               patch({ url: "", words: [], videoKind: "all", videoTitle: "" });
             }}
             onRefresh={() => {
-              if (channel && !loading) void loadChannel(channel.ref, channel);
+              if (!channel || loading) return;
+              setNotice(null);
+              void loadChannel(channel.ref, channel);
             }}
             onPickChannel={(data) => selectUrl(channelUrl(data))}
             onOpenChannel={(channelId) => {
