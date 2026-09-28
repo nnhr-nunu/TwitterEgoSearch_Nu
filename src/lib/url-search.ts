@@ -256,6 +256,16 @@ export function videosInScope(videos: ChannelVideo[], state: UrlSearchState): Ch
   });
 }
 
+// チャンネルを開いたとき、1週間〜1年の期間に動画が 1 本も無ければ、1 本以上ある期間まで広げる。
+// 日付・区間は自分で選んだものなので変えない。広げる必要が無ければ null
+export function widerPeriod(videos: ChannelVideo[], state: UrlSearchState): UrlPeriod | null {
+  const steps: UrlPeriod[] = ["week", "month", "year", "all"];
+  const start = steps.indexOf(state.period);
+  if (start < 0 || !videos.length) return null;
+  const found = steps.slice(start).find((period) => videosInScope(videos, { ...state, period, videoKind: "all", videoTitle: "" }).length);
+  return found && found !== state.period ? found : null;
+}
+
 export type SearchBatch = {
   query: string;
   // この回に入れた動画が何本目から何本目か（1 始まり）。動画が無い回は to = from - 1
@@ -275,7 +285,8 @@ export function buildChannelBatches(
   const target = parseTargetUrl(state.url);
   if (!target) return [];
   const tail = tailParts(state, scope.owners ?? []);
-  if (state.videoKind === "channel") {
+  // 期間内に動画が無くても、チャンネルのリンクを貼った投稿はあるかもしれないので、そちらを探す
+  if (state.videoKind === "channel" || !scope.videoIds.length) {
     const links = uniqueCaseless([target.link, ...(scope.links ?? [])]).map(linkTerm);
     return [{ query: compose([...links, ...wordTerms(state)], tail), from: 1, to: 0 }];
   }

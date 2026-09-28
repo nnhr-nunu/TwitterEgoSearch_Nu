@@ -20,7 +20,7 @@ type YoutubePeriodProps = {
   publishedDate?: string;
 };
 
-const PERIOD_LABELS: Record<UrlPeriod, MessageKey> = {
+export const PERIOD_LABELS: Record<UrlPeriod, MessageKey> = {
   all: "urlPeriodAll",
   week: "urlPeriodWeek",
   month: "urlPeriodMonth",
