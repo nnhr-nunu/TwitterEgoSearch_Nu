@@ -226,10 +226,14 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     return next;
   };
 
-  // 一覧で選んだ動画だけを探す。検索ボタンのある上まで戻す
+  // 一覧で選んだ動画の反応を、その動画を対象にしたときと同じ条件で X の新しいタブに開く（上部の対象は変えない）
   const focusVideo = (video: ChannelVideo) => {
-    selectUrl(`https://www.youtube.com/watch?v=${video.id}`, true);
-    requestAnimationFrame(() => document.querySelector('[data-testid="url-search"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    const videoKeyword = video.kind !== "live" ? titleKeyword(video.title, [...names, handle]) : "";
+    const query = buildMainQuery(
+      { ...view, url: `https://www.youtube.com/watch?v=${video.id}` },
+      { owners, keyword: videoKeyword, names },
+    );
+    if (query) window.open(hrefOf(query), "_blank", "noopener,noreferrer");
   };
 
   return (
