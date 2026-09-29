@@ -258,7 +258,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
       <p className="px-1 text-center text-xs text-muted-foreground">{t("autoSaveNote")}</p>
 
       <Card>
-        <CardContent className="pt-6" data-testid="url-options">
+        <CardContent data-testid="url-options">
           <YoutubeTarget
             t={t}
             target={target}
@@ -291,7 +291,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
       {target ? (
         <>
           <Card>
-            <CardContent className="space-y-4 pt-6" data-testid="url-range">
+            <CardContent className="space-y-4" data-testid="url-range">
               <YoutubePeriod
                 t={t}
                 state={state}
@@ -317,7 +317,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
           </Card>
 
           <Card>
-            <CardContent className="space-y-6 pt-6" data-testid="url-refine">
+            <CardContent className="space-y-6" data-testid="url-refine">
               <div className="space-y-2">
                 <ChipInput
                   id="url-search-words"
