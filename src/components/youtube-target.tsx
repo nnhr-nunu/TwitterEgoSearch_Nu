@@ -1,13 +1,13 @@
 "use client";
 
 import { GlobeIcon, ListVideoIcon, RefreshCwIcon, TvIcon, XIcon } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type ClipboardEvent, type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
-import type { UrlTarget, UrlTargetKind } from "@/lib/url-search";
+import { parseTargetUrl, type UrlTarget, type UrlTargetKind } from "@/lib/url-search";
 import { type ChannelData, type VideoInfo, videoDate } from "@/lib/youtube";
 
 export type Notice = { tone: "info" | "error"; text: string };
@@ -171,6 +171,20 @@ export function YoutubeTarget(props: YoutubeTargetProps) {
     }
   };
 
+  // 空欄（か全選択した欄）に読める URL を貼ったら、「読み込む」を押さなくてもそのまま読み込む。
+  // 入力途中の文字に足したときや読めない文字のときは、いつもどおり貼るだけ
+  const pasteAndLoad = (event: ClipboardEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const replacesAll = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+    const pasted = event.clipboardData.getData("text");
+    if (!replacesAll || loading || !parseTargetUrl(pasted)) return;
+    event.preventDefault();
+    if (onSubmit(pasted)) {
+      setDraft("");
+      setInvalid(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <Label htmlFor="url-search-input">{t("urlInput")}</Label>
@@ -191,6 +205,7 @@ export function YoutubeTarget(props: YoutubeTargetProps) {
             setDraft(event.target.value);
             setInvalid(false);
           }}
+          onPaste={pasteAndLoad}
         />
         <Button type="submit" variant="secondary" className="h-10 shrink-0" disabled={loading} data-testid="url-search-submit">
           {t("urlLoad")}
