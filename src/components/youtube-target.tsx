@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { UrlTarget, UrlTargetKind } from "@/lib/url-search";
 import { type ChannelData, type VideoInfo, videoDate } from "@/lib/youtube";
@@ -84,7 +85,7 @@ function TargetCard({
 
   if (target.kind === "video") {
     title = video?.title ?? t("urlKindVideo");
-    const published = video?.publishedAt ? videoDate({ publishedAt: video.publishedAt }).replaceAll("-", "/") : "";
+    const published = video?.publishedAt ? slashDate(videoDate({ publishedAt: video.publishedAt })) : "";
     sub = [video?.channelTitle ?? t("urlKindVideo"), published].filter(Boolean).join(" · ");
     media = (
       // eslint-disable-next-line @next/next/no-img-element

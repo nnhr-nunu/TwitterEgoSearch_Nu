@@ -6,6 +6,7 @@ import { Segmented } from "@/components/segmented";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { UrlSearchState, VideoKindFilter } from "@/lib/url-search";
 import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "@/lib/youtube";
@@ -81,7 +82,7 @@ function VideoList({
               <p className="line-clamp-2 text-sm leading-snug">{video.title}</p>
               {/* 選ぶボタンは日付の行に置き、タイトルを横いっぱいに見せる */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="whitespace-nowrap tabular-nums">{videoDate(video).replaceAll("-", "/")}</span>
+                <span className="whitespace-nowrap tabular-nums">{slashDate(videoDate(video))}</span>
                 {showKind ? (
                   <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
                     {t(KIND_LABELS[video.kind])}

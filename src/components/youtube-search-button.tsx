@@ -3,6 +3,7 @@
 import { RotateCcwIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { SearchBatch } from "@/lib/url-search";
 import { type ChannelVideo, videoDate } from "@/lib/youtube";
@@ -16,7 +17,7 @@ type YoutubeSearchButtonProps = {
 };
 
 function shortDate(video: ChannelVideo | undefined): string {
-  return video ? videoDate(video).replaceAll("-", "/") : "";
+  return video ? slashDate(videoDate(video)) : "";
 }
 
 // 一覧は新しい順なので、古い日付〜新しい日付の順に見せる

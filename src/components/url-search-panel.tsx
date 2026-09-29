@@ -26,6 +26,7 @@ import {
   parseTargetUrl,
   saveUrlSearch,
   type SearchBatch,
+  uniqueCaseless,
   type UrlSearchState,
   type UrlTarget,
   postWindow,
@@ -58,16 +59,6 @@ function errorMessage(error: unknown): MessageKey {
 
 function sameTarget(a: UrlTarget | null, b: UrlTarget | null): boolean {
   return Boolean(a && b && a.kind === b.kind && a.token.toLowerCase() === b.token.toLowerCase());
-}
-
-function uniqueWords(words: string[]): string[] {
-  const seen = new Set<string>();
-  return words.filter((word) => {
-    const key = word.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 function channelUrl(data: ChannelData): string {
@@ -128,7 +119,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const view = { ...state, words };
   const nameWords = channelNameWords(ownerChannel?.channel.title ?? videoInfo?.channelTitle ?? "");
   // 曲名などと一緒に書かれていてほしい名前
-  const names = uniqueWords([...nameWords, ...words]);
+  const names = uniqueCaseless([...nameWords, ...words]);
   // 配信のタイトルは感想に書かれないので、タイトルの言葉は動画・ショートだけ
   const videoKind = target?.kind === "video" ? ownerChannel?.videos.find((item) => item.id === target.token)?.kind : undefined;
   const keyword = videoInfo && videoKind !== "live" ? titleKeyword(videoInfo.title, [...names, handle]) : "";
@@ -157,7 +148,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const summary = <YoutubeScopeSummary t={t} info={scope} words={words} />;
 
   const lowerWords = new Set(words.map((word) => word.toLowerCase()));
-  const wordSuggestions = uniqueWords([...(ownerChannel?.channel.hashtags ?? []), ...nameWords]).filter(
+  const wordSuggestions = uniqueCaseless([...(ownerChannel?.channel.hashtags ?? []), ...nameWords]).filter(
     (word) => !lowerWords.has(word.toLowerCase()),
   );
   // 説明欄に X アカウントが無いときだけ、YouTube のハンドルを除外の候補にする（X と同じ名前のことが多い）

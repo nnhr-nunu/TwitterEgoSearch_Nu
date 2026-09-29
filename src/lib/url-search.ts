@@ -1,7 +1,7 @@
 import { daysAgoIso, rangeWindow, windowAround } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
-import type { DateSpanId, ResultSort } from "./types";
+import { type DateSpanId, isDateSpanId, type ResultSort } from "./types";
 import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./youtube";
 
 // YouTube タブ（旧 URL検索）の条件と、X の検索クエリの組み立て。
@@ -184,7 +184,8 @@ function group(terms: string[]): string {
   return terms.length > 1 ? `(${terms.join(" OR ")})` : (terms[0] ?? "");
 }
 
-function uniqueCaseless(values: string[]): string[] {
+// 大文字小文字と前後の空白を無視して重複を除く（最初に出たものを残す）
+export function uniqueCaseless(values: string[]): string[] {
   const seen = new Set<string>();
   return values.filter((value) => {
     const lower = value.trim().toLowerCase();
@@ -347,7 +348,6 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 
 export function loadUrlSearch(): UrlSearchState {
   const fallback = createDefaultUrlSearch();
@@ -369,7 +369,7 @@ export function loadUrlSearch(): UrlSearchState {
       rangeStart: text(parsed.rangeStart),
       rangeEnd: text(parsed.rangeEnd),
       aroundDate: text(parsed.aroundDate),
-      dateSpan: DATE_SPANS.includes(parsed.dateSpan as DateSpanId) ? (parsed.dateSpan as DateSpanId) : "7",
+      dateSpan: isDateSpanId(parsed.dateSpan) ? parsed.dateSpan : "7",
       sort: parsed.sort === "likes" ? "likes" : "latest",
       videoKind: kind === "channel" || (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKindFilter) : "all",
       videoTitle: text(parsed.videoTitle),
