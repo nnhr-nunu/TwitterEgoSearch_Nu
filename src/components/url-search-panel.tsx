@@ -327,6 +327,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                   onChange={setWords}
                   addLabel={t("addKeyword")}
                   savedToast={t("savedToast")}
+                  removeLabel={t("removeItem")}
                   testId="url-words"
                 />
                 <Suggestions
@@ -367,6 +368,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                   onChange={(excluded) => patch({ excluded })}
                   addLabel={t("addMute")}
                   savedToast={t("savedToast")}
+                  removeLabel={t("removeItem")}
                   mode="handle"
                   invalidMessage={t("muteInvalid")}
                   testId="url-exclude"
