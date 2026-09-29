@@ -223,14 +223,14 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     return next;
   };
 
-  // 一覧で選んだ動画の反応を、その動画を対象にしたときと同じ条件で X の新しいタブに開く（上部の対象は変えない）
-  const focusVideo = (video: ChannelVideo) => {
+  // 一覧の動画 1 本の反応を、その動画を対象にしたときと同じ条件で探す X の検索 URL（上部の対象は変えない）
+  const videoSearchUrl = (video: ChannelVideo) => {
     const videoKeyword = video.kind !== "live" ? titleKeyword(video.title, [...names, handle]) : "";
     const query = buildMainQuery(
       { ...view, url: `https://www.youtube.com/watch?v=${video.id}` },
       { owners, keyword: videoKeyword, names },
     );
-    if (query) window.open(hrefOf(query), "_blank", "noopener,noreferrer");
+    return hrefOf(query);
   };
 
   return (
@@ -307,7 +307,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
                   matched={matched}
                   total={channel.videos.length}
                   channelKinds={VIDEO_KINDS.filter((kind) => channel.videos.some((video) => video.kind === kind))}
-                  onFocus={focusVideo}
+                  searchUrlOf={videoSearchUrl}
                   summary={summary}
                 />
               ) : (
