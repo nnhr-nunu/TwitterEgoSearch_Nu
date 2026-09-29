@@ -67,6 +67,12 @@ describe("share post", () => {
     expect(shareSubjectLabel(hydrateConfig({ keywords: [], handles: ["nnhr_nunu"] }))).toBe("@nnhr_nunu");
   });
 
+  it("writes the remaining count in the post's language", () => {
+    const many = hydrateConfig({ keywords: ["a", "b", "c", "d"] });
+    expect(shareSubjectLabel(many, "en")).toBe("a, b and 2 more");
+    expect(buildShareBody(many, "en", "simple")).toBe('Search results for "a, b and 2 more" 🔍');
+  });
+
   it("writes a post that fits in one X post", () => {
     const body = buildShareBody(rich, "ja", "thanks");
     expect(body).toContain("「ぬぬはら・ぬぬさん」");

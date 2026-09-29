@@ -1,7 +1,7 @@
 "use client";
 
 import { PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChipInput } from "@/components/chip-input";
 import { SearchCluster } from "@/components/search-cluster";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,9 +21,11 @@ import {
   buildChannelBatches,
   buildMainQuery,
   channelLink,
+  channelWordsOf,
   loadUrlSearch,
   moveChannelWords,
   parseTargetUrl,
+  pendingChannelKey,
   saveUrlSearch,
   type SearchBatch,
   uniqueCaseless,
@@ -44,7 +46,14 @@ import {
   YoutubeApiError,
   youtubeApiKey,
 } from "@/lib/youtube";
-import { findChannel, isStaleChannel, loadChannelCache, saveChannelCache, upsertChannel } from "@/lib/youtube-cache";
+import {
+  channelMatches,
+  findChannel,
+  isStaleChannel,
+  loadChannelCache,
+  saveChannelCache,
+  upsertChannel,
+} from "@/lib/youtube-cache";
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
@@ -95,7 +104,10 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
+  // 一覧の読み込みは非同期なので、終わった時点の対象・期間を見られるよう最新の state も持っておく
+  const latest = useRef(state);
   useEffect(() => {
+    latest.current = state;
     saveUrlSearch(state);
   }, [state]);
 
@@ -109,13 +121,21 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     channel ?? (videoInfo ? (channels.find((data) => data.channel.id === videoInfo.channelId) ?? null) : null);
   const owners = ownerChannel?.channel.xHandles ?? [];
   const handle = ownerChannel?.channel.handle ?? "";
-  // ハッシュタグ・言葉はチャンネルごとに覚える。チャンネルが分からない対象（ページなど）は words に置く
-  const wordsKey = ownerChannel?.channel.id ?? videoInfo?.channelId ?? (target?.kind === "channel" ? target.token.toLowerCase() : "");
-  const words = wordsKey ? (state.channelWords[wordsKey] ?? []) : state.words;
+  // ハッシュタグ・言葉はチャンネルごとに覚える。チャンネルが分からない対象（ページなど）は words に置く。
+  // 動画のチャンネルが分かる前（情報の取得待ちや読み込めない日）に入れた言葉も words に入るので、分かったらチャンネルの言葉と合わせて見せる
+  const wordsKey =
+    ownerChannel?.channel.id ?? videoInfo?.channelId ?? (target?.kind === "channel" ? pendingChannelKey(target.token) : "");
+  const words = wordsKey ? uniqueCaseless([...channelWordsOf(state.channelWords, wordsKey), ...state.words]) : state.words;
+  // 書き換えたら、words に残っていた分もまとめてチャンネルの言葉にする
   const setWords = (next: string[]) =>
     setState((prev) =>
-      wordsKey ? { ...prev, channelWords: withChannelWords(prev.channelWords, wordsKey, next) } : { ...prev, words: next },
+      wordsKey
+        ? { ...prev, channelWords: withChannelWords(prev.channelWords, wordsKey, next), words: [] }
+        : { ...prev, words: next },
     );
+  // 対象を変える前に、words に残っているチャンネルの言葉をそのチャンネルへ移す（移さないと切り替えで消える）
+  const carryWords = (): Partial<UrlSearchState> =>
+    wordsKey && state.words.length ? { channelWords: withChannelWords(state.channelWords, wordsKey, words), words: [] } : {};
   const view = { ...state, words };
   const nameWords = channelNameWords(ownerChannel?.channel.title ?? videoInfo?.channelTitle ?? "");
   // 曲名などと一緒に書かれていてほしい名前
@@ -165,17 +185,24 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     });
     // 読み込み中や読み込めなかったあいだに入れた言葉を、このチャンネルの言葉として引き継ぐ
     setState((prev) => {
-      const moved = moveChannelWords(prev.channelWords, ref.toLowerCase(), data.channel.id);
+      const moved = moveChannelWords(prev.channelWords, pendingChannelKey(ref), data.channel.id);
       return moved === prev.channelWords ? prev : { ...prev, channelWords: moved };
     });
   };
 
   // 開いたチャンネルの動画が期間に 1 本も無ければ、1 本以上ある期間まで広げる。広げたらそのお知らせを返す
-  const widenPeriod = (videos: ChannelVideo[]): string => {
-    const period = widerPeriod(videos, state);
+  const widenPeriod = (videos: ChannelVideo[], current: UrlSearchState): string => {
+    const period = widerPeriod(videos, current);
     if (!period) return "";
     patch({ period });
-    return t("ytWidened").replace("{from}", t(PERIOD_LABELS[state.period])).replace("{to}", t(PERIOD_LABELS[period]));
+    return t("ytWidened").replace("{from}", t(PERIOD_LABELS[current.period])).replace("{to}", t(PERIOD_LABELS[period]));
+  };
+
+  // 読み込みを待つあいだに別の対象へ切り替えていたら、結果は保存するだけで、期間やお知らせには触らない
+  const stillShowing = (ref: string, data: ChannelData | null) => {
+    const current = parseTargetUrl(latest.current.url);
+    if (current?.kind !== "channel") return false;
+    return data ? channelMatches(data, current.token) : current.token.toLowerCase() === ref.toLowerCase();
   };
 
   // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルは一覧を全部取り、期間を合わせる
@@ -185,17 +212,20 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
       if (cached) {
         const result = await refreshChannelVideos(cached, apiKey);
         saveChannel(result.data, ref);
+        if (!stillShowing(ref, result.data)) return;
         const text = result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew");
         // 期間を広げたお知らせが先に出ていれば、続けて見せる
         setNotice((prev) => ({ tone: "info", text: prev?.tone === "info" ? `${prev.text} ${text}` : text }));
       } else {
         const data = await fetchChannelVideos(ref, apiKey);
         saveChannel(data, ref);
-        const widened = widenPeriod(data.videos);
+        if (!stillShowing(ref, data)) return;
+        // 期間は読み込みを始めたときではなく、いまの期間から広げる（待つあいだに変えていることがある）
+        const widened = widenPeriod(data.videos, latest.current);
         if (widened) setNotice({ tone: "info", text: widened });
       }
     } catch (caught) {
-      setNotice({ tone: "error", text: t(errorMessage(caught)) });
+      if (stillShowing(ref, cached)) setNotice({ tone: "error", text: t(errorMessage(caught)) });
     } finally {
       setLoading(false);
     }
@@ -208,11 +238,11 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     if (!next) return null;
     setNotice(null);
     const changed = !sameTarget(next, target);
-    patch({ url: url.trim(), ...(changed && !keep ? { words: [], videoKind: "all", videoTitle: "" } : {}) });
+    patch({ url: url.trim(), ...carryWords(), ...(changed && !keep ? { words: [], videoKind: "all", videoTitle: "" } : {}) });
     if (next.kind !== "channel") return next;
     const cached = findChannel(channels, next.token);
     // 保存済みのチャンネルに切り替えたときも、期間に動画が無ければ広げる
-    const widened = cached && changed ? widenPeriod(cached.videos) : "";
+    const widened = cached && changed ? widenPeriod(cached.videos, state) : "";
     if (widened) setNotice({ tone: "info", text: widened });
     // キーの無いビルドでも、保存済みの一覧はそのまま使える
     if (!apiKey) {
@@ -272,7 +302,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
             onSubmit={(raw) => selectUrl(raw) !== null}
             onClear={() => {
               setNotice(null);
-              patch({ url: "", words: [], videoKind: "all", videoTitle: "" });
+              patch({ ...carryWords(), url: "", words: [], videoKind: "all", videoTitle: "" });
             }}
             onRefresh={() => {
               if (!channel || loading) return;

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildChannelBatches,
   buildMainQuery,
+  channelWordsOf,
   createDefaultUrlSearch,
   linkTerm,
   moveChannelWords,
@@ -77,6 +78,9 @@ describe("parseTargetUrl", () => {
     expect(parseTargetUrl("ぬぬはら")).toBeNull();
     expect(parseTargetUrl("https://www.youtube.com/")).toBeNull();
     expect(parseTargetUrl("https://youtu.be/short")).toBeNull();
+    // 途中で切れた日本語ハンドルのコピーは、例外にせず「読めない」にする
+    expect(parseTargetUrl("https://www.youtube.com/@%E3%81%AC%E3%81")).toBeNull();
+    expect(parseTargetUrl("youtube.com/channel/%")).toBeNull();
   });
 });
 
@@ -315,6 +319,13 @@ describe("channel words", () => {
     expect(moveChannelWords(map, "nnhr_nunu", "UCa")).toEqual({ UCa: ["#A", "#ぬぬ配信"], UCb: ["#b"] });
     expect(moveChannelWords(map, "unknown", "UCa")).toBe(map);
     expect(moveChannelWords(map, "UCa", "UCa")).toBe(map);
+  });
+
+  it("does not read Object's own members as words", () => {
+    // 「@constructor」のようなハンドルのチャンネルでも、関数を言葉として読んで落ちない
+    expect(channelWordsOf({}, "constructor")).toEqual([]);
+    expect(channelWordsOf({ constructor: ["#a"] }, "constructor")).toEqual(["#a"]);
+    expect(moveChannelWords({}, "constructor", "UCa")).toEqual({});
   });
 });
 

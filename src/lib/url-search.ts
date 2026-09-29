@@ -121,6 +121,15 @@ export function channelLink(ref: string): string {
   return `youtube.com/@${ref.replace(/^@/, "")}`;
 }
 
+// 途中で切れた「%E3%81」のようなコピーは読めない URL として扱う（decodeURIComponent は例外を投げる）
+function decode(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 function youtubeTarget(host: string, url: URL): UrlTarget | null {
   const segments = url.pathname.split("/").filter(Boolean);
   if (host === "youtu.be") {
@@ -137,16 +146,16 @@ function youtubeTarget(host: string, url: URL): UrlTarget | null {
 
   const first = segments[0] ?? "";
   if (first.startsWith("@") && first.length > 1) {
-    const handle = decodeURIComponent(first.slice(1));
-    return { kind: "channel", token: handle, link: channelLink(handle) };
+    const handle = decode(first.slice(1));
+    return handle ? { kind: "channel", token: handle, link: channelLink(handle) } : null;
   }
   if (first === "channel" && segments[1]) {
-    const id = decodeURIComponent(segments[1]);
-    return { kind: "channel", token: id, link: id };
+    const id = decode(segments[1]);
+    return id ? { kind: "channel", token: id, link: id } : null;
   }
   if (["c", "user"].includes(first) && segments[1]) {
-    const name = decodeURIComponent(segments[1]);
-    return { kind: "channel", token: name, link: `youtube.com/${first}/${name}` };
+    const name = decode(segments[1]);
+    return name ? { kind: "channel", token: name, link: `youtube.com/${first}/${name}` } : null;
   }
   return null;
 }
@@ -315,12 +324,22 @@ export function withChannelWords(map: Record<string, string[]>, key: string, wor
   return words.length ? { ...rest, [key]: words } : rest;
 }
 
+// 一覧を読み込む前のチャンネルの言葉を覚えておくキー。チャンネル ID は大文字小文字を区別するのでそのまま、ハンドルは小文字にそろえる
+export function pendingChannelKey(token: string): string {
+  return CHANNEL_ID_RE.test(token) ? token : token.toLowerCase();
+}
+
+// チャンネルの言葉を読む。キーはハンドルのこともあるので、「@constructor」などで Object の持ち物を拾わないようにする
+export function channelWordsOf(map: Record<string, string[]>, key: string): string[] {
+  return Object.hasOwn(map, key) ? map[key] : [];
+}
+
 // 読み込みが終わる前（や失敗して読めないあいだ）はハンドルなどのキーで覚えているので、読み込めたらチャンネル ID のキーへ移す。
 // 移すものが無ければ同じ map を返す
 export function moveChannelWords(map: Record<string, string[]>, from: string, to: string): Record<string, string[]> {
-  const moving = map[from];
-  if (!moving?.length || from === to) return map;
-  return withChannelWords(withChannelWords(map, from, []), to, uniqueCaseless([...(map[to] ?? []), ...moving]));
+  const moving = channelWordsOf(map, from);
+  if (!moving.length || from === to) return map;
+  return withChannelWords(withChannelWords(map, from, []), to, uniqueCaseless([...channelWordsOf(map, to), ...moving]));
 }
 
 function strings(value: unknown): string[] {

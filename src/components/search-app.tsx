@@ -106,7 +106,11 @@ export function SearchApp() {
     const storedSlot = loadActiveSlot();
     // 旧形式の共有 URL は設定1へ取り込む。シェア投稿（share=1）は閲覧だけにとどめる
     const legacy = parsed.found && !parsed.shared;
-    if (legacy) storedSlots[0] = cloneConfig(parsed.config);
+    if (legacy) {
+      storedSlots[0] = cloneConfig(parsed.config);
+      // 取り込んだら URL から条件を消す。残すと、設定1を直しても再読み込みのたびに URL の内容へ戻る
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     const nextSlot = legacy ? 0 : storedSlot;
     const nextLocale: Locale = parsed.found && parsed.locale === "en" ? "en" : loadLocale();
     const frame = requestAnimationFrame(() => {
@@ -238,7 +242,7 @@ export function SearchApp() {
       <AdRailLayout label={t("sponsored")}>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
         {shared ? (
-          <SharedBanner config={shared} onImport={importShared} onDismiss={startOwnSearch} t={t} />
+          <SharedBanner config={shared} locale={locale} onImport={importShared} onDismiss={startOwnSearch} t={t} />
         ) : null}
         <SlotTabs value={urlView ? "url" : slot} onChange={selectTab} t={t} />
         {urlView ? <UrlSearchPanel t={t} /> : null}

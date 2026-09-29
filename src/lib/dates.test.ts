@@ -47,6 +47,14 @@ describe("dates", () => {
     });
   });
 
+  it("keeps month windows inside the target month at month ends", () => {
+    // 3/31 の 1 か月前は 2/28（3/3 に繰り越さない）、1 か月後は 4/30
+    expect(windowAround("2026-03-31", "month")).toEqual({ since: "2026-02-28", until: "2026-05-01" });
+    expect(windowAround("2026-01-31", "month")).toEqual({ since: "2025-12-31", until: "2026-03-01" });
+    expect(windowAround("2026-05-31", "quarter")).toEqual({ since: "2026-02-28", until: "2026-09-01" });
+    expect(windowAround("2024-03-31", "month").since).toBe("2024-02-29");
+  });
+
   it("maps a range end to an exclusive until:", () => {
     expect(exclusiveUntil("2026-09-23")).toBe("2026-09-24");
   });

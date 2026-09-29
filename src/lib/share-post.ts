@@ -84,10 +84,14 @@ export function shareSubjects(config: SearchConfig): string[] {
   );
 }
 
-export function shareSubjectLabel(config: SearchConfig, max = 2): string {
+export function shareSubjectLabel(config: SearchConfig, locale: Locale = "ja", max = 2): string {
   const subjects = shareSubjects(config);
-  const shown = subjects.slice(0, max).join("・");
   const rest = subjects.length - max;
+  if (locale === "en") {
+    const shown = subjects.slice(0, max).join(", ");
+    return rest > 0 ? `${shown} and ${rest} more` : shown;
+  }
+  const shown = subjects.slice(0, max).join("・");
   return rest > 0 ? `${shown} ほか${rest}件` : shown;
 }
 
@@ -111,7 +115,7 @@ export function buildShareBody(
   template: ShareTemplateId,
 ): string {
   if (template === "free") return "";
-  return TEMPLATES[locale][template](shareSubjectLabel(config));
+  return TEMPLATES[locale][template](shareSubjectLabel(config, locale));
 }
 
 /** 投稿する本文。ハッシュタグは消せないようにして、拡散の足跡を残す */
