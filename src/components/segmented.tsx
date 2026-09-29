@@ -27,6 +27,7 @@ export function Segmented<T extends string>({
   onChange,
   testId,
   columns,
+  fit = false,
 }: {
   options: SegmentedOption<T>[];
   value: T;
@@ -35,6 +36,8 @@ export function Segmented<T extends string>({
   testId: string;
   // 選択肢が多くて 1 行に入らないときの列指定（例: "grid-cols-3 sm:grid-cols-6"）。省略すると 1 行に並べる
   columns?: string;
+  // 1 行に並べるとき、文字数の多い選択肢に幅を多めに回す（狭い画面で「チャンネル」が 2 行に割れないように）
+  fit?: boolean;
 }) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedIndex = options.findIndex((option) => option.id === value);
@@ -51,7 +54,7 @@ export function Segmented<T extends string>({
   return (
     <div
       className={`grid gap-1 rounded-xl border border-border bg-background p-1 ${columns ?? ""}`}
-      style={columns ? undefined : { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      style={columns ? undefined : { gridTemplateColumns: `repeat(${options.length}, ${fit ? "auto" : "minmax(0, 1fr)"})` }}
       role="radiogroup"
       aria-label={label}
       data-testid={testId}

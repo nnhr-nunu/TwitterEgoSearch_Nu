@@ -155,6 +155,8 @@ export function YoutubeChannelVideos({
           label={t("ytKind")}
           onChange={(videoKind) => patch({ videoKind })}
           testId="yt-kind"
+          // 4〜5 個並ぶときは「チャンネル」の幅が足りなくなるので、文字数に合わせて幅を配る
+          fit={kinds.length > 0}
         />
       </div>
 
