@@ -3,9 +3,13 @@ import { createDefaultConfig } from "./defaults";
 import {
   CONFIG_STORAGE_KEY,
   loadActiveSlot,
+  loadLocale,
   loadSlots,
+  loadUrlView,
   saveActiveSlot,
+  saveLocale,
   saveSlots,
+  saveUrlView,
   SLOT_INDEX_KEY,
   SLOTS_STORAGE_KEY,
 } from "./storage";
@@ -66,5 +70,27 @@ describe("slot storage", () => {
     expect(loadActiveSlot()).toBe(2);
     expect(window.localStorage.getItem(SLOTS_STORAGE_KEY)).toContain("二番目");
     expect(window.localStorage.getItem(SLOT_INDEX_KEY)).toBe("2");
+  });
+
+  it("keeps working when the browser blocks localStorage", () => {
+    // サイトデータをブロックしたブラウザは、localStorage に触れるだけで例外を投げる
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        get localStorage(): Storage {
+          throw new DOMException("blocked", "SecurityError");
+        },
+      },
+    });
+    expect(loadSlots().map((slot) => slot.keywords)).toEqual([[], [], []]);
+    expect(loadActiveSlot()).toBe(0);
+    expect(loadLocale()).toBe("ja");
+    expect(loadUrlView()).toBe(false);
+    expect(() => {
+      saveSlots([createDefaultConfig()]);
+      saveActiveSlot(1);
+      saveLocale("en");
+      saveUrlView(true);
+    }).not.toThrow();
   });
 });

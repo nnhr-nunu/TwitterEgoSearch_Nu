@@ -27,11 +27,12 @@ import { buildPostsQuery, canSearchPosts } from "@/lib/query";
 import { parseSearchParams } from "@/lib/share-url";
 import {
   loadActiveSlot,
+  loadLocale,
   loadSlots,
   loadUrlView,
-  LOCALE_STORAGE_KEY,
   saveActiveSlot,
   saveLastConfig,
+  saveLocale,
   saveSlots,
   saveUrlView,
 } from "@/lib/storage";
@@ -100,7 +101,6 @@ export function SearchApp() {
 
   useEffect(() => {
     const parsed = parseSearchParams(window.location.search);
-    const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     const storedSlots = loadSlots();
     const storedSlot = loadActiveSlot();
     // 旧形式の共有 URL は設定1へ取り込む。シェア投稿（share=1）は閲覧だけにとどめる
@@ -112,12 +112,7 @@ export function SearchApp() {
     }
     const nextSlot = legacy ? 0 : storedSlot;
     const nextConfig = cloneConfig(storedSlots[nextSlot] ?? createDefaultConfig());
-    const nextLocale =
-      parsed.found && parsed.locale === "en"
-        ? "en"
-        : storedLocale === "en"
-          ? "en"
-          : "ja";
+    const nextLocale: Locale = parsed.found && parsed.locale === "en" ? "en" : loadLocale();
     const frame = requestAnimationFrame(() => {
       setSlots(storedSlots.map((item) => cloneConfig(item)));
       setSlot(nextSlot);
@@ -136,7 +131,7 @@ export function SearchApp() {
     saveLastConfig(config);
     saveActiveSlot(slot);
     saveUrlView(urlView);
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    saveLocale(locale);
     document.documentElement.lang = locale;
   }, [config, locale, ready, slot, urlView]);
 

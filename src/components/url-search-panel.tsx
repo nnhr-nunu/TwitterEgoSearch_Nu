@@ -22,6 +22,7 @@ import {
   buildMainQuery,
   channelLink,
   loadUrlSearch,
+  moveChannelWords,
   parseTargetUrl,
   saveUrlSearch,
   type SearchBatch,
@@ -165,11 +166,16 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
       ? [`@${handle}`]
       : [];
 
-  const saveChannel = (data: ChannelData) => {
+  const saveChannel = (data: ChannelData, ref: string) => {
     setChannels((prev) => {
       const next = upsertChannel(prev, data);
       saveChannelCache(next);
       return next;
+    });
+    // 読み込み中や読み込めなかったあいだに入れた言葉を、このチャンネルの言葉として引き継ぐ
+    setState((prev) => {
+      const moved = moveChannelWords(prev.channelWords, ref.toLowerCase(), data.channel.id);
+      return moved === prev.channelWords ? prev : { ...prev, channelWords: moved };
     });
   };
 
@@ -187,13 +193,13 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     try {
       if (cached) {
         const result = await refreshChannelVideos(cached, apiKey);
-        saveChannel(result.data);
+        saveChannel(result.data, ref);
         const text = result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew");
         // 期間を広げたお知らせが先に出ていれば、続けて見せる
         setNotice((prev) => ({ tone: "info", text: prev?.tone === "info" ? `${prev.text} ${text}` : text }));
       } else {
         const data = await fetchChannelVideos(ref, apiKey);
-        saveChannel(data);
+        saveChannel(data, ref);
         const widened = widenPeriod(data.videos);
         if (widened) setNotice({ tone: "info", text: widened });
       }

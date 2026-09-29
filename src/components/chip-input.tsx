@@ -81,10 +81,10 @@ export function ChipInput({
             if (invalid) setInvalid(false);
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              add();
-            }
+            // 日本語入力の変換を確定する Enter では追加しない（Safari は isComposing が false で keyCode 229 になる）
+            if (event.key !== "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) return;
+            event.preventDefault();
+            add();
           }}
         />
         <Button type="button" variant="secondary" className="h-10 shrink-0" onClick={add}>
