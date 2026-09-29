@@ -2,7 +2,9 @@ import { resolveQueryWindow, todayIso, isIsoDate } from "./dates";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
 import {
+  isDateSpanId,
   MIN_FAVES_OPTIONS,
+  RESULT_SORTS,
   type DateSpanId,
   type HonorificId,
   type MinFaves,
@@ -16,9 +18,6 @@ export const OWNER_PROFILE_URL = "https://twitter.com/nnhr_nunu";
 
 export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "\uFF87\uFF87\u{1FAC0}"] as const;
 
-const DATE_SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
-// 古い順は X で実現できないので受け付けない（latest に戻す）
-const SORTS: ResultSort[] = ["latest", /* "oldest", */ "likes"];
 
 export function readMinFaves(value: unknown): MinFaves {
   const parsed = typeof value === "string" ? Number(value) : value;
@@ -50,18 +49,16 @@ function readStringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
+// 古い順は X で実現できないので受け付けない（latest に戻す）
 function readSort(parsed: Partial<SearchConfig>): ResultSort {
-  if (parsed.sort && SORTS.includes(parsed.sort)) return parsed.sort;
+  if (parsed.sort && RESULT_SORTS.includes(parsed.sort)) return parsed.sort;
   if (parsed.sort === "oldest") return "latest";
   if (parsed.latest === false) return "likes";
   return "latest";
 }
 
 function readSpan(value: unknown): DateSpanId {
-  if (typeof value === "string" && DATE_SPANS.includes(value as DateSpanId)) {
-    return value as DateSpanId;
-  }
-  return "7";
+  return isDateSpanId(value) ? value : "7";
 }
 
 function withDateWindow(config: SearchConfig): SearchConfig {

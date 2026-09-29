@@ -11,6 +11,11 @@ export function todayIso(): string {
   return formatLocalIso(new Date());
 }
 
+// 画面に出すときの書き方（2026/09/28）
+export function slashDate(iso: string): string {
+  return iso.replaceAll("-", "/");
+}
+
 export function daysAgoIso(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() - days);

@@ -91,7 +91,8 @@ export function SearchApp() {
     createDefaultConfig(),
     createDefaultConfig(),
   ]);
-  const [config, setConfig] = useState<SearchConfig>(createDefaultConfig);
+  // 開いている設定。設定1〜3 の中身は slots だけに持ち、ここでは読むだけ
+  const config = slots[slot];
   // シェア投稿から開かれたときの条件。保存済みの設定とは別に持つ
   const [shared, setShared] = useState<SearchConfig | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -105,20 +106,14 @@ export function SearchApp() {
     const storedSlot = loadActiveSlot();
     // 旧形式の共有 URL は設定1へ取り込む。シェア投稿（share=1）は閲覧だけにとどめる
     const legacy = parsed.found && !parsed.shared;
-    if (legacy) {
-      storedSlots[0] = cloneConfig(parsed.config);
-      saveSlots(storedSlots);
-      saveActiveSlot(0);
-    }
+    if (legacy) storedSlots[0] = cloneConfig(parsed.config);
     const nextSlot = legacy ? 0 : storedSlot;
-    const nextConfig = cloneConfig(storedSlots[nextSlot] ?? createDefaultConfig());
     const nextLocale: Locale = parsed.found && parsed.locale === "en" ? "en" : loadLocale();
     const frame = requestAnimationFrame(() => {
-      setSlots(storedSlots.map((item) => cloneConfig(item)));
+      setSlots(storedSlots);
       setSlot(nextSlot);
       // 旧形式の共有 URL を取り込んだときは設定1を見せる
       setUrlView(legacy ? false : loadUrlView());
-      setConfig(nextConfig);
       setLocale(nextLocale);
       if (parsed.shared) setShared(cloneConfig(parsed.config));
       setReady(true);
@@ -126,50 +121,28 @@ export function SearchApp() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // 変わったものをまとめて保存する（読み込みが終わるまでは既定値なので保存しない）
   useEffect(() => {
     if (!ready) return;
-    saveLastConfig(config);
+    saveSlots(slots);
+    saveLastConfig(slots[slot]);
     saveActiveSlot(slot);
     saveUrlView(urlView);
     saveLocale(locale);
     document.documentElement.lang = locale;
-  }, [config, locale, ready, slot, urlView]);
+  }, [locale, ready, slot, slots, urlView]);
 
   const postsQuery = useMemo(() => buildPostsQuery(config), [config]);
   const liveUrl = useMemo(() => buildLivePostsUrl(config), [config]);
   const postsOk = canSearchPosts(config);
 
-  function persistSlots(nextSlots: SearchConfig[]) {
-    setSlots(nextSlots);
-    saveSlots(nextSlots);
-  }
-
   function patch(next: Partial<SearchConfig>) {
-    setConfig((current) => {
-      const merged = applyConfigPatch(current, next);
-      setSlots((currentSlots) => {
-        const nextSlots = currentSlots.map((item, index) =>
-          index === slot ? cloneConfig(merged) : item,
-        );
-        saveSlots(nextSlots);
-        return nextSlots;
-      });
-      return merged;
-    });
-  }
-
-  function selectSlot(index: SlotIndex) {
-    if (index === slot) return;
-    const nextSlots = slots.map((item, i) => (i === slot ? cloneConfig(config) : item));
-    persistSlots(nextSlots);
-    setSlot(index);
-    setConfig(cloneConfig(nextSlots[index] ?? createDefaultConfig()));
-    saveActiveSlot(index);
+    setSlots((current) => current.map((item, index) => (index === slot ? applyConfigPatch(item, next) : item)));
   }
 
   function selectTab(value: TabValue) {
     setUrlView(value === "url");
-    if (value !== "url") selectSlot(value);
+    if (value !== "url") setSlot(value);
   }
 
   function clearSharedUrl() {
@@ -180,15 +153,11 @@ export function SearchApp() {
   // 空いている設定に入れる。空きが無ければいま開いている設定を置き換える
   function importShared() {
     if (!shared) return;
-    const current = slots.map((item, i) => (i === slot ? cloneConfig(config) : item));
-    const blank = current.findIndex((item) => isBlankConfig(item));
+    const blank = slots.findIndex((item) => isBlankConfig(item));
     const target = (blank >= 0 ? blank : slot) as SlotIndex;
-    const nextSlots = current.map((item, i) => (i === target ? cloneConfig(shared) : item));
-    persistSlots(nextSlots);
+    setSlots(slots.map((item, i) => (i === target ? cloneConfig(shared) : item)));
     setSlot(target);
     setUrlView(false);
-    setConfig(cloneConfig(shared));
-    saveActiveSlot(target);
     clearSharedUrl();
     const slotLabel = t(`slot${target + 1}` as MessageKey);
     toast.success(t("sharedImported").replace("{slot}", slotLabel));
@@ -338,11 +307,7 @@ export function SearchApp() {
               type="button"
               variant="ghost"
               className="w-full"
-              onClick={() => {
-                const blank = createDefaultConfig();
-                setConfig(blank);
-                persistSlots(slots.map((item, index) => (index === slot ? cloneConfig(blank) : item)));
-              }}
+              onClick={() => setSlots(slots.map((item, index) => (index === slot ? createDefaultConfig() : item)))}
             >
               {t("clearForm")}
             </Button>

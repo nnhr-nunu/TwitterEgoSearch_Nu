@@ -6,6 +6,7 @@ import { Segmented } from "@/components/segmented";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { readMinFaves } from "@/lib/defaults";
 import type { MessageKey } from "@/lib/i18n";
 import { MIN_FAVES_OPTIONS, type MinFaves, type ResultSort } from "@/lib/types";
 
@@ -38,12 +39,6 @@ const SORTS: { id: ResultSort; label: MessageKey }[] = [
   // { id: "oldest", label: "sortOldest" },
   { id: "likes", label: "sortLikes" },
 ];
-
-function segmentClass(selected: boolean): string {
-  return `rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:px-3 sm:text-sm ${
-    selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-  }`;
-}
 
 export function SearchCluster({
   url,
@@ -113,29 +108,16 @@ export function SearchCluster({
       {false && (
       <div className="space-y-1.5">
         <p className="text-sm font-medium">{t("minFaves")}</p>
-        <div
-          className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-background p-1"
-          role="radiogroup"
-          aria-label={t("minFaves")}
-          data-testid={`${testId}-faves`}
-        >
-          {MIN_FAVES_OPTIONS.map((option) => {
-            const selected = minFaves === option;
-            return (
-              <button
-                key={option}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                data-testid={`${testId}-faves-${option}`}
-                className={segmentClass(selected)}
-                onClick={() => onMinFaves?.(option)}
-              >
-                {option === 0 ? t("minFavesAny") : `${option.toLocaleString()}+`}
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          options={MIN_FAVES_OPTIONS.map((option) => ({
+            id: String(option),
+            label: option === 0 ? t("minFavesAny") : `${option.toLocaleString()}+`,
+          }))}
+          value={String(minFaves)}
+          label={t("minFaves")}
+          onChange={(value) => onMinFaves?.(readMinFaves(value))}
+          testId={`${testId}-faves`}
+        />
       </div>
       )}
 

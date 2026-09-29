@@ -1,11 +1,12 @@
 "use client";
 
+import { Segmented } from "@/components/segmented";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MIN_SEARCH_DATE, dateIssues, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
-import type { DateSpanId, SearchConfig } from "@/lib/types";
+import { DATE_SPAN_IDS, type DateSpanId, type SearchConfig } from "@/lib/types";
 
 type FilterPanelProps = {
   config: SearchConfig;
@@ -13,12 +14,17 @@ type FilterPanelProps = {
   t: (key: MessageKey) => string;
 };
 
-const SPANS: { id: DateSpanId; label: MessageKey }[] = [
-  { id: "7", label: "span7" },
-  { id: "14", label: "span14" },
-  { id: "month", label: "spanMonth" },
-  { id: "quarter", label: "spanQuarter" },
-];
+// 「対象の日付」の前後の幅。設定1〜3 と YouTube タブで同じ選択肢にする
+export const DATE_SPAN_LABELS: Record<DateSpanId, MessageKey> = {
+  "7": "span7",
+  "14": "span14",
+  month: "spanMonth",
+  quarter: "spanQuarter",
+};
+
+export function dateSpanOptions(t: (key: MessageKey) => string) {
+  return DATE_SPAN_IDS.map((id) => ({ id, label: t(DATE_SPAN_LABELS[id]) }));
+}
 
 export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
   function setAroundDate(aroundDate: string) {
@@ -71,31 +77,14 @@ export function FilterPanel({ config, onChange, t }: FilterPanelProps) {
         ) : null}
       </div>
 
-      <div
-        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1 sm:grid-cols-4"
-        role="radiogroup"
-        aria-label={t("aroundDate")}
-        data-testid="date-span"
-      >
-        {SPANS.map((option) => {
-          const selected = config.dateSpan === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              data-testid={`date-span-${option.id}`}
-              className={`rounded-lg px-1.5 py-2 text-center text-xs font-medium leading-tight transition-colors sm:text-sm ${
-                selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-              }`}
-              onClick={() => setSpan(option.id)}
-            >
-              {t(option.label)}
-            </button>
-          );
-        })}
-      </div>
+      <Segmented<DateSpanId>
+        options={dateSpanOptions(t)}
+        value={config.dateSpan}
+        label={t("aroundDate")}
+        onChange={setSpan}
+        testId="date-span"
+        columns="grid-cols-2 sm:grid-cols-4"
+      />
     </div>
   );
 }

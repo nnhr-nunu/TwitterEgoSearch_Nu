@@ -1,11 +1,12 @@
 "use client";
 
 import { CalendarRangeIcon } from "lucide-react";
+import { dateSpanOptions } from "@/components/filter-panel";
 import { Segmented } from "@/components/segmented";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isIsoDate, MIN_SEARCH_DATE, shiftIso, todayIso } from "@/lib/dates";
+import { isIsoDate, MIN_SEARCH_DATE, shiftIso, slashDate, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { DateSpanId } from "@/lib/types";
 import { URL_PERIODS, type UrlPeriod, type UrlSearchState } from "@/lib/url-search";
@@ -28,13 +29,6 @@ export const PERIOD_LABELS: Record<UrlPeriod, MessageKey> = {
   around: "urlPeriodAround",
   range: "urlPeriodRange",
 };
-
-const SPANS: { id: DateSpanId; label: MessageKey }[] = [
-  { id: "7", label: "span7" },
-  { id: "14", label: "span14" },
-  { id: "month", label: "spanMonth" },
-  { id: "quarter", label: "spanQuarter" },
-];
 
 function invalid(value: string): boolean {
   return value.trim() !== "" && !isIsoDate(value);
@@ -114,7 +108,7 @@ export function YoutubePeriod({ t, state, patch, publishedDate }: YoutubePeriodP
             <>
               <DateField id="url-around-date" label={t("aroundDate")} value={state.aroundDate} onChange={(aroundDate) => patch({ aroundDate })} t={t} />
               <Segmented<DateSpanId>
-                options={SPANS.map((span) => ({ id: span.id, label: t(span.label) }))}
+                options={dateSpanOptions(t)}
                 value={state.dateSpan}
                 label={t("aroundDate")}
                 onChange={(dateSpan) => patch({ dateSpan })}
@@ -148,7 +142,7 @@ export function YoutubePeriod({ t, state, patch, publishedDate }: YoutubePeriodP
           }
         >
           <CalendarRangeIcon data-icon="inline-start" />
-          {t("urlFromPublish").replace("{date}", publishedDate.replaceAll("-", "/"))}
+          {t("urlFromPublish").replace("{date}", slashDate(publishedDate))}
         </Button>
       ) : null}
     </div>

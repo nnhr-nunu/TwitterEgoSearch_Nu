@@ -1,11 +1,9 @@
 import { createDefaultConfig, hydrateConfig, readMinFaves } from "./defaults";
 import { uniqueHandles } from "./handle";
 import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
-import type { DateSpanId, HonorificId, Locale, ResultSort, SearchConfig } from "./types";
+import { type DateSpanId, type HonorificId, isDateSpanId, type Locale, RESULT_SORTS, type ResultSort, type SearchConfig } from "./types";
 
 const BOOL_TRUE = new Set(["1", "true", "yes", "on"]);
-const SORTS: ResultSort[] = ["latest", /* "oldest", */ "likes"];
-const SPANS: DateSpanId[] = ["7", "14", "month", "quarter"];
 
 function readBool(value: string | null, fallback: boolean): boolean {
   if (value == null || value === "") return fallback;
@@ -23,15 +21,14 @@ function parseHonorifics(params: URLSearchParams): HonorificId[] {
 
 function parseSort(params: URLSearchParams): ResultSort {
   const raw = params.get("sort");
-  if (raw && SORTS.includes(raw as ResultSort)) return raw as ResultSort;
+  if (raw && RESULT_SORTS.includes(raw as ResultSort)) return raw as ResultSort;
   if (raw === "oldest") return "latest";
   if (params.has("live") && !readBool(params.get("live"), true)) return "likes";
   return "latest";
 }
 
 function parseSpan(value: string | null): DateSpanId | undefined {
-  if (value && SPANS.includes(value as DateSpanId)) return value as DateSpanId;
-  return undefined;
+  return isDateSpanId(value) ? value : undefined;
 }
 
 export function serializeSearchParams(
