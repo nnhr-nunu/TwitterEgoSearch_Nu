@@ -4,6 +4,8 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "プライバシーポリシー | エゴサ支援ツール(ぬ)",
   description: "エゴサ支援ツール(ぬ)の広告・Cookie・保存データの扱いについて。",
+  // 指定しないとトップページ（layout の "/"）を正規 URL として出してしまう
+  alternates: { canonical: "/privacy" },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

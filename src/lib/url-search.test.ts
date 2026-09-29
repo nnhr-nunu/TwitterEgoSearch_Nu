@@ -4,6 +4,7 @@ import {
   buildMainQuery,
   createDefaultUrlSearch,
   linkTerm,
+  moveChannelWords,
   parseTargetUrl,
   loadUrlSearch,
   postWindow,
@@ -307,6 +308,13 @@ describe("channel words", () => {
     expect(withChannelWords(map, "UCa", ["#a", "#a2"])).toEqual({ UCa: ["#a", "#a2"], UCb: ["#b"] });
     expect(withChannelWords(map, "UCa", [])).toEqual({ UCb: ["#b"] });
     expect(map).toEqual({ UCa: ["#a"], UCb: ["#b"] });
+  });
+
+  it("moves words typed before the channel loaded to its id", () => {
+    const map = { nnhr_nunu: ["#ぬぬ配信", "#a"], UCa: ["#A"], UCb: ["#b"] };
+    expect(moveChannelWords(map, "nnhr_nunu", "UCa")).toEqual({ UCa: ["#A", "#ぬぬ配信"], UCb: ["#b"] });
+    expect(moveChannelWords(map, "unknown", "UCa")).toBe(map);
+    expect(moveChannelWords(map, "UCa", "UCa")).toBe(map);
   });
 });
 

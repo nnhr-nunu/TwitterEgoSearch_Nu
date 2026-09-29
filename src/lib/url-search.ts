@@ -314,6 +314,14 @@ export function withChannelWords(map: Record<string, string[]>, key: string, wor
   return words.length ? { ...rest, [key]: words } : rest;
 }
 
+// 読み込みが終わる前（や失敗して読めないあいだ）はハンドルなどのキーで覚えているので、読み込めたらチャンネル ID のキーへ移す。
+// 移すものが無ければ同じ map を返す
+export function moveChannelWords(map: Record<string, string[]>, from: string, to: string): Record<string, string[]> {
+  const moving = map[from];
+  if (!moving?.length || from === to) return map;
+  return withChannelWords(withChannelWords(map, from, []), to, uniqueCaseless([...(map[to] ?? []), ...moving]));
+}
+
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
