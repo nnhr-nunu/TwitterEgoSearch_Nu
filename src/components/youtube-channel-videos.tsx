@@ -21,8 +21,8 @@ type YoutubeChannelVideosProps = {
   // 読み込んだ動画の総数と、チャンネルにある種類
   total: number;
   channelKinds: VideoKind[];
-  // 押した動画だけを探す（対象をその動画に切り替える）
-  onFocus: (video: ChannelVideo) => void;
+  // その動画 1 本だけの反応を探す X の検索 URL（上部の対象は変えずに、新しいタブで開く）
+  searchUrlOf: (video: ChannelVideo) => string;
   // 何を探すかの説明。絞り込みのすぐ下、一覧の上に出す
   summary: ReactNode;
 };
@@ -45,12 +45,12 @@ function VideoList({
   t,
   videos,
   showKind,
-  onFocus,
+  searchUrlOf,
 }: {
   t: (key: MessageKey) => string;
   videos: ChannelVideo[];
   showKind: boolean;
-  onFocus: (video: ChannelVideo) => void;
+  searchUrlOf: (video: ChannelVideo) => string;
 }) {
   const [limit, setLimit] = useState(FIRST_PAGE);
   if (!videos.length) return <p className="py-2 text-center text-sm text-muted-foreground">{t("ytNone")}</p>;
@@ -88,17 +88,23 @@ function VideoList({
                     {t(KIND_LABELS[video.kind])}
                   </Badge>
                 ) : null}
+                {/* 普通のリンクにして、長押し・中クリックでも開けるようにする。開いたことのある動画は灰色になる */}
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
-                  className="-my-1 ml-auto h-7 shrink-0 gap-0.5 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary"
-                  aria-label={t("ytFocusHint").replace("{title}", video.title)}
-                  onClick={() => onFocus(video)}
-                  data-testid="yt-focus"
+                  className="-my-1 ml-auto h-7 shrink-0 gap-0.5 px-2 text-xs text-primary visited:text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  asChild
                 >
-                  {t("ytFocus")}
-                  <ChevronRightIcon className="size-3.5" aria-hidden />
+                  <a
+                    href={searchUrlOf(video)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("ytFocusHint").replace("{title}", video.title)}
+                    data-testid="yt-focus"
+                  >
+                    {t("ytFocus")}
+                    <ChevronRightIcon className="size-3.5" aria-hidden />
+                  </a>
                 </Button>
               </div>
             </div>
@@ -130,7 +136,7 @@ export function YoutubeChannelVideos({
   matched,
   total,
   channelKinds,
-  onFocus,
+  searchUrlOf,
   summary,
 }: YoutubeChannelVideosProps) {
   const kindCounts = countBy(inPeriod.map((video) => video.kind));
@@ -185,7 +191,7 @@ export function YoutubeChannelVideos({
               {matched.length} / {total}
             </p>
           </div>
-          <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 0} onFocus={onFocus} />
+          <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 0} searchUrlOf={searchUrlOf} />
         </>
       )}
     </div>
