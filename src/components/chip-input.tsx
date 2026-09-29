@@ -20,6 +20,8 @@ type ChipInputProps = {
   mode?: "text" | "handle";
   tokenize?: (raw: string) => string[];
   invalidMessage?: string;
+  // 消すボタンの読み上げ（例:「{item} を削除」）。{item} が入れた言葉に置き換わる
+  removeLabel?: string;
   testId?: string;
 };
 
@@ -34,6 +36,7 @@ export function ChipInput({
   mode = "text",
   tokenize,
   invalidMessage,
+  removeLabel = "{item}",
   testId,
 }: ChipInputProps) {
   const [draft, setDraft] = useState("");
@@ -107,7 +110,8 @@ export function ChipInput({
                   <button
                     type="button"
                     className="rounded-full p-0.5 hover:bg-foreground/10"
-                    aria-label={`${shown}`}
+                    aria-label={removeLabel.replace("{item}", shown)}
+                    title={removeLabel.replace("{item}", shown)}
                     data-testid={testId ? `remove-${testId}` : undefined}
                     onClick={() =>
                       onChange(

@@ -19,6 +19,7 @@ export function MuteAccounts({ handles, onChange, t }: MuteAccountsProps) {
       onChange={onChange}
       addLabel={t("addMute")}
       savedToast={t("savedToast")}
+      removeLabel={t("removeItem")}
       mode="handle"
       invalidMessage={t("muteInvalid")}
       testId="mute"

@@ -39,6 +39,7 @@ export function KeywordEditor({
         onChange={onChange}
         addLabel={t("addKeyword")}
         savedToast={t("savedToast")}
+        removeLabel={t("removeItem")}
         tokenize={splitSearchNames}
         testId="keyword"
       />

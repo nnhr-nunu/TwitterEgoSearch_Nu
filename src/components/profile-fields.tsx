@@ -22,6 +22,7 @@ export function ProfileFields({ config, onChange, t }: ProfileFieldsProps) {
         onChange={(handles) => onChange({ handles, handle: handles[0] ?? "" })}
         addLabel={t("addKeyword")}
         savedToast={t("savedToast")}
+        removeLabel={t("removeItem")}
         mode="handle"
         invalidMessage={t("muteInvalid")}
         testId="handle"
@@ -34,6 +35,7 @@ export function ProfileFields({ config, onChange, t }: ProfileFieldsProps) {
         onChange={(filterKeywords) => onChange({ filterKeywords })}
         addLabel={t("addKeyword")}
         savedToast={t("savedToast")}
+        removeLabel={t("removeItem")}
         testId="filter-keyword"
       />
       <DateFilters config={config} onChange={onChange} t={t} />
