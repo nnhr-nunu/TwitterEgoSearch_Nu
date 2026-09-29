@@ -92,9 +92,11 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
       onChange({ rangeFilter: false });
       return;
     }
+    // 開始日が空なら、終了日は設定を作った日の「今日」のまま古くなっていることがある（直近の投稿が落ちる）ので今日に直す。
+    // 開始日まで入れてあれば自分で決めた区間なので、そのまま戻す
     onChange({
       rangeFilter: true,
-      rangeEnd: config.rangeEnd || todayIso(),
+      rangeEnd: config.rangeStart ? config.rangeEnd || todayIso() : todayIso(),
     });
   }
 

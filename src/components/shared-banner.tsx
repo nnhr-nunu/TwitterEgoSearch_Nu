@@ -8,17 +8,18 @@ import { uniqueHandles } from "@/lib/handle";
 import type { MessageKey } from "@/lib/i18n";
 import { buildLivePostsUrl } from "@/lib/live";
 import { shareSubjectLabel, shareSubjects } from "@/lib/share-post";
-import type { SearchConfig } from "@/lib/types";
+import type { Locale, SearchConfig } from "@/lib/types";
 
 type SharedBannerProps = {
   config: SearchConfig;
+  locale: Locale;
   onImport: () => void;
   onDismiss: () => void;
   t: (key: MessageKey) => string;
 };
 
 /** シェア投稿から来た人の着地カード。まず結果を見せ、そのあと自分のエゴサへ誘う */
-export function SharedBanner({ config, onImport, onDismiss, t }: SharedBannerProps) {
+export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedBannerProps) {
   const subjects = shareSubjects(config);
   const hasKeywords = config.keywords.some((keyword) => keyword.trim());
   const handles = hasKeywords ? uniqueHandles(config.handles) : [];
@@ -52,7 +53,7 @@ export function SharedBanner({ config, onImport, onDismiss, t }: SharedBannerPro
 
         <h2 className="font-heading text-2xl leading-snug font-bold tracking-tight break-words">
           {t("sharedHeadingPrefix")}
-          {shareSubjectLabel(config)}
+          {shareSubjectLabel(config, locale)}
           {t("sharedHeadingSuffix")}
         </h2>
 

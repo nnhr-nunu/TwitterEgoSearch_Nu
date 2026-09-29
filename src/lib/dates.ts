@@ -53,12 +53,21 @@ export function shiftIso(iso: string, days: number): string {
   return formatLocalIso(date);
 }
 
+// 月をまたぐとき、移った先の月に無い日（3/31 の 1 か月前 = 2/31 など）は月末に丸める。
+// Date の setMonth だと 3/3 のように次の月へ繰り越してしまう
+function addMonths(date: Date, months: number): void {
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+}
+
 export function shiftBySpan(iso: string, span: DateSpanId, direction: 1 | -1): string {
   const date = parseIsoDate(iso) ?? new Date();
   if (span === "7") date.setDate(date.getDate() + 7 * direction);
   else if (span === "14") date.setDate(date.getDate() + 14 * direction);
-  else if (span === "month") date.setMonth(date.getMonth() + direction);
-  else date.setMonth(date.getMonth() + 3 * direction);
+  else addMonths(date, (span === "month" ? 1 : 3) * direction);
   return formatLocalIso(date);
 }
 
