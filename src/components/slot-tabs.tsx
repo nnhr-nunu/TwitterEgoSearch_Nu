@@ -11,12 +11,14 @@ export type TabValue = SlotIndex | "url";
 type SlotTabsProps = {
   value: TabValue;
   onChange: (value: TabValue) => void;
+  // タブに出す設定の名前（付けた名前か、先頭の検索名称。空の設定は「設定1」など）
+  labels: string[];
   t: (key: MessageKey) => string;
 };
 
 const SLOT_LABELS: MessageKey[] = ["slot1", "slot2", "slot3"];
 
-export function SlotTabs({ value, onChange, t }: SlotTabsProps) {
+export function SlotTabs({ value, onChange, labels, t }: SlotTabsProps) {
   return (
     <Tabs
       value={String(value)}
@@ -25,17 +27,24 @@ export function SlotTabs({ value, onChange, t }: SlotTabsProps) {
       data-testid="slot-tabs"
     >
       <TabsList className="grid h-11 w-full grid-cols-4">
-        {SLOT_LABELS.slice(0, SLOT_COUNT).map((label, index) => (
-          <TabsTrigger
-            key={label}
-            value={String(index)}
-            className="text-sm"
-            data-testid={`slot-tab-${index}`}
-          >
-            {t(label)}
-          </TabsTrigger>
-        ))}
-        <TabsTrigger value="url" className="text-sm" data-testid="slot-tab-url">
+        {SLOT_LABELS.slice(0, SLOT_COUNT).map((key, index) => {
+          const slotName = t(key);
+          const label = labels[index] || slotName;
+          return (
+            <TabsTrigger
+              key={key}
+              value={String(index)}
+              // 長い名前は「…」で切る。何番目の設定かは読み上げとツールチップに残す
+              className="min-w-0 text-sm"
+              title={label === slotName ? undefined : `${slotName}：${label}`}
+              aria-label={label === slotName ? undefined : `${slotName}：${label}`}
+              data-testid={`slot-tab-${index}`}
+            >
+              <span className="truncate">{label}</span>
+            </TabsTrigger>
+          );
+        })}
+        <TabsTrigger value="url" className="min-w-0 text-sm" data-testid="slot-tab-url">
           {t("urlTab")}
         </TabsTrigger>
       </TabsList>
