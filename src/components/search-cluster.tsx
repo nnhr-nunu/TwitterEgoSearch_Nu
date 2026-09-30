@@ -22,6 +22,8 @@ type SearchClusterProps = {
   onMedia?: (mediaOnly: boolean) => void;
   // シェアできない画面では渡さない
   onShare?: () => void;
+  // 検索ボタンで X を開いたとき（開いた時刻を覚えるのに使う）
+  onOpen?: () => void;
   t: (key: MessageKey) => string;
   testId: string;
   // ボタンの文言と、押せないときの説明。省略すると設定1〜3 の文言
@@ -50,6 +52,7 @@ export function SearchCluster({
   onMinFaves,
   onMedia,
   onShare,
+  onOpen,
   t,
   testId,
   label,
@@ -76,6 +79,9 @@ export function SearchCluster({
             role={postsOk ? undefined : "link"}
             aria-disabled={postsOk ? undefined : true}
             data-testid={`${testId}-open`}
+            onClick={postsOk ? onOpen : undefined}
+            // 中クリックで別タブに開いたときも「検索を開いた」に数える
+            onAuxClick={postsOk ? (event) => event.button === 1 && onOpen?.() : undefined}
           >
             <SearchIcon data-icon="inline-start" />
             {buttonLabel}

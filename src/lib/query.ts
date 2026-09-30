@@ -50,7 +50,12 @@ export function fromGroup(handles: string[]): string {
   return `(${parts.join(" OR ")})`;
 }
 
-export function buildPostsQuery(config: SearchConfig): string {
+export type QueryExtra = {
+  // 「前回の検索より後の投稿だけ」の基準（UNIX 秒）。設定には保存せず、検索のたびに渡す
+  sinceTime?: number;
+};
+
+export function buildPostsQuery(config: SearchConfig, extra: QueryExtra = {}): string {
   const keywords = keywordGroup(config);
   const parts: string[] = [];
 
@@ -74,6 +79,7 @@ export function buildPostsQuery(config: SearchConfig): string {
   if (config.mediaOnly) parts.push("filter:media");
   if (config.since.trim()) parts.push(`since:${config.since.trim()}`);
   if (config.until.trim()) parts.push(`until:${untilOperand(config.until.trim())}`);
+  if (extra.sinceTime) parts.push(`since_time:${extra.sinceTime}`);
   // いいね数で絞り込むは非表示中なので min_faves: を付けない
   // if (config.minFaves > 0) parts.push(`min_faves:${config.minFaves}`);
 

@@ -10,6 +10,7 @@ import { FilterPanel } from "@/components/filter-panel";
 import { KeywordEditor } from "@/components/keyword-editor";
 import { MuteAccounts } from "@/components/mute-accounts";
 import { MuteKeywords } from "@/components/mute-keywords";
+import { NewOnlyToggle } from "@/components/new-only-toggle";
 import { ProfileFields } from "@/components/profile-fields";
 import { SearchCluster } from "@/components/search-cluster";
 import { ShareDialog } from "@/components/share-dialog";
@@ -22,8 +23,16 @@ import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults"
 import { resolveQueryWindow } from "@/lib/dates";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
-import { buildLivePostsUrl } from "@/lib/live";
-import { buildPostsQuery, canSearchPosts, isQueryTooLong } from "@/lib/query";
+import {
+  baselineOf,
+  emptySearchStates,
+  loadSearchStates,
+  recordSearch,
+  saveSearchStates,
+  sinceTimeOf,
+  type SlotSearchState,
+} from "@/lib/last-search";
+import { buildPostsQuery, buildSearchUrl, canSearchPosts, isQueryTooLong } from "@/lib/query";
 import { parseSearchParams } from "@/lib/share-url";
 import {
   loadActiveSlot,
@@ -95,6 +104,10 @@ export function SearchApp() {
   const config = slots[slot];
   // シェア投稿から開かれたときの条件。保存済みの設定とは別に持つ
   const [shared, setShared] = useState<SearchConfig | null>(null);
+  // 設定ごとの「検索を開いた時刻」と「前回より後の投稿だけ」のスイッチ。設定の中身とは別に持つ（シェアや引き継ぎに混ぜない）
+  const [searchStates, setSearchStates] = useState<SlotSearchState[]>(emptySearchStates);
+  // 「前回」がどれかは時刻で決まるので、いまの時刻も state に持つ（1 分ごとと、タブに戻ったときに進める）
+  const [now, setNow] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareKey, setShareKey] = useState(0);
 
@@ -116,6 +129,8 @@ export function SearchApp() {
     const frame = requestAnimationFrame(() => {
       setSlots(storedSlots);
       setSlot(nextSlot);
+      setSearchStates(loadSearchStates());
+      setNow(Date.now());
       // 旧形式の共有 URL を取り込んだときは設定1を見せる
       setUrlView(legacy ? false : loadUrlView());
       setLocale(nextLocale);
@@ -137,12 +152,44 @@ export function SearchApp() {
     document.documentElement.lang = locale;
   }, [locale, ready, slot, slots, urlView]);
 
-  const postsQuery = useMemo(() => buildPostsQuery(config), [config]);
-  const liveUrl = useMemo(() => buildLivePostsUrl(config), [config]);
+  useEffect(() => {
+    if (ready) saveSearchStates(searchStates);
+  }, [ready, searchStates]);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const timer = window.setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
+  const searchState = searchStates[slot];
+  const baseline = baselineOf(searchState.mark, now);
+  const sinceTime = sinceTimeOf(searchState, now);
+  const postsQuery = useMemo(() => buildPostsQuery(config, { sinceTime }), [config, sinceTime]);
+  const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
   const postsOk = canSearchPosts(config);
+
+  function patchSearchState(index: number, next: Partial<SlotSearchState>) {
+    setSearchStates((current) => current.map((item, i) => (i === index ? { ...item, ...next } : item)));
+  }
 
   function patch(next: Partial<SearchConfig>) {
     setSlots((current) => current.map((item, index) => (index === slot ? applyConfigPatch(item, next) : item)));
+    // 探す名前やアカウントを変えたら、その言葉の前回より前の投稿もまだ見ていないので、「前回より後だけ」は切る
+    if (next.keywords || next.handles) patchSearchState(slot, { newOnly: false });
+  }
+
+  // 検索を開いた時刻を覚える。次に来たとき、ここから後の投稿だけを探せる
+  function recordOpen() {
+    const time = Date.now();
+    setSearchStates((current) =>
+      current.map((item, i) => (i === slot ? { ...item, mark: recordSearch(item.mark, time) } : item)),
+    );
+    setNow(time);
   }
 
   function selectTab(value: TabValue) {
@@ -161,7 +208,10 @@ export function SearchApp() {
     const blank = slots.findIndex((item) => isBlankConfig(item));
     const target = (blank >= 0 ? blank : slot) as SlotIndex;
     const replaced = blank >= 0 ? null : slots[target];
+    const replacedState = searchStates[target];
     setSlots(slots.map((item, i) => (i === target ? cloneConfig(shared) : item)));
+    // 別の条件に入れ替わるので、前の条件で検索を開いた時刻は持ち越さない
+    patchSearchState(target, { mark: null, newOnly: false });
     setSlot(target);
     setUrlView(false);
     clearSharedUrl();
@@ -175,7 +225,10 @@ export function SearchApp() {
       duration: 12000,
       action: {
         label: t("undo"),
-        onClick: () => setSlots((current) => current.map((item, i) => (i === target ? replaced : item))),
+        onClick: () => {
+          setSlots((current) => current.map((item, i) => (i === target ? replaced : item)));
+          patchSearchState(target, replacedState);
+        },
       },
     });
   }
@@ -215,6 +268,7 @@ export function SearchApp() {
       onMinFaves={(minFaves) => patch({ minFaves })}
       onMedia={(mediaOnly) => patch({ mediaOnly })}
       onShare={openShare}
+      onOpen={recordOpen}
       t={t}
       testId={testId}
     >
@@ -222,6 +276,15 @@ export function SearchApp() {
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}
         </p>
+      ) : null}
+      {baseline !== null ? (
+        <NewOnlyToggle
+          baseline={baseline}
+          now={now}
+          checked={searchState.newOnly}
+          onChange={(newOnly) => patchSearchState(slot, { newOnly })}
+          t={t}
+        />
       ) : null}
     </SearchCluster>
   );

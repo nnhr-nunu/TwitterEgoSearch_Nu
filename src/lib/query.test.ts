@@ -95,6 +95,12 @@ describe("buildPostsQuery", () => {
     expect(query).toContain("until:2026-01-31");
   });
 
+  it("adds since_time: for the posts-since-last-search switch", () => {
+    const config = { ...createOwnerSampleConfig(), keywords: ["ぬぬはら"] };
+    expect(buildPostsQuery(config, { sinceTime: 1790380800 })).toMatch(/ since_time:1790380800$/);
+    expect(buildPostsQuery(config)).not.toContain("since_time:");
+  });
+
   it("omits since/until when date filter is off", () => {
     const query = buildPostsQuery(createOwnerSampleConfig());
     expect(query).not.toContain("since:");
