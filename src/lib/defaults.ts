@@ -126,8 +126,10 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
   if (!parsed || typeof parsed !== "object") return defaults;
   const handles = readHandles(parsed);
   const sort = readSort(parsed);
+  // 「日付で絞り込む」がオフのあいだは、対象の日付を今日にしておく。
+  // 設定を作った日のまま残すと、後日オンにしたときに古い日付の前後を探してしまう
   const aroundDate =
-    typeof parsed.aroundDate === "string" && isIsoDate(parsed.aroundDate)
+    parsed.dateFilter === true && typeof parsed.aroundDate === "string" && isIsoDate(parsed.aroundDate)
       ? parsed.aroundDate
       : defaults.aroundDate;
   const dateSpan = readSpan(parsed.dateSpan);

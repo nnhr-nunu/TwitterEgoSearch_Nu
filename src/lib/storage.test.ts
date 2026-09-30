@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { todayIso } from "./dates";
 import { createDefaultConfig } from "./defaults";
 import {
   CONFIG_STORAGE_KEY,
@@ -70,6 +71,19 @@ describe("slot storage", () => {
     expect(loadActiveSlot()).toBe(2);
     expect(window.localStorage.getItem(SLOTS_STORAGE_KEY)).toContain("二番目");
     expect(window.localStorage.getItem(SLOT_INDEX_KEY)).toBe("2");
+  });
+
+  it("resets a stale target date to today unless the date filter is on", () => {
+    const slots = [createDefaultConfig(), createDefaultConfig(), createDefaultConfig()];
+    // 設定を作った日の日付が残っている。オフのままなら、後日オンにしたときは今日から始める
+    slots[0] = { ...slots[0], keywords: ["オフ"], aroundDate: "2026-01-10", dateFilter: false };
+    slots[1] = { ...slots[1], keywords: ["オン"], aroundDate: "2026-01-10", dateFilter: true };
+    window.localStorage.setItem(SLOTS_STORAGE_KEY, JSON.stringify(slots));
+    const loaded = loadSlots();
+    expect(loaded[0].aroundDate).toBe(todayIso());
+    expect(loaded[0].since).toBe("");
+    expect(loaded[1].aroundDate).toBe("2026-01-10");
+    expect(loaded[1].since).toBe("2026-01-03");
   });
 
   it("keeps working when the browser blocks localStorage", () => {

@@ -119,7 +119,8 @@ export function SearchApp() {
       // 旧形式の共有 URL を取り込んだときは設定1を見せる
       setUrlView(legacy ? false : loadUrlView());
       setLocale(nextLocale);
-      if (parsed.shared) setShared(cloneConfig(parsed.config));
+      // 途中で切れたリンク（share=1 だけが残ったもの）では、探す言葉のない着地カードを出さない
+      if (parsed.shared && canSearchPosts(parsed.config)) setShared(cloneConfig(parsed.config));
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
