@@ -23,7 +23,7 @@ import { resolveQueryWindow } from "@/lib/dates";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
 import { buildLivePostsUrl } from "@/lib/live";
-import { buildPostsQuery, canSearchPosts } from "@/lib/query";
+import { buildPostsQuery, canSearchPosts, isQueryTooLong } from "@/lib/query";
 import { parseSearchParams } from "@/lib/share-url";
 import {
   loadActiveSlot,
@@ -217,7 +217,13 @@ export function SearchApp() {
       onShare={openShare}
       t={t}
       testId={testId}
-    />
+    >
+      {isQueryTooLong(postsQuery) ? (
+        <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
+          {t("queryTooLong").replace("{count}", String(postsQuery.length))}
+        </p>
+      ) : null}
+    </SearchCluster>
   );
 
   return (

@@ -79,6 +79,14 @@ export function buildPostsQuery(config: SearchConfig): string {
   return parts.join(" ");
 }
 
+// X の検索は約 500 文字を超えるとエラーになる（確かめた内容は url-search.ts の冒頭）。
+// 除外するアカウントは 1 件で 20 文字前後使うので、増やしていくと届く
+export const QUERY_LENGTH_LIMIT = 500;
+
+export function isQueryTooLong(query: string): boolean {
+  return query.length > QUERY_LENGTH_LIMIT;
+}
+
 export function buildPeopleQuery(config: SearchConfig): string {
   return keywordGroup(config);
 }
