@@ -58,9 +58,10 @@ export function ChipInput({
     }
     const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
     if (tokens.length === 0) return;
+    // X の検索は大文字小文字を区別しないので、「ABC」のあとの「abc」は同じ言葉として足さない
     const next = [...items];
     for (const token of tokens) {
-      if (!next.includes(token)) next.push(token);
+      if (!next.some((item) => item.toLowerCase() === token.toLowerCase())) next.push(token);
     }
     onChange(next);
     setDraft("");
@@ -109,7 +110,7 @@ export function ChipInput({
           {items.map((item) => {
             const shown = mode === "handle" ? `@${item}` : item;
             return (
-              <li key={item.toLowerCase()}>
+              <li key={mode === "handle" ? item.toLowerCase() : item}>
                 <Badge variant="secondary" className="h-7 gap-1 pr-1 text-sm">
                   <span className="max-w-48 truncate">{shown}</span>
                   <button
