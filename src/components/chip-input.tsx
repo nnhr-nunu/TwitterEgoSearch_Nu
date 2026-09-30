@@ -43,11 +43,11 @@ export function ChipInput({
   const [invalid, setInvalid] = useState(false);
   const items = mode === "handle" ? uniqueHandles(values) : values;
 
-  function add() {
+  function add(raw = draft) {
     if (mode === "handle") {
-      const next = parseHandleList(draft);
+      const next = parseHandleList(raw);
       if (next.length === 0) {
-        setInvalid(draft.trim().length > 0);
+        setInvalid(raw.trim().length > 0);
         return;
       }
       setInvalid(false);
@@ -56,7 +56,7 @@ export function ChipInput({
       toast.success(savedToast);
       return;
     }
-    const tokens = tokenize ? tokenize(draft) : [draft.trim()].filter(Boolean);
+    const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
     if (tokens.length === 0) return;
     const next = [...items];
     for (const token of tokens) {
@@ -89,8 +89,13 @@ export function ChipInput({
             event.preventDefault();
             add();
           }}
+          onBlur={(event) => {
+            // 打っただけで「追加」を押さずに検索ボタンへ進んでも探せるよう、欄を離れたら追加する。
+            // 別のタブやアプリへ移っただけのとき（書きかけ）は追加しない
+            if (document.hasFocus()) add(event.currentTarget.value);
+          }}
         />
-        <Button type="button" variant="secondary" className="h-10 shrink-0" onClick={add}>
+        <Button type="button" variant="secondary" className="h-10 shrink-0" onClick={() => add()}>
           {addLabel}
         </Button>
       </div>
