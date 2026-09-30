@@ -373,31 +373,36 @@ function text(value: unknown): string {
 }
 
 
+// 保存した値や、引き継ぎ用リンクで受け取った値を読む。形の合わない項目は既定値にする
+export function parseUrlSearch(value: unknown): UrlSearchState {
+  if (!value || typeof value !== "object") return createDefaultUrlSearch();
+  const parsed = value as Partial<UrlSearchState> & { videoKinds?: unknown; dateMode?: unknown };
+  // 以前は種類を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ（公開年の絞り込みは期間に置き換えた）
+  const oldKinds = strings(parsed.videoKinds);
+  const kind: string = text(parsed.videoKind) || (oldKinds.length === 1 ? oldKinds[0] : "all");
+  return {
+    url: text(parsed.url),
+    words: strings(parsed.words),
+    channelWords: wordMap(parsed.channelWords),
+    excluded: strings(parsed.excluded),
+    excludeOwner: parsed.excludeOwner !== false,
+    period: period(parsed.period, parsed.dateMode),
+    rangeStart: text(parsed.rangeStart),
+    rangeEnd: text(parsed.rangeEnd),
+    aroundDate: text(parsed.aroundDate),
+    dateSpan: isDateSpanId(parsed.dateSpan) ? parsed.dateSpan : "7",
+    sort: parsed.sort === "likes" ? "likes" : "latest",
+    videoKind: kind === "channel" || (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKindFilter) : "all",
+    videoTitle: text(parsed.videoTitle),
+  };
+}
+
 export function loadUrlSearch(): UrlSearchState {
   const fallback = createDefaultUrlSearch();
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(URL_SEARCH_STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<UrlSearchState> & { videoKinds?: unknown; dateMode?: unknown };
-    // 以前は種類を複数選べた。1 つだけ選んでいたときはそれを引き継ぐ（公開年の絞り込みは期間に置き換えた）
-    const oldKinds = strings(parsed.videoKinds);
-    const kind: string = parsed.videoKind ?? (oldKinds.length === 1 ? oldKinds[0] : "all");
-    return {
-      url: text(parsed.url),
-      words: strings(parsed.words),
-      channelWords: wordMap(parsed.channelWords),
-      excluded: strings(parsed.excluded),
-      excludeOwner: parsed.excludeOwner !== false,
-      period: period(parsed.period, parsed.dateMode),
-      rangeStart: text(parsed.rangeStart),
-      rangeEnd: text(parsed.rangeEnd),
-      aroundDate: text(parsed.aroundDate),
-      dateSpan: isDateSpanId(parsed.dateSpan) ? parsed.dateSpan : "7",
-      sort: parsed.sort === "likes" ? "likes" : "latest",
-      videoKind: kind === "channel" || (VIDEO_KINDS as string[]).includes(kind) ? (kind as VideoKindFilter) : "all",
-      videoTitle: text(parsed.videoTitle),
-    };
+    return raw ? parseUrlSearch(JSON.parse(raw)) : fallback;
   } catch {
     return fallback;
   }

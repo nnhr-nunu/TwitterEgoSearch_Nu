@@ -1,7 +1,7 @@
 "use client";
 
 import { PlusIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ChipInput } from "@/components/chip-input";
 import { SearchCluster } from "@/components/search-cluster";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +57,8 @@ import {
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
+  // 検索ボタンの下に出す「自動保存されます」の案内（設定1〜3 と同じものを親から渡す）
+  note: ReactNode;
 };
 
 function errorMessage(error: unknown): MessageKey {
@@ -96,7 +98,7 @@ function Suggestions({ t, items, onAdd, testId }: { t: (key: MessageKey) => stri
   );
 }
 
-export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
+export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   // 親が ready になってから描画されるので、初期化時に localStorage を読んでよい
   const [state, setState] = useState<UrlSearchState>(loadUrlSearch);
   // 読み込んだチャンネルの動画一覧（新しく使った順に数件）。同じチャンネルは API を呼ばずに開ける
@@ -231,6 +233,20 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
     }
   };
 
+  // 保存済みの対象がチャンネルなのに動画一覧を持っていないとき（引き継ぎ用リンクで取り込んだ直後の端末など）は、
+  // 開いたときに読み込む。読み込まないと、チャンネル ID で覚えている言葉も出てこない
+  const missingChannel = target?.kind === "channel" && !channel && apiKey ? target.token : null;
+  const loadMissing = useRef(() => {});
+  useEffect(() => {
+    loadMissing.current = () => {
+      if (missingChannel && !loading) void loadChannel(missingChannel, null);
+    };
+  });
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => loadMissing.current());
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   // 別の対象に変えたら、動画の絞り込みは持ち越さない（言葉はチャンネルごとに覚えているので、ページ用の words だけ消す）。
   // 同じチャンネルの中で動画 1 本とチャンネル全体を行き来するときは keep で残す
   const selectUrl = (url: string, keep = false): UrlTarget | null => {
@@ -285,7 +301,7 @@ export function UrlSearchPanel({ t }: UrlSearchPanelProps) {
           />
         }
       />
-      <p className="px-1 text-center text-xs text-muted-foreground">{t("autoSaveNote")}</p>
+      {note}
 
       <Card>
         <CardContent data-testid="url-options">
