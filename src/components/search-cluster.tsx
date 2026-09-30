@@ -62,18 +62,24 @@ export function SearchCluster({
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" data-testid={testId}>
       <div className="space-y-2">
         {postsOk && action ? action : (
-        <Button type="button" size="lg" className="h-12 w-full text-base" disabled={!postsOk} asChild={postsOk}>
-          {postsOk ? (
-            <a href={url} target="_blank" rel="noopener noreferrer" data-testid={`${testId}-open`}>
-              <SearchIcon data-icon="inline-start" />
-              {buttonLabel}
-            </a>
-          ) : (
-            <>
-              <SearchIcon data-icon="inline-start" />
-              {buttonLabel}
-            </>
-          )}
+        <Button
+          size="lg"
+          className="h-12 w-full text-base aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-primary aria-disabled:active:translate-y-0"
+          asChild
+        >
+          {/* 押せないあいだも同じ <a> のままにする。入力欄に打っただけの言葉は欄を離れたときに追加されるので、
+              <button disabled> と入れ替えなければ、その 1 回目のクリックでそのまま検索が開く */}
+          <a
+            href={postsOk ? url : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            role={postsOk ? undefined : "link"}
+            aria-disabled={postsOk ? undefined : true}
+            data-testid={`${testId}-open`}
+          >
+            <SearchIcon data-icon="inline-start" />
+            {buttonLabel}
+          </a>
         </Button>
         )}
         {!postsOk ? <p className="text-sm text-muted-foreground">{emptyHint ?? t("emptyKeywords")}</p> : null}
