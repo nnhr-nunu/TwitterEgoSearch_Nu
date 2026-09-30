@@ -181,7 +181,7 @@ export const messages = {
     handle: "Narrow by account",
     handlePlaceholder: "@id",
     keywords: "Search names (include nicknames; you can add several)",
-    keywordPlaceholder: "e.g. ぬぬはらさん　#003_FA　\uFF87\uFF87\u{1FAC0}",
+    keywordPlaceholder: "e.g. Nunuhara, \"Nunu Hara\", #003_FA",
     addKeyword: "Add",
     removeItem: "Remove \"{item}\"",
     honorifics: "Honorifics",
