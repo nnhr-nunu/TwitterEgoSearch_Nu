@@ -53,6 +53,8 @@ export const messages = {
     copyQuery: "クエリをコピー",
     clearForm: "入力を消す",
     emptyKeywords: "検索名称かアカウントを1つ入れてください。",
+    queryTooLong:
+      "条件が多すぎて（{count}文字）、X で検索に失敗することがあります。X の検索は約500文字までなので、検索名称や除外するアカウントを減らしてください。",
     loading: "読み込み中…",
     copied: "コピーしました",
     copyFailed: "コピーできませんでした",
@@ -227,6 +229,8 @@ export const messages = {
     copyQuery: "Copy query",
     clearForm: "Clear what I entered",
     emptyKeywords: "Add at least one search name or account.",
+    queryTooLong:
+      "This search is too long ({count} characters) and may fail on X, which accepts about 500. Remove some search names or excluded accounts.",
     loading: "Loading…",
     copied: "Copied",
     copyFailed: "Could not copy",

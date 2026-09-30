@@ -7,7 +7,9 @@ import {
   buildSearchUrl,
   canSearchPeople,
   canSearchPosts,
+  isQueryTooLong,
   orGroup,
+  QUERY_LENGTH_LIMIT,
   quoteTerm,
   sortParamOf,
 } from "./query";
@@ -31,6 +33,17 @@ describe("orGroup", () => {
     expect(orGroup(["ぬぬはら", "ぬぬさん"], true)).toBe(
       '("ぬぬはら" OR "ぬぬさん")',
     );
+  });
+});
+
+describe("isQueryTooLong", () => {
+  it("flags a query that a long exclude list pushed past X's limit", () => {
+    const config = createOwnerSampleConfig();
+    expect(isQueryTooLong(buildPostsQuery(config))).toBe(false);
+    const mutedHandles = Array.from({ length: 30 }, (_, index) => `spam_account_${index}`);
+    const query = buildPostsQuery({ ...config, mutedHandles });
+    expect(query.length).toBeGreaterThan(QUERY_LENGTH_LIMIT);
+    expect(isQueryTooLong(query)).toBe(true);
   });
 });
 
