@@ -18,6 +18,8 @@ import { SharedBanner } from "@/components/shared-banner";
 import { SlotTabs, type TabValue } from "@/components/slot-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { UrlSearchPanel } from "@/components/url-search-panel";
 import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
@@ -34,6 +36,7 @@ import {
 } from "@/lib/last-search";
 import { buildPostsQuery, buildSearchUrl, canSearchPosts, isQueryTooLong } from "@/lib/query";
 import { parseSearchParams } from "@/lib/share-url";
+import { slotLabelOf } from "@/lib/slot-label";
 import {
   loadActiveSlot,
   loadLocale,
@@ -173,6 +176,8 @@ export function SearchApp() {
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
   const postsOk = canSearchPosts(config);
 
+  const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
+
   function patchSearchState(index: number, next: Partial<SlotSearchState>) {
     setSearchStates((current) => current.map((item, i) => (i === index ? { ...item, ...next } : item)));
   }
@@ -215,7 +220,7 @@ export function SearchApp() {
     setSlot(target);
     setUrlView(false);
     clearSharedUrl();
-    const slotLabel = t(`slot${target + 1}` as MessageKey);
+    const slotLabel = slotName(target);
     if (!replaced) {
       toast.success(t("sharedImported").replace("{slot}", slotLabel));
       return;
@@ -331,7 +336,12 @@ export function SearchApp() {
         {shared ? (
           <SharedBanner config={shared} locale={locale} onImport={importShared} onDismiss={startOwnSearch} t={t} />
         ) : null}
-        <SlotTabs value={urlView ? "url" : slot} onChange={selectTab} t={t} />
+        <SlotTabs
+          value={urlView ? "url" : slot}
+          onChange={selectTab}
+          labels={slots.map((item, index) => slotLabelOf(item, slotName(index)))}
+          t={t}
+        />
         {urlView ? <UrlSearchPanel t={t} /> : null}
         {urlView ? null : (
         <>
@@ -360,6 +370,20 @@ export function SearchApp() {
               onChange={(mutedKeywords) => patch({ mutedKeywords })}
               t={t}
             />
+            {/* タブに出す名前。空なら先頭の検索名称が出るので、入力例にそれを見せる */}
+            <div className="space-y-3">
+              <Label htmlFor="slot-name">{t("slotNameLabel")}</Label>
+              <Input
+                id="slot-name"
+                value={config.displayName}
+                placeholder={slotLabelOf({ ...config, displayName: "" }, slotName(slot))}
+                maxLength={20}
+                className="h-10 text-base md:text-sm"
+                autoComplete="off"
+                data-testid="slot-name"
+                onChange={(event) => patch({ displayName: event.target.value })}
+              />
+            </div>
           </CardContent>
         </Card>
         </>
