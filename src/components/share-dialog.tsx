@@ -54,7 +54,7 @@ function displayUrl(url: string): string {
   }
 }
 
-function siteOrigin(): string {
+export function siteOrigin(): string {
   if (typeof window === "undefined") return "";
   const base = process.env.NEXT_PUBLIC_BASE_PATH?.trim() ?? "";
   return `${window.location.origin}${base}`;

@@ -16,6 +16,8 @@ import { SearchCluster } from "@/components/search-cluster";
 import { ShareDialog } from "@/components/share-dialog";
 import { SharedBanner } from "@/components/shared-banner";
 import { SlotTabs, type TabValue } from "@/components/slot-tabs";
+import { TransferBanner } from "@/components/transfer-banner";
+import { AutoSaveNote, TransferDialog } from "@/components/transfer-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,7 +50,9 @@ import {
   saveSlots,
   saveUrlView,
 } from "@/lib/storage";
+import { parseTransferHash, type TransferData } from "@/lib/transfer";
 import type { Locale, ResultSort, SearchConfig, SlotIndex } from "@/lib/types";
+import { loadUrlSearch, saveUrlSearch } from "@/lib/url-search";
 
 async function copyText(value: string): Promise<boolean> {
   try {
@@ -111,6 +115,11 @@ export function SearchApp() {
   const [searchStates, setSearchStates] = useState<SlotSearchState[]>(emptySearchStates);
   // 「前回」がどれかは時刻で決まるので、いまの時刻も state に持つ（1 分ごとと、タブに戻ったときに進める）
   const [now, setNow] = useState(0);
+  // 引き継ぎ用リンクで開かれたときの中身。取り込むかどうかを選ぶまでは保存済みの設定に触らない
+  const [transfer, setTransfer] = useState<TransferData | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
+  // YouTube タブは自分で保存値を読むので、取り込んだら作り直して読み直させる
+  const [urlPanelKey, setUrlPanelKey] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareKey, setShareKey] = useState(0);
 
@@ -118,6 +127,7 @@ export function SearchApp() {
 
   useEffect(() => {
     const parsed = parseSearchParams(window.location.search);
+    const incoming = parseTransferHash(window.location.hash);
     const storedSlots = loadSlots();
     const storedSlot = loadActiveSlot();
     // 旧形式の共有 URL は設定1へ取り込む。シェア投稿（share=1）は閲覧だけにとどめる
@@ -130,8 +140,16 @@ export function SearchApp() {
     const frame = requestAnimationFrame(() => {
       setSlots(storedSlots);
       setSlot(nextSlot);
+      // 取り込んだら URL から条件を消す。残すと、設定1を直しても再読み込みのたびに URL の内容へ戻る。
+      // 画面に反映するここで消す（effect の先頭で消すと、開発時に effect が 2 回走ったとき 2 回目は条件を読めない）
+      if (legacy) window.history.replaceState(null, "", window.location.pathname);
       setSearchStates(loadSearchStates());
       setNow(Date.now());
+      if (incoming) {
+        setTransfer(incoming);
+        // 引き継ぎ用リンクの中身（除外設定など）は、読んだらすぐアドレスバーから消す
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
       // 旧形式の共有 URL を取り込んだときは設定1を見せる
       setUrlView(legacy ? false : loadUrlView());
       setLocale(nextLocale);
@@ -140,9 +158,6 @@ export function SearchApp() {
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
-      // 取り込んだら URL から条件を消す。残すと、設定1を直しても再読み込みのたびに URL の内容へ戻る。
-      // 画面に反映するここで消す（effect の先頭で消すと、開発時に effect が 2 回走ったとき 2 回目は条件を読めない）
-      if (legacy) window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   // 変わったものをまとめて保存する（読み込みが終わるまでは既定値なので保存しない）
@@ -239,6 +254,36 @@ export function SearchApp() {
     });
   }
 
+
+  // 引き継ぎ用リンクの中身で、設定1〜3（と YouTube タブ）を置き換える。間違えて取り込んでも戻せるようにする
+  function importTransfer() {
+    if (!transfer) return;
+    const before = { slots, searchStates, youtube: loadUrlSearch() };
+    const youtube = transfer.youtube;
+    const applyYoutube = (state: typeof before.youtube) => {
+      saveUrlSearch(state);
+      setUrlPanelKey((key) => key + 1);
+    };
+    setSlots(transfer.slots.map((item) => cloneConfig(item)));
+    // 検索を開いた時刻はこの端末のものなので、入れ替えた設定には持ち越さない
+    setSearchStates(emptySearchStates());
+    setSlot(0);
+    setUrlView(false);
+    if (youtube) applyYoutube(youtube);
+    setTransfer(null);
+    toast.success(t("transferDone"), {
+      duration: 12000,
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          setSlots(before.slots);
+          setSearchStates(before.searchStates);
+          if (youtube) applyYoutube(before.youtube);
+        },
+      },
+    });
+  }
+
   function startOwnSearch() {
     clearSharedUrl();
     requestAnimationFrame(() => document.getElementById("keyword-input")?.focus());
@@ -262,6 +307,8 @@ export function SearchApp() {
       </main>
     );
   }
+
+  const saveNote = <AutoSaveNote onTransfer={() => setTransferOpen(true)} t={t} />;
 
   const cluster = (testId: string) => (
     <SearchCluster
@@ -334,6 +381,16 @@ export function SearchApp() {
 
       <AdRailLayout label={t("sponsored")}>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
+        {transfer ? (
+          <TransferBanner
+            data={transfer}
+            locale={locale}
+            replaces={slots.some((item) => !isBlankConfig(item))}
+            onImport={importTransfer}
+            onDismiss={() => setTransfer(null)}
+            t={t}
+          />
+        ) : null}
         {shared ? (
           <SharedBanner config={shared} locale={locale} onImport={importShared} onDismiss={startOwnSearch} t={t} />
         ) : null}
@@ -343,13 +400,11 @@ export function SearchApp() {
           labels={slots.map((item, index) => slotLabelOf(item, slotName(index)))}
           t={t}
         />
-        {urlView ? <UrlSearchPanel t={t} /> : null}
+        {urlView ? <UrlSearchPanel key={urlPanelKey} t={t} note={saveNote} /> : null}
         {urlView ? null : (
         <>
         {cluster("search-top")}
-        <p className="px-1 text-center text-xs text-muted-foreground" data-testid="auto-save-note">
-          {t("autoSaveNote")}
-        </p>
+        {saveNote}
 
         <Card>
           <CardContent className="space-y-6">
@@ -449,6 +504,8 @@ export function SearchApp() {
         onCopy={copy}
         t={t}
       />
+
+      <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} slots={slots} onCopy={copy} t={t} />
 
       <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} guideLabel={t("guide")} />
     </div>
