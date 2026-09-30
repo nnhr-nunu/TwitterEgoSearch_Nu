@@ -159,12 +159,24 @@ export function SearchApp() {
     if (!shared) return;
     const blank = slots.findIndex((item) => isBlankConfig(item));
     const target = (blank >= 0 ? blank : slot) as SlotIndex;
+    const replaced = blank >= 0 ? null : slots[target];
     setSlots(slots.map((item, i) => (i === target ? cloneConfig(shared) : item)));
     setSlot(target);
     setUrlView(false);
     clearSharedUrl();
     const slotLabel = t(`slot${target + 1}` as MessageKey);
-    toast.success(t("sharedImported").replace("{slot}", slotLabel));
+    if (!replaced) {
+      toast.success(t("sharedImported").replace("{slot}", slotLabel));
+      return;
+    }
+    // 置き換えた設定は、消えたことに気づいてすぐなら戻せるようにする
+    toast.success(t("sharedReplaced").replace("{slot}", slotLabel), {
+      duration: 12000,
+      action: {
+        label: t("undo"),
+        onClick: () => setSlots((current) => current.map((item, i) => (i === target ? replaced : item))),
+      },
+    });
   }
 
   function startOwnSearch() {
