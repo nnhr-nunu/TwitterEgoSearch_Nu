@@ -124,8 +124,6 @@ export function SearchApp() {
     const legacy = parsed.found && !parsed.shared;
     if (legacy) {
       storedSlots[0] = cloneConfig(parsed.config);
-      // 取り込んだら URL から条件を消す。残すと、設定1を直しても再読み込みのたびに URL の内容へ戻る
-      window.history.replaceState(null, "", window.location.pathname);
     }
     const nextSlot = legacy ? 0 : storedSlot;
     const nextLocale: Locale = parsed.found && parsed.locale === "en" ? "en" : loadLocale();
@@ -142,6 +140,9 @@ export function SearchApp() {
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
+      // 取り込んだら URL から条件を消す。残すと、設定1を直しても再読み込みのたびに URL の内容へ戻る。
+      // 画面に反映するここで消す（effect の先頭で消すと、開発時に effect が 2 回走ったとき 2 回目は条件を読めない）
+      if (legacy) window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   // 変わったものをまとめて保存する（読み込みが終わるまでは既定値なので保存しない）
