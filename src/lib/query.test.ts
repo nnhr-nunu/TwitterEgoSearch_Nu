@@ -91,7 +91,8 @@ describe("buildPostsQuery", () => {
     });
     expect(query).toContain("filter:media");
     expect(query).toContain("since:2026-01-01");
-    expect(query).toContain("until:2026-02-01");
+    // 画面の中の until は翌日なので、X には終わりの日（その日を含む）で渡す
+    expect(query).toContain("until:2026-01-31");
   });
 
   it("omits since/until when date filter is off", () => {

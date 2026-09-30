@@ -1,4 +1,4 @@
-import { daysAgoIso, rangeWindow, windowAround } from "./dates";
+import { daysAgoIso, rangeWindow, untilOperand, windowAround } from "./dates";
 import { uniqueHandles } from "./handle";
 import { orGroup, quoteTerm } from "./query";
 import { type DateSpanId, isDateSpanId, type ResultSort } from "./types";
@@ -11,6 +11,10 @@ import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./you
 //   url:"youtube.com/@ハンドル" にすると、チャンネルのリンクを貼った投稿に絞れる
 // - タイトルから取った言葉を単独で探すと、「認知症の祖母」「七夕」のような言葉で無関係な投稿が大量に混ざる
 // - X の検索は約 500 文字を超えるとエラーになる（26 本 492 文字は通り、28 本 530 文字で失敗）
+// 日付の演算子（2026-09-30, @nnhr_nunu / @nhk_news）:
+// - since:2026-09-29 は日本時間の 0 時から（UTC ではない）。until:2026-09-29 は日本時間の 9/29 23:59:59 まで＝その日を含む
+//   （since: と until: を同じ日にすると、その 1 日分が出る。最新順・話題順とも同じ）
+// - since_time:UNIX秒 と since:2026-09-25_19:47:25_JST は秒単位で効き、その秒の投稿を含む。since: の日付とも併用できる
 
 export const URL_SEARCH_STORAGE_KEY = "egosearch-nu:url-search";
 
@@ -51,7 +55,8 @@ export type UrlSearchState = {
   videoTitle: string;
 };
 
-// X の since:（その日を含む）と until:（その日を含まない）
+// 投稿を探す期間。since はその日を含み、until は終わりの日の翌日（その日を含まない）。
+// X に渡すときは untilOperand で終わりの日に戻す
 export type DateWindow = { since: string; until: string };
 
 export function postWindow(state: Pick<UrlSearchState, "period" | "rangeStart" | "rangeEnd" | "aroundDate" | "dateSpan">): DateWindow {
@@ -213,7 +218,7 @@ function tailParts(state: UrlSearchState, owners: string[]): string[] {
   const parts = excludedHandles(state, owners).map((handle) => `-from:${handle}`);
   const { since, until } = postWindow(state);
   if (since) parts.push(`since:${since}`);
-  if (until) parts.push(`until:${until}`);
+  if (until) parts.push(`until:${untilOperand(until)}`);
   return parts;
 }
 

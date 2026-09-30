@@ -30,7 +30,7 @@ const NOUNS: Record<VideoNoun, MessageKey> = {
 
 function videosPhrase(t: (key: MessageKey) => string, info: Extract<ScopeInfo, { kind: "channel" }>): string {
   const { since, until } = info.window;
-  // until: はその日を含まないので、見せるときは前日にする。今日より先なら「以降」とだけ言う
+  // until は終わりの日の翌日で持っているので、見せるときは前日にする。今日より先なら「以降」とだけ言う
   const end = until ? shiftIso(until, -1) : "";
   const last = end && end < todayIso() ? slashDate(end) : "";
   const key: MessageKey = since && last ? "urlSumRange" : since ? "urlSumSince" : last ? "urlSumUntil" : "urlSumAll";

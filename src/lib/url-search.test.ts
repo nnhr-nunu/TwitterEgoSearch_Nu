@@ -138,7 +138,7 @@ describe("buildMainQuery", () => {
       rangeStart: "2026-08-01",
       rangeEnd: "2026-08-10",
     };
-    expect(buildMainQuery(state)).toBe("url:dQw4w9WgXcQ since:2026-08-01 until:2026-08-11");
+    expect(buildMainQuery(state)).toBe("url:dQw4w9WgXcQ since:2026-08-01 until:2026-08-10");
   });
 });
 
