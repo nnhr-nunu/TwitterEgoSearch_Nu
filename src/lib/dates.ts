@@ -78,7 +78,7 @@ export function windowAround(
   const center = isIsoDate(aroundDate) ? aroundDate : todayIso();
   return {
     since: shiftBySpan(center, span, -1),
-    // X の until: はその日を含まないので、終端の翌日にする
+    // 画面の中の until は「終わりの日の翌日」（その日を含まない）で持つ。重なりの判定や動画の絞り込みを < で書けるため
     until: shiftIso(shiftBySpan(center, span, 1), 1),
   };
 }
@@ -86,6 +86,13 @@ export function windowAround(
 export function exclusiveUntil(inclusiveEnd: string): string {
   const end = isIsoDate(inclusiveEnd) ? inclusiveEnd : todayIso();
   return shiftIso(end, 1);
+}
+
+// X の検索に渡す until: の日付。X の until: はその日の終わりまでを含むので（2026-09-30 に実検索で確認。
+// since: / until: の日付は UTC ではなく利用者の時間帯で読まれる）、画面の中の until（翌日）から 1 日戻す。
+// 翌日のまま渡すと、終了日の次の日の投稿まで混ざる
+export function untilOperand(until: string): string {
+  return shiftIso(until, -1);
 }
 
 export function laterIso(a: string, b: string): string {

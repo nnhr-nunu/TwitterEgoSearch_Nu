@@ -75,7 +75,7 @@ describe("share url", () => {
     expect(on.since).toBe("2026-09-15");
     expect(on.until).toBe("2026-09-30");
     expect(buildPostsQuery(on)).toContain("since:2026-09-15");
-    expect(buildPostsQuery(on)).toContain("until:2026-09-30");
+    expect(buildPostsQuery(on)).toContain("until:2026-09-29");
   });
 
   it("intersects around-date and range filters into one since/until", () => {
@@ -89,8 +89,8 @@ describe("share url", () => {
       rangeEnd: "2026-09-25",
     });
     expect(buildPostsQuery(both)).toContain("since:2026-09-20");
-    expect(buildPostsQuery(both)).toContain("until:2026-09-26");
-    expect(buildPostsQuery(both)).not.toContain("until:2026-09-30");
+    expect(buildPostsQuery(both)).toContain("until:2026-09-25");
+    expect(buildPostsQuery(both)).not.toContain("until:2026-09-29");
   });
 
   it("round-trips muted accounts as repeated mute params", () => {

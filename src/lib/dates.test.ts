@@ -6,6 +6,7 @@ import {
   formatLocalIso,
   isIsoDate,
   resolveQueryWindow,
+  untilOperand,
   windowAround,
 } from "./dates";
 
@@ -57,6 +58,12 @@ describe("dates", () => {
 
   it("maps a range end to an exclusive until:", () => {
     expect(exclusiveUntil("2026-09-23")).toBe("2026-09-24");
+  });
+
+  it("hands X the last day itself, because X includes the until: day", () => {
+    // 終了日 9/23 → 画面の中では 9/24（その日を含まない）→ X には until:2026-09-23
+    expect(untilOperand(exclusiveUntil("2026-09-23"))).toBe("2026-09-23");
+    expect(untilOperand("2026-10-01")).toBe("2026-09-30");
   });
 
   it("intersects around-date and range windows", () => {
