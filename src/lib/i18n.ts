@@ -3,6 +3,8 @@ import type { Locale } from "./types";
 export const messages = {
   ja: {
     title: "エゴサ支援ツール(ぬ)",
+    tagline: "名前も愛称もハッシュタグも、まとめて X で検索。",
+    taglineNote: "ログイン不要・無料。",
     brand: "TWITTER (X)",
     handle: "アカウントで絞り込む（入れた人の投稿だけ）",
     handlePlaceholder: "@id",
@@ -179,6 +181,8 @@ export const messages = {
   },
   en: {
     title: "Self-Search Helper",
+    tagline: "Search X for every name and nickname at once.",
+    taglineNote: "Free, no login.",
     brand: "TWITTER (X)",
     handle: "Narrow by account (their posts only)",
     handlePlaceholder: "@id",

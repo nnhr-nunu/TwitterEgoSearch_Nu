@@ -255,6 +255,11 @@ export function SearchApp() {
           <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             {t("title")}
           </h1>
+          {/* 初めて来た人に、何ができるサービスかを一言で伝える。狭い画面では文の切れ目で折り返す */}
+          <p className="text-sm text-muted-foreground" data-testid="tagline">
+            <span className="inline-block">{t("tagline")}</span>{" "}
+            <span className="inline-block">{t("taglineNote")}</span>
+          </p>
         </div>
       </header>
 
