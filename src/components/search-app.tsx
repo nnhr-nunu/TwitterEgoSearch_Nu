@@ -348,7 +348,6 @@ export function SearchApp() {
       {isQueryTooLong(postsQuery) ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}
-          {config.excludeNegative ? t("queryTooLongNegative") : null}
         </p>
       ) : null}
       {baseline !== null ? (

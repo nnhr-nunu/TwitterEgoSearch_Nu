@@ -51,6 +51,10 @@ export function fromGroup(handles: string[]): string {
   return `(${parts.join(" OR ")})`;
 }
 
+// X の検索は約 500 文字を超えるとエラーになる（確かめた内容は url-search.ts の冒頭）。
+// 除外するアカウントは 1 件で 20 文字前後使うので、増やしていくと届く
+export const QUERY_LENGTH_LIMIT = 500;
+
 export type QueryExtra = {
   // 「前回の検索より後の投稿だけ」の基準（UNIX 秒）。設定には保存せず、検索のたびに渡す
   sinceTime?: number;
@@ -77,23 +81,25 @@ export function buildPostsQuery(config: SearchConfig, extra: QueryExtra = {}): s
     if (quoted) parts.push(`-${quoted}`);
   }
 
+  const tail: string[] = [];
+  if (config.mediaOnly) tail.push("filter:media");
+  if (config.since.trim()) tail.push(`since:${config.since.trim()}`);
+  if (config.until.trim()) tail.push(`until:${untilOperand(config.until.trim())}`);
+  if (extra.sinceTime) tail.push(`since_time:${extra.sinceTime}`);
+  // いいね数で絞り込むは非表示中なので min_faves: を付けない
+  // if (config.minFaves > 0) tail.push(`min_faves:${config.minFaves}`);
+
+  // ネガティブワードは誤検知もある補助なので、X の文字数上限に収まる分だけ辞書の前から入れる
+  let length = [...parts, ...tail].join(" ").length;
   for (const negative of negativeWordsFor(config)) {
-    parts.push(`-${quoteTerm(negative, config.wrapQuotes)}`);
+    const term = `-${quoteTerm(negative, config.wrapQuotes)}`;
+    if (length + 1 + term.length > QUERY_LENGTH_LIMIT) break;
+    parts.push(term);
+    length += 1 + term.length;
   }
 
-  if (config.mediaOnly) parts.push("filter:media");
-  if (config.since.trim()) parts.push(`since:${config.since.trim()}`);
-  if (config.until.trim()) parts.push(`until:${untilOperand(config.until.trim())}`);
-  if (extra.sinceTime) parts.push(`since_time:${extra.sinceTime}`);
-  // いいね数で絞り込むは非表示中なので min_faves: を付けない
-  // if (config.minFaves > 0) parts.push(`min_faves:${config.minFaves}`);
-
-  return parts.join(" ");
+  return [...parts, ...tail].join(" ");
 }
-
-// X の検索は約 500 文字を超えるとエラーになる（確かめた内容は url-search.ts の冒頭）。
-// 除外するアカウントは 1 件で 20 文字前後使うので、増やしていくと届く
-export const QUERY_LENGTH_LIMIT = 500;
 
 export function isQueryTooLong(query: string): boolean {
   return query.length > QUERY_LENGTH_LIMIT;

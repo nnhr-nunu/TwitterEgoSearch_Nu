@@ -269,6 +269,24 @@ describe("excludeNegative", () => {
     expect(query.split('-"嫌い"').length - 1).toBe(1);
   });
 
+  it("上限に近いときは、収まる分だけ辞書の前から入れる", () => {
+    const mutedHandles = Array.from({ length: 18 }, (_, index) => `spam_account_${index}`);
+    const without = buildPostsQuery({ ...base, mutedHandles, mediaOnly: true });
+    const query = buildPostsQuery({ ...base, mutedHandles, mediaOnly: true, excludeNegative: true });
+    expect(without.length).toBeLessThan(QUERY_LENGTH_LIMIT);
+    expect(query.length).toBeLessThanOrEqual(QUERY_LENGTH_LIMIT);
+    expect(query).toContain(`-"${NEGATIVE_WORDS[0]}"`);
+    expect(query).not.toContain(`-"${NEGATIVE_WORDS[NEGATIVE_WORDS.length - 1]}"`);
+    expect(query.endsWith(" filter:media")).toBe(true);
+  });
+
+  it("ほかの条件だけで上限を超えているときは足さない", () => {
+    const mutedHandles = Array.from({ length: 30 }, (_, index) => `spam_account_${index}`);
+    const without = buildPostsQuery({ ...base, mutedHandles });
+    expect(without.length).toBeGreaterThan(QUERY_LENGTH_LIMIT);
+    expect(buildPostsQuery({ ...base, mutedHandles, excludeNegative: true })).toBe(without);
+  });
+
   it("辞書だけで X の文字数上限の 4 割を超えない", () => {
     const added = buildPostsQuery({ ...base, excludeNegative: true }).length - buildPostsQuery(base).length;
     expect(added).toBeLessThan(QUERY_LENGTH_LIMIT * 0.4);
