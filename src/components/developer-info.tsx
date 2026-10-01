@@ -44,9 +44,10 @@ type DeveloperInfoProps = {
   title: string;
   privacyLabel: string;
   guideLabel: string;
+  unofficialNote: string;
 };
 
-export function DeveloperInfo({ title, privacyLabel, guideLabel }: DeveloperInfoProps) {
+export function DeveloperInfo({ title, privacyLabel, guideLabel, unofficialNote }: DeveloperInfoProps) {
   return (
     <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6" data-testid="developer">
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
@@ -91,6 +92,7 @@ export function DeveloperInfo({ title, privacyLabel, guideLabel }: DeveloperInfo
           {privacyLabel}
         </Link>
       </p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">{unofficialNote}</p>
     </footer>
   );
 }

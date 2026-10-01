@@ -507,7 +507,12 @@ export function SearchApp() {
 
       <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} slots={slots} onCopy={copy} t={t} />
 
-      <DeveloperInfo title={t("developer")} privacyLabel={t("privacy")} guideLabel={t("guide")} />
+      <DeveloperInfo
+        title={t("developer")}
+        privacyLabel={t("privacy")}
+        guideLabel={t("guide")}
+        unofficialNote={t("unofficial")}
+      />
     </div>
   );
 }
