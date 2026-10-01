@@ -137,6 +137,7 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        closeLabel={t("close")}
         className="max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto sm:max-w-md [&>*]:min-w-0"
         data-testid="share-dialog"
         onOpenAutoFocus={focusBodyOnOpen}
