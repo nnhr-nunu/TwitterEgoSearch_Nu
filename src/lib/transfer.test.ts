@@ -55,6 +55,14 @@ describe("transfer link", () => {
     expect(parseTransferHash(buildTransferHash(blank, null))).toBeNull();
   });
 
+  it("hands over a setup that only has exclusions or a name", () => {
+    const mutesOnly = [hydrateConfig({ mutedHandles: ["spam_bot"], mutedKeywords: ["#pr"] }), createDefaultConfig(), createDefaultConfig()];
+    expect(hasTransferContent(mutesOnly, null)).toBe(true);
+    expect(parseTransferHash(buildTransferHash(mutesOnly, null))?.slots[0].mutedHandles).toEqual(["spam_bot"]);
+    const nameOnly = [createDefaultConfig(), hydrateConfig({ displayName: "推しA" }), createDefaultConfig()];
+    expect(hasTransferContent(nameOnly, null)).toBe(true);
+  });
+
   it("ignores other hashes and broken or tampered links", () => {
     expect(parseTransferHash("")).toBeNull();
     expect(parseTransferHash("#top")).toBeNull();
