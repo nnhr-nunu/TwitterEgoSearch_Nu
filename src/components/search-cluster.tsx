@@ -95,7 +95,7 @@ export function SearchCluster({
       <Segmented
         options={SORTS.map((option) => ({ id: option.id, label: t(option.label) }))}
         value={sort}
-        label={buttonLabel}
+        label={t("sortLabel")}
         onChange={onSort}
         testId={`${testId}-sort`}
       />
