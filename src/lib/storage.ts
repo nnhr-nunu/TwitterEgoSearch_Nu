@@ -100,3 +100,20 @@ export function loadUrlView(): boolean {
 export function saveUrlView(open: boolean): void {
   writeStorage(URL_VIEW_KEY, open ? "1" : "0");
 }
+
+// 「ほかの書き方」の候補のうち、隠したもの。この端末だけで覚える（設定の中身ではないので、シェアや引き継ぎに混ぜない）
+export const DISMISSED_VARIANTS_KEY = "egosearch-nu:dismissed-variants";
+const DISMISSED_VARIANTS_LIMIT = 200;
+
+export function loadDismissedVariants(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(readStorage(DISMISSED_VARIANTS_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDismissedVariants(items: string[]): void {
+  writeStorage(DISMISSED_VARIANTS_KEY, JSON.stringify(items.slice(-DISMISSED_VARIANTS_LIMIT)));
+}
