@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
 import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
+import { FLOATING_SEARCH_SPACE, FloatingSearch } from "@/components/floating-search";
 import { FormSection } from "@/components/form-section";
 import { KeywordEditor } from "@/components/keyword-editor";
 import { MuteAccounts } from "@/components/mute-accounts";
@@ -343,8 +344,11 @@ export function SearchApp() {
     </SearchCluster>
   );
 
+  // 画面の下に検索ボタンを出すときは、いちばん下のリンクがその裏に隠れないよう余白を取る
+  const floating = !urlView && postsOk;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${floating ? FLOATING_SEARCH_SPACE : ""}`}>
       <header className="border-b border-border bg-card">
         {/* ボタンはロゴの行に置き、タイトルに横幅をまるごと使わせる（スマホで「ツー／ル」と折り返さないように） */}
         <div className="mx-auto max-w-2xl space-y-2 px-4 py-6 sm:px-6">
@@ -406,6 +410,9 @@ export function SearchApp() {
         <>
         {cluster("search-top")}
         {saveNote}
+        {floating ? (
+          <FloatingSearch url={liveUrl} label={t("searchPosts")} watchTestId="search-top-open" onOpen={recordOpen} />
+        ) : null}
 
         <Card>
           <CardContent className="space-y-6">
