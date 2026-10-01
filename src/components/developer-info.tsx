@@ -85,14 +85,15 @@ export function DeveloperInfo({ title, privacyLabel, guideLabel, unofficialNote 
         </div>
       </section>
       <p className="mt-4 flex justify-center gap-4 text-xs">
-        <Link href="/guide/" className="text-muted-foreground underline-offset-2 hover:underline">
+        <Link href="/guide/" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
           {guideLabel}
         </Link>
-        <Link href="/privacy/" className="text-muted-foreground underline-offset-2 hover:underline">
+        <Link href="/privacy/" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
           {privacyLabel}
         </Link>
       </p>
-      <p className="mt-2 text-center text-xs text-muted-foreground">{unofficialNote}</p>
+      {/* リンクの並びと見分けがつくよう、下線なしの注記として間を空ける */}
+      <p className="mt-4 text-center text-xs text-muted-foreground">{unofficialNote}</p>
     </footer>
   );
 }
