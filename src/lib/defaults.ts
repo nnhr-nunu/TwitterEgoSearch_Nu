@@ -1,12 +1,10 @@
 import { resolveQueryWindow, todayIso, isIsoDate } from "./dates";
 import { uniqueHandles } from "./handle";
-import { DEFAULT_HONORIFIC_IDS, normalizeHonorificIds } from "./honorifics";
 import {
   isDateSpanId,
   MIN_FAVES_OPTIONS,
   RESULT_SORTS,
   type DateSpanId,
-  type HonorificId,
   type MinFaves,
   type ResultSort,
   type SearchConfig,
@@ -22,16 +20,6 @@ export const OWNER_KEYWORDS = ["ぬぬはら", "ぬぬさん", "\uFF87\uFF87\u{1
 export function readMinFaves(value: unknown): MinFaves {
   const parsed = typeof value === "string" ? Number(value) : value;
   return MIN_FAVES_OPTIONS.find((option) => option === parsed) ?? 0;
-}
-
-function readHonorifics(parsed: Partial<SearchConfig> & { honorifics?: unknown }): HonorificId[] {
-  const raw = parsed.honorifics;
-  if (Array.isArray(raw)) {
-    return normalizeHonorificIds(raw.filter((item) => typeof item === "string"));
-  }
-  if (raw === true) return [...DEFAULT_HONORIFIC_IDS];
-  if (raw === false) return [];
-  return [...DEFAULT_HONORIFIC_IDS];
 }
 
 function readHandles(parsed: Partial<SearchConfig>): string[] {
@@ -147,7 +135,8 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
         : defaults.mutedHandles,
     ),
     mutedKeywords: readStringList(parsed.mutedKeywords),
-    honorifics: readHonorifics(parsed).slice(0, 0),
+    // 敬称の自動追加は非表示中なので、保存値や共有 URL に残っていても使わない
+    honorifics: [],
     wrapQuotes: true,
     excludeOwn: typeof parsed.excludeOwn === "boolean" ? parsed.excludeOwn : defaults.excludeOwn,
     fromSelf: typeof parsed.fromSelf === "boolean" ? parsed.fromSelf : defaults.fromSelf,
