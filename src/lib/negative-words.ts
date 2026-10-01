@@ -6,6 +6,7 @@ import type { Locale, SearchConfig } from "./types";
 // ほめ言葉やファンの投稿にも入る言葉は入れない。例: 「くそ」「死ね」「下手くそ」「くだらない」「腹立つ」は
 // 「くそかわいい」「尊くて死ねる」「下手くそですが描きました」「くだらなくて最高」「顔が良すぎて腹立つ」に、
 // 「カス」「クズ」は「カスタム」「クズ男（作品の役）」に、"ugly" は "ugly crying" に入る。
+// 「詐欺」「犯罪」も「顔が詐欺」「可愛すぎて犯罪」に入るので、「詐欺師」「犯罪者」にする。
 // X がひらがなとカタカナを同じに扱うかは確かめていないので、よく使う言葉は両方入れる
 export const NEGATIVE_WORDS: Record<Locale, readonly string[]> = {
   ja: [
@@ -22,6 +23,9 @@ export const NEGATIVE_WORDS: Record<Locale, readonly string[]> = {
     "オワコン",
     "害悪",
     "パクリ",
+    "詐欺師",
+    "犯罪者",
+    "嘘つき",
     "不快",
     "ムカつく",
     "むかつく",
@@ -69,6 +73,9 @@ export const NEGATIVE_WORDS: Record<Locale, readonly string[]> = {
     "idiot",
     "dumb",
     "pathetic",
+    "scammer",
+    "criminal",
+    "liar",
     "garbage",
     "terrible",
     "awful",
@@ -83,40 +90,16 @@ export const NEGATIVE_WORDS: Record<Locale, readonly string[]> = {
   ],
 };
 
-const JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
-const LATIN = /[a-z]/i;
-
-function interleave(first: readonly string[], second: readonly string[]): string[] {
-  const out: string[] = [];
-  for (let index = 0; index < Math.max(first.length, second.length); index++) {
-    if (index < first.length) out.push(first[index]);
-    if (index < second.length) out.push(second[index]);
-  }
-  return out;
-}
-
-// 探す言葉の書き方から、投稿が何語で書かれていそうかを見て、その言語の言葉を先にする。
-// 両方あれば交互に、手がかりが無ければ（@id だけ・英数字だけのハッシュタグだけなど）画面の言語を先にする
-function wordsInOrder(terms: string[], locale: Locale): string[] {
-  const ja = terms.some((term) => JAPANESE.test(term));
-  // 「#003_FA」のような英数字だけのハッシュタグは、何語の投稿かの手がかりにならない
-  const en = terms.some((term) => !term.startsWith("#") && !JAPANESE.test(term) && LATIN.test(term));
-  const first: Locale = ja === en ? locale : ja ? "ja" : "en";
-  const second: Locale = first === "ja" ? "en" : "ja";
-  if (ja && en) return interleave(NEGATIVE_WORDS[first], NEGATIVE_WORDS[second]);
-  return [...NEGATIVE_WORDS[first], ...NEGATIVE_WORDS[second]];
-}
-
-// 除外に使う言葉を優先順に返す。名前や絞り込みの言葉に入っている言葉を除外すると結果が 0 件になるので外し、
-// 自分で除外した言葉とは重ねない
+// 除外に使う言葉を優先順に返す。画面の言語の言葉を先にし、もう一方の言語の言葉は余りがあれば後ろに入る。
+// 名前や絞り込みの言葉に入っている言葉を除外すると結果が 0 件になるので外し、自分で除外した言葉とは重ねない
 export function negativeWordsFor(config: SearchConfig, locale: Locale = "ja"): string[] {
   if (!config.excludeNegative) return [];
-  const terms = [...expandSearchTerms(config.keywords, config.honorifics), ...(config.filterKeywords ?? [])]
-    .map((term) => term.trim())
+  const wanted = [...expandSearchTerms(config.keywords, config.honorifics), ...(config.filterKeywords ?? [])]
+    .map((term) => term.trim().toLowerCase())
     .filter(Boolean);
-  const wanted = terms.map((term) => term.toLowerCase());
   const muted = new Set((config.mutedKeywords ?? []).map((word) => word.trim().toLowerCase()));
-  return wordsInOrder(terms, locale).filter((word) => {
+  const ordered = [...NEGATIVE_WORDS[locale], ...NEGATIVE_WORDS[locale === "ja" ? "en" : "ja"]];
+  return ordered.filter((word) => {
     const lower = word.toLowerCase();
     return !muted.has(lower) && !wanted.some((term) => term.includes(lower));
   });

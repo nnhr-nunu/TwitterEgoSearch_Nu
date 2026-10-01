@@ -260,35 +260,18 @@ describe("excludeNegative", () => {
     expect(negativesOf(query).length).toBeGreaterThan(55);
   });
 
-  it("日本語の名前なら、画面が英語でも日本語の言葉から入れる", () => {
-    const parts = negativesOf(buildPostsQuery(on, { locale: "en" }));
+  it("画面が日本語なら日本語の言葉から入れ、余りに英語の言葉を入れる", () => {
+    const parts = negativesOf(buildPostsQuery(on, { locale: "ja" }));
     expect(parts.slice(0, NEGATIVE_WORDS.ja.length)).toEqual(NEGATIVE_WORDS.ja.map(ja));
     expect(parts[NEGATIVE_WORDS.ja.length]).toBe(en("hate"));
+    // 画面の言語を渡さなければ日本語
+    expect(buildPostsQuery(on)).toBe(buildPostsQuery(on, { locale: "ja" }));
   });
 
-  it("英語の名前なら、画面が日本語でも英語の言葉から入れる（英数字の 1 語は引用符なし）", () => {
-    const parts = negativesOf(buildPostsQuery({ ...on, keywords: ["Nunu Hara"] }));
+  it("画面が英語なら、名前が日本語でも英語の言葉から入れる（英数字の 1 語は引用符なし）", () => {
+    const parts = negativesOf(buildPostsQuery(on, { locale: "en" }));
     expect(parts.slice(0, NEGATIVE_WORDS.en.length)).toEqual(NEGATIVE_WORDS.en.map(en));
     expect(parts[NEGATIVE_WORDS.en.length]).toBe(ja("嫌い"));
-  });
-
-  it("日本語と英語の名前が両方あれば、画面の言語から交互に入れる", () => {
-    const config = { ...on, keywords: ["ぬぬはら", "Nunu Hara"] };
-    expect(negativesOf(buildPostsQuery(config, { locale: "en" })).slice(0, 4)).toEqual([
-      en("hate"),
-      ja("嫌い"),
-      en("cringe"),
-      ja("うざい"),
-    ]);
-    expect(negativesOf(buildPostsQuery(config)).slice(0, 2)).toEqual([ja("嫌い"), en("hate")]);
-  });
-
-  it("名前から言語が分からないときは、画面の言語の言葉から入れる", () => {
-    const handleOnly = { ...on, keywords: [], handles: ["nnhr_nunu"] };
-    expect(negativesOf(buildPostsQuery(handleOnly, { locale: "en" }))[0]).toBe(en("hate"));
-    expect(negativesOf(buildPostsQuery(handleOnly))[0]).toBe(ja("嫌い"));
-    // 英数字だけのハッシュタグは英語の手がかりにしない
-    expect(negativesOf(buildPostsQuery({ ...on, keywords: ["#003_FA"] }))[0]).toBe(ja("嫌い"));
   });
 
   it("名前や絞り込みの言葉に入っている言葉は除外しない（結果が 0 件になるので）", () => {
