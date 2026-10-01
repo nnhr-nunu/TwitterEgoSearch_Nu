@@ -3,6 +3,17 @@
 // 閉じていない引用符は区切りとして読み飛ばす
 const NAME_TOKEN = /["“”]([^"“”]*)["“”]|[^ \u3000,，、"“”]+/g;
 
+// 大文字小文字と前後の空白を無視して重複を除く（最初に出たものを残す）
+export function uniqueCaseless(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const lower = value.trim().toLowerCase();
+    if (!lower || seen.has(lower)) return false;
+    seen.add(lower);
+    return true;
+  });
+}
+
 export function splitSearchNames(raw: string): string[] {
   const normalized = raw.normalize("NFC");
   const seen = new Set<string>();

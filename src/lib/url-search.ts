@@ -1,5 +1,6 @@
 import { daysAgoIso, rangeWindow, untilOperand, windowAround } from "./dates";
 import { uniqueHandles } from "./handle";
+import { uniqueCaseless } from "./keywords";
 import { orGroup, quoteTerm } from "./query";
 import { type DateSpanId, isDateSpanId, type ResultSort } from "./types";
 import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./youtube";
@@ -196,17 +197,6 @@ export function linkTerm(link: string): string {
 
 function group(terms: string[]): string {
   return terms.length > 1 ? `(${terms.join(" OR ")})` : (terms[0] ?? "");
-}
-
-// 大文字小文字と前後の空白を無視して重複を除く（最初に出たものを残す）
-export function uniqueCaseless(values: string[]): string[] {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const lower = value.trim().toLowerCase();
-    if (!lower || seen.has(lower)) return false;
-    seen.add(lower);
-    return true;
-  });
 }
 
 // 検索から除くアカウント。本人のアカウントはスイッチが入っているときだけ足す

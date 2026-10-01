@@ -16,6 +16,7 @@ import { YoutubeSearchButton } from "@/components/youtube-search-button";
 import { type Notice, YoutubeTarget } from "@/components/youtube-target";
 import { isLikelyHandle } from "@/lib/handle";
 import type { MessageKey } from "@/lib/i18n";
+import { uniqueCaseless } from "@/lib/keywords";
 import { buildSearchUrl } from "@/lib/query";
 import { channelNameWords, titleKeyword } from "@/lib/title-keywords";
 import {
@@ -29,7 +30,6 @@ import {
   pendingChannelKey,
   saveUrlSearch,
   type SearchBatch,
-  uniqueCaseless,
   type UrlSearchState,
   type UrlTarget,
   postWindow,
