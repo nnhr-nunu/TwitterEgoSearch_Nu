@@ -1,10 +1,10 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ChipInput } from "@/components/chip-input";
 import { SearchCluster } from "@/components/search-cluster";
+import { SuggestionChips } from "@/components/suggestion-chips";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -77,27 +77,6 @@ function sameTarget(a: UrlTarget | null, b: UrlTarget | null): boolean {
 function channelUrl(data: ChannelData): string {
   const { handle, id } = data.channel;
   return handle ? `https://www.youtube.com/@${handle}` : `https://www.youtube.com/channel/${id}`;
-}
-
-// 入力欄の下に出す候補。押すとその言葉・アカウントを足す
-function Suggestions({ t, items, onAdd, testId }: { t: (key: MessageKey) => string; items: string[]; onAdd: (item: string) => void; testId: string }) {
-  if (!items.length) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5" data-testid={testId}>
-      <span className="text-xs text-muted-foreground">{t("urlSuggest")}</span>
-      {items.map((item) => (
-        <button
-          key={item}
-          type="button"
-          className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs transition-colors hover:bg-muted"
-          onClick={() => onAdd(item)}
-        >
-          <PlusIcon className="size-3" aria-hidden />
-          {item}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
@@ -378,8 +357,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
                   removeLabel={t("removeItem")}
                   testId="url-words"
                 />
-                <Suggestions
-                  t={t}
+                <SuggestionChips
+                  label={t("urlSuggest")}
                   items={wordSuggestions}
                   onAdd={(word) => setWords([...words, word])}
                   testId="url-suggestions"
@@ -420,8 +399,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
                   invalidMessage={t("muteInvalid")}
                   testId="url-exclude"
                 />
-                <Suggestions
-                  t={t}
+                <SuggestionChips
+                  label={t("urlSuggest")}
                   items={excludeSuggestions}
                   onAdd={(item) => patch({ excluded: [...state.excluded, item.replace(/^@/, "")] })}
                   testId="url-exclude-suggestions"
