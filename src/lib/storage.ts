@@ -101,7 +101,7 @@ export function saveUrlView(open: boolean): void {
   writeStorage(URL_VIEW_KEY, open ? "1" : "0");
 }
 
-// 「ほかの書き方」の候補のうち、隠したもの。この端末だけで覚える（設定の中身ではないので、シェアや引き継ぎに混ぜない）
+// 「表記ゆれ候補」のうち、隠したもの。この端末だけで覚える（設定の中身ではないので、シェアや引き継ぎに混ぜない）
 export const DISMISSED_VARIANTS_KEY = "egosearch-nu:dismissed-variants";
 const DISMISSED_VARIANTS_LIMIT = 200;
 
