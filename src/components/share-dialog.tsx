@@ -175,9 +175,7 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
           })}
         </div>
 
-        <p className="-mt-2 px-1 text-xs text-muted-foreground">{t("shareBodyHint")}</p>
-
-        {/* 投稿の見た目をそのまま編集できるプレビュー */}
+        {/* 投稿の見た目をそのまま編集できるプレビュー。書き換えられることは、鉛筆の見出しと点線の枠で見せる */}
         <div className="rounded-2xl border border-border bg-card p-3">
           <div className="flex gap-3">
             <span
