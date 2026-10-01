@@ -78,7 +78,6 @@ export const messages = {
     clearForm: "入力を消す",
     emptyKeywords: "下の欄に名前かアカウントを入れると検索できます。",
     queryTooLong: "条件が多すぎて（{count}文字）、X で検索に失敗することがあります。X の検索は約500文字までなので、名前や除外するアカウントを減らしてください。",
-    queryTooLongNegative: "ネガティブワードをオフにしても短くなります。",
     loading: "読み込み中…",
     copied: "コピーしました",
     copyFailed: "コピーできませんでした",
@@ -279,8 +278,6 @@ export const messages = {
     emptyKeywords: "Enter a name or an account below to search.",
     queryTooLong:
       "This search is too long ({count} characters) and may fail on X, which accepts about 500. Remove some names or excluded accounts.",
-    // 前の文に続けて出すので、先頭の空白で区切る
-    queryTooLongNegative: " Turning off negative words also shortens it.",
     loading: "Loading…",
     copied: "Copied",
     copyFailed: "Could not copy",
