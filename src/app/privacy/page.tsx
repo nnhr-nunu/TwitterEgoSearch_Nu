@@ -41,7 +41,7 @@ export default function PrivacyPage() {
         <div className="space-y-6 rounded-xl border border-border bg-card p-4 text-foreground">
           <Section title="入力した内容の扱い">
             <p>
-              当ツールに入力した検索名称・アカウント・除外設定などは、お使いのブラウザの localStorage
+              当ツールに入力した名前・アカウント・除外設定などは、お使いのブラウザの localStorage
               にのみ保存されます。運営者のサーバーへ送信・保存することはありません。
             </p>
             <p>

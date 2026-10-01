@@ -3,10 +3,10 @@
 import type { ReactNode } from "react";
 import { FilterPanel } from "@/components/filter-panel";
 import { Segmented } from "@/components/segmented";
+import { ToggleRow } from "@/components/toggle-row";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { MIN_SEARCH_DATE, dateIssues, todayIso } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { SearchConfig } from "@/lib/types";
@@ -16,35 +16,6 @@ type DateFiltersProps = {
   onChange: (patch: Partial<SearchConfig>) => void;
   t: (key: MessageKey) => string;
 };
-
-function ToggleRow({
-  id,
-  label,
-  checked,
-  onCheckedChange,
-  testId,
-}: {
-  id: string;
-  label: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  testId: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <Label htmlFor={id} className="cursor-pointer text-sm font-medium">
-        {label}
-      </Label>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        aria-label={label}
-        data-testid={testId}
-      />
-    </div>
-  );
-}
 
 function Nested({ children }: { children: ReactNode }) {
   return (
@@ -119,13 +90,6 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
 
   return (
     <div className="space-y-4">
-      <ToggleRow
-        id="match-all"
-        label={t("matchAll")}
-        checked={config.matchAll === true}
-        onCheckedChange={(matchAll) => onChange({ matchAll })}
-        testId="match-all"
-      />
       <div className="space-y-2">
         <p className="text-sm font-medium">{t("urlPeriod")}</p>
         <Segmented<Period>

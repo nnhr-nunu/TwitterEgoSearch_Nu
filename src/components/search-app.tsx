@@ -1,12 +1,13 @@
 "use client";
 
-import { BirdIcon, CopyIcon } from "lucide-react";
+import { BanIcon, BirdIcon, CopyIcon, FunnelIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
 import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
+import { FormSection } from "@/components/form-section";
 import { KeywordEditor } from "@/components/keyword-editor";
 import { MuteAccounts } from "@/components/mute-accounts";
 import { MuteKeywords } from "@/components/mute-keywords";
@@ -411,23 +412,29 @@ export function SearchApp() {
             <KeywordEditor
               keywords={config.keywords}
               honorifics={config.honorifics}
+              matchAll={config.matchAll === true}
               onChange={(keywords) => patch({ keywords })}
               onHonorificsChange={(honorifics) => patch({ honorifics })}
+              onMatchAllChange={(matchAll) => patch({ matchAll })}
               t={t}
             />
-            <ProfileFields config={config} onChange={patch} t={t} />
-            <MuteAccounts
-              handles={config.mutedHandles}
-              onChange={(mutedHandles) => patch({ mutedHandles })}
-              t={t}
-            />
-            <MuteKeywords
-              keywords={config.mutedKeywords}
-              onChange={(mutedKeywords) => patch({ mutedKeywords })}
-              t={t}
-            />
-            {/* タブに出す名前。空なら先頭の検索名称が出るので、入力例にそれを見せる */}
-            <div className="space-y-3">
+            <FormSection icon={FunnelIcon} title={t("narrowSection")} testId="narrow-section">
+              <ProfileFields config={config} onChange={patch} t={t} />
+            </FormSection>
+            <FormSection icon={BanIcon} title={t("excludeSection")} testId="exclude-section">
+              <MuteAccounts
+                handles={config.mutedHandles}
+                onChange={(mutedHandles) => patch({ mutedHandles })}
+                t={t}
+              />
+              <MuteKeywords
+                keywords={config.mutedKeywords}
+                onChange={(mutedKeywords) => patch({ mutedKeywords })}
+                t={t}
+              />
+            </FormSection>
+            {/* タブに出す名前。空なら先頭の名前が出るので、入力例にそれを見せる */}
+            <div className="space-y-3 border-t border-border pt-5">
               <Label htmlFor="slot-name">{t("slotNameLabel")}</Label>
               <Input
                 id="slot-name"
