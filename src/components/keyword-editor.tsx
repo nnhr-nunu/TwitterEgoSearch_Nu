@@ -1,6 +1,7 @@
 "use client";
 
 import { ChipInput } from "@/components/chip-input";
+import { ToggleRow } from "@/components/toggle-row";
 import {
   expandSearchTerms,
   HONORIFIC_CATALOG,
@@ -15,16 +16,21 @@ import { Badge } from "@/components/ui/badge";
 type KeywordEditorProps = {
   keywords: string[];
   honorifics: HonorificId[];
+  // オンなら名前を OR ではなく AND でつなぐ
+  matchAll: boolean;
   onChange: (keywords: string[]) => void;
   onHonorificsChange: (honorifics: HonorificId[]) => void;
+  onMatchAllChange: (matchAll: boolean) => void;
   t: (key: MessageKey) => string;
 };
 
 export function KeywordEditor({
   keywords,
   honorifics,
+  matchAll,
   onChange,
   onHonorificsChange,
+  onMatchAllChange,
   t,
 }: KeywordEditorProps) {
   const terms = expandSearchTerms(keywords, honorifics);
@@ -42,6 +48,16 @@ export function KeywordEditor({
         tokenize={splitSearchNames}
         testId="keyword"
       />
+      {/* 名前が 2 つ以上あるときだけ意味があるので、そのときだけ出す */}
+      {keywords.length >= 2 ? (
+        <ToggleRow
+          id="match-all"
+          label={t("matchAll")}
+          checked={matchAll}
+          onCheckedChange={onMatchAllChange}
+          testId="match-all"
+        />
+      ) : null}
 
       {/* 敬称ピッカーと自動チップは非表示。検索名称は利用者がフルで入れる。 */}
       {false && (
