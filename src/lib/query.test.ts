@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createOwnerSampleConfig } from "./defaults";
+import { NEGATIVE_WORDS } from "./negative-words";
 import type { HonorificId } from "./types";
 import {
   buildPeopleQuery,
@@ -234,5 +235,42 @@ describe("matchAll", () => {
     const config = { ...createOwnerSampleConfig(), handles: [], handle: "", keywords: ["ぬぬはら", "推し"] };
     expect(createOwnerSampleConfig().matchAll).toBe(false);
     expect(buildPostsQuery(config)).toBe('("ぬぬはら" OR "推し")');
+  });
+});
+
+describe("excludeNegative", () => {
+  const base = { ...createOwnerSampleConfig(), handles: [], handle: "", keywords: ["ぬぬはら"] };
+
+  it("既定はオフで、ネガティブワードを足さない", () => {
+    expect(createOwnerSampleConfig().excludeNegative).toBe(false);
+    expect(buildPostsQuery(base)).toBe('"ぬぬはら"');
+  });
+
+  it("オンなら辞書の言葉を除外として足す", () => {
+    const query = buildPostsQuery({ ...base, excludeNegative: true });
+    expect(query.startsWith('"ぬぬはら" ')).toBe(true);
+    for (const word of NEGATIVE_WORDS) expect(query).toContain(`-"${word}"`);
+  });
+
+  it("名前や絞り込みの言葉に入っている言葉は除外しない（結果が 0 件になるので）", () => {
+    const query = buildPostsQuery({
+      ...base,
+      keywords: ["パクリ検証ch"],
+      filterKeywords: ["Cringe集"],
+      excludeNegative: true,
+    });
+    expect(query).not.toContain('-"パクリ"');
+    expect(query).not.toContain('-"cringe"');
+    expect(query).toContain('-"嫌い"');
+  });
+
+  it("自分で除外した言葉と重ねない", () => {
+    const query = buildPostsQuery({ ...base, mutedKeywords: ["嫌い"], excludeNegative: true });
+    expect(query.split('-"嫌い"').length - 1).toBe(1);
+  });
+
+  it("辞書だけで X の文字数上限の 4 割を超えない", () => {
+    const added = buildPostsQuery({ ...base, excludeNegative: true }).length - buildPostsQuery(base).length;
+    expect(added).toBeLessThan(QUERY_LENGTH_LIMIT * 0.4);
   });
 });

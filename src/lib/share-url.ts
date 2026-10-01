@@ -60,6 +60,7 @@ export function serializeSearchParams(
   params.set("own", config.fromSelf ? "1" : "0");
   params.set("m", config.mediaOnly ? "1" : "0");
   if (config.matchAll) params.set("and", "1");
+  if (config.excludeNegative) params.set("neg", "1");
   params.set("df", config.dateFilter ? "1" : "0");
   params.set("rf", config.rangeFilter ? "1" : "0");
   params.set("sort", config.sort);
@@ -123,6 +124,7 @@ export function parseSearchParams(
       fromSelf: readBool(params.get("own"), defaults.fromSelf),
       mediaOnly: params.has("m") ? readBool(params.get("m"), true) : false,
       matchAll: readBool(params.get("and"), false),
+      excludeNegative: readBool(params.get("neg"), false),
       latest: sort === "latest",
       sort,
       minFaves: readMinFaves(params.get("fav")),
