@@ -22,7 +22,8 @@ type TransferBannerProps = {
 export function TransferBanner({ data, locale, replaces, onImport, onDismiss, t }: TransferBannerProps) {
   const rows = data.slots.map((slot, index) => {
     const name = slot.displayName.trim();
-    const subjects = shareSubjectLabel(slot, locale, 3);
+    // 除外の設定だけなど、検索名称もアカウントも無い設定もある
+    const subjects = shareSubjectLabel(slot, locale, 3) || t("transferNoNames");
     return {
       label: t(`slot${index + 1}` as MessageKey),
       value: isBlankConfig(slot) ? t("transferBlank") : name ? `${name}（${subjects}）` : subjects,

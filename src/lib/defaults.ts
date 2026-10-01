@@ -185,10 +185,17 @@ export function cloneConfig(config: SearchConfig): SearchConfig {
   };
 }
 
+// 何も入れていない設定か。除外や絞り込みの言葉、名前だけを入れた設定も「入れたもの」として扱う
+// （空とみなすと、共有の取り込みで黙って上書きされ、引き継ぎ用リンクにも載らない）
 export function isBlankConfig(config: SearchConfig): boolean {
+  const filled = (values: string[]) => values.some((value) => value.trim());
   return (
-    !config.handles.some((item) => item.trim()) &&
+    !filled(config.handles) &&
     !config.handle.trim() &&
-    !config.keywords.some((keyword) => keyword.trim())
+    !filled(config.keywords) &&
+    !filled(config.filterKeywords) &&
+    !filled(config.mutedHandles) &&
+    !filled(config.mutedKeywords) &&
+    !config.displayName.trim()
   );
 }
