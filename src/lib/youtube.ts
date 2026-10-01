@@ -42,6 +42,9 @@ export type ChannelData = {
   channel: ChannelInfo;
   videos: ChannelVideo[];
   fetchedAt: string;
+  // 一覧をまるごと取った日時。新着だけの取り直しでは進めない（保存できる期限はここから数える）。
+  // 後から足した項目で、前に保存した一覧には無い（そのときは fetchedAt を使う）
+  listedAt?: string;
   // 上限で打ち切ったとき true
   truncated: boolean;
 };
@@ -235,6 +238,7 @@ export async function fetchChannelVideos(ref: string, key: string, fetchImpl: Fe
     tryPlaylistIdSet(fetchImpl, `UULV${suffix}`, key),
   ]);
   const details = await fetchDetails(fetchImpl, uploads.ids, key);
+  const fetchedAt = new Date().toISOString();
 
   return {
     ref,
@@ -247,7 +251,8 @@ export async function fetchChannelVideos(ref: string, key: string, fetchImpl: Fe
         kind: classifyVideo(detail, shorts, lives),
       }))
       .sort(byNewest),
-    fetchedAt: new Date().toISOString(),
+    fetchedAt,
+    listedAt: fetchedAt,
     truncated: uploads.truncated,
   };
 }
@@ -300,6 +305,8 @@ export async function refreshChannelVideos(
       channel,
       videos: sorted.slice(0, MAX_UPLOADS),
       fetchedAt: new Date().toISOString(),
+      // 取り直したのは新着と直近の分だけなので、古い動画を取った日時のまま残す
+      listedAt: previous.listedAt ?? previous.fetchedAt,
       truncated: previous.truncated || uploads.truncated || sorted.length > MAX_UPLOADS,
     },
     added: added.filter((id) => details.has(id)).length,

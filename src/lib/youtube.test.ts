@@ -218,6 +218,8 @@ describe("refreshChannelVideos", () => {
       ["ddddddddddd", "live", "title ddddddddddd"],
     ]);
     expect(data.fetchedAt).not.toBe(previous.fetchedAt);
+    // 古い動画は取り直していないので、保存の期限は前に一覧を取った日時から数えたまま
+    expect(data.listedAt).toBe(previous.fetchedAt);
   });
 
   it("skips the short and live playlists when nothing is new", async () => {
