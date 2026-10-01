@@ -1,6 +1,7 @@
 "use client";
 
 import { PlusIcon } from "lucide-react";
+import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ChipInput } from "@/components/chip-input";
 import { SearchCluster } from "@/components/search-cluster";
@@ -432,6 +433,23 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
           </Card>
         </>
       ) : null}
+
+      {/* YouTube API の規約（Developer Policies III.A）で、YouTube 利用規約へのリンクを出すことになっている */}
+      <p className="px-1 text-center text-xs leading-relaxed text-muted-foreground" data-testid="yt-api-note">
+        {t("ytApiNote")}{" "}
+        <a
+          href="https://www.youtube.com/t/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-primary underline-offset-2 hover:underline"
+        >
+          {t("ytTerms")}
+        </a>
+        {" ・ "}
+        <Link href="/privacy/" className="inline-block text-primary underline-offset-2 hover:underline">
+          {t("privacy")}
+        </Link>
+      </p>
     </>
   );
 }

@@ -55,6 +55,26 @@ export default function PrivacyPage() {
             </p>
           </Section>
 
+          <Section title="YouTube API サービスの利用について">
+            <p>
+              「YouTube」タブは YouTube API サービスを利用して、公開されているチャンネル名・アイコン・説明欄に載っている X
+              アカウントとハッシュタグ、動画のタイトルと公開日を取得します。ログインは行わず、利用者の Google
+              アカウントや個人情報にはアクセスしません。
+            </p>
+            <p>
+              取得した情報は、同じ情報で何度も API を呼ばないよう、お使いのブラウザの localStorage にだけ保存します（チャンネルは直近の
+              5 件、動画は 100 件まで）。取得から 30 日を過ぎたものは自動で削除し、ブラウザのサイトデータを消せばいつでも削除できます。運営者のサーバーへ送ることはありません。
+              動画のサムネイルとチャンネルのアイコンは YouTube のサーバーから直接読み込みます。
+            </p>
+            <p>
+              「YouTube」タブを使うことで、
+              <ExternalLink href="https://www.youtube.com/t/terms">YouTube 利用規約</ExternalLink>
+              に同意したものとみなされます。YouTube API サービスを通じた情報の扱いについては
+              <ExternalLink href="https://policies.google.com/privacy">Google プライバシーポリシー</ExternalLink>
+              をご覧ください。
+            </p>
+          </Section>
+
           <Section title="広告について">
             <p>
               当ツールは第三者配信の広告サービス「Google AdSense」を利用しています。Google
@@ -88,7 +108,7 @@ export default function PrivacyPage() {
             </p>
           </Section>
 
-          <p className="text-xs text-muted-foreground">制定日：2026年9月24日</p>
+          <p className="text-xs text-muted-foreground">制定日：2026年9月24日　改定日：2026年10月1日</p>
         </div>
 
         <p className="text-center text-sm">
