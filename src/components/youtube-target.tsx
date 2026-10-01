@@ -217,7 +217,8 @@ export function YoutubeTarget(props: YoutubeTargetProps) {
         </p>
       ) : null}
 
-      {target ? <TargetCard {...props} target={target} /> : <p className="text-sm text-muted-foreground">{t("urlIntro")}</p>}
+      {/* 何を探せるかの案内は、空のあいだ検索ボタンの下に出している（urlIntro）ので、ここでは繰り返さない */}
+      {target ? <TargetCard {...props} target={target} /> : null}
       {notice ? (
         <p
           className={`text-xs ${notice.tone === "error" ? "text-destructive" : "text-muted-foreground"}`}

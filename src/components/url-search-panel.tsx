@@ -292,7 +292,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         t={t}
         testId="url-search"
         label={t("urlSearch")}
-        emptyHint={t("urlEmpty")}
+        emptyHint={t("urlIntro")}
         action={
           <YoutubeSearchButton
             // 条件が変わったら、何回目まで開いたかを最初に戻す
