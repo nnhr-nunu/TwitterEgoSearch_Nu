@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { ChipInput } from "@/components/chip-input";
+import { SuggestionChips } from "@/components/suggestion-chips";
 import { ToggleRow } from "@/components/toggle-row";
 import {
   expandSearchTerms,
@@ -9,6 +11,8 @@ import {
   toggleHonorific,
 } from "@/lib/honorifics";
 import { splitSearchNames } from "@/lib/keywords";
+import { variantSuggestions } from "@/lib/name-variants";
+import { loadDismissedVariants, saveDismissedVariants } from "@/lib/storage";
 import type { MessageKey } from "@/lib/i18n";
 import type { HonorificId } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +38,15 @@ export function KeywordEditor({
   t,
 }: KeywordEditorProps) {
   const terms = expandSearchTerms(keywords, honorifics);
+  // 親が読み込みを終えてから描画されるので、初期化時に localStorage を読んでよい
+  const [dismissed, setDismissed] = useState<string[]>(loadDismissedVariants);
+  const variants = variantSuggestions(keywords, dismissed);
+
+  function dismissVariants() {
+    const next = [...dismissed, ...variants];
+    setDismissed(next);
+    saveDismissedVariants(next);
+  }
 
   return (
     <div className="space-y-4">
@@ -47,6 +60,15 @@ export function KeywordEditor({
         removeLabel={t("removeItem")}
         tokenize={splitSearchNames}
         testId="keyword"
+      />
+      {/* ひらがな・カタカナ・半角カナ・空白なしの書き方を、押すだけで足せるようにする */}
+      <SuggestionChips
+        label={t("nameVariants")}
+        items={variants}
+        onAdd={(item) => onChange([...keywords, item])}
+        onDismiss={dismissVariants}
+        dismissLabel={t("hideVariants")}
+        testId="name-variants"
       />
       {/* 名前が 2 つ以上あるときだけ意味があるので、そのときだけ出す */}
       {keywords.length >= 2 ? (
