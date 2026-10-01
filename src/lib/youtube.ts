@@ -1,3 +1,5 @@
+import { uniqueCaseless } from "./keywords";
+
 // YouTube Data API v3（無料枠 1 日 10,000 ユニット）でチャンネルの動画一覧を取る。
 // 使うのは channels / playlistItems / videos の list だけで、どれも 1 回 1 ユニット。
 // search.list（100 ユニット）は使わない。
@@ -102,16 +104,6 @@ const X_PROFILE_RE = /(?<![A-Za-z0-9-])(?:twitter|x)\.com\/@?([A-Za-z0-9_]{1,15}
 const X_RESERVED = new Set(["i", "intent", "home", "hashtag", "search", "share", "explore", "settings", "messages", "notifications", "login", "signup", "tos", "privacy"]);
 const HASHTAG_RE = /[#＃]([^\s#＃.,、。!！?？:：;；()（）「」『』【】[\]<>＜＞"'“”/／|｜]+)/gu;
 const GENERIC_HASHTAGS = new Set(["shorts", "short", "youtube", "vtuber", "live", "asmr"]);
-
-function uniqueCaseless(values: string[]): string[] {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const lower = value.toLowerCase();
-    if (seen.has(lower)) return false;
-    seen.add(lower);
-    return true;
-  });
-}
 
 // チャンネルの説明欄から、本人の X アカウントとハッシュタグを拾う
 export function channelDescriptionLinks(description: string): { xHandles: string[]; hashtags: string[] } {
