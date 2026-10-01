@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { FilterPanel } from "@/components/filter-panel";
+import { Segmented } from "@/components/segmented";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,24 +83,36 @@ function DateNote({ children, testId }: { children: ReactNode; testId?: string }
   );
 }
 
-export function DateFilters({ config, onChange, t }: DateFiltersProps) {
-  function setDateFilter(dateFilter: boolean) {
-    onChange({ dateFilter });
-  }
+// 期間は「すべて・日付の前後・開始日〜終了日」のどれか 1 つ（YouTube タブの「期間」と同じ見せ方）
+type Period = "all" | "around" | "range";
 
-  function setRangeFilter(rangeFilter: boolean) {
-    if (!rangeFilter) {
-      onChange({ rangeFilter: false });
+const PERIOD_OPTIONS: { id: Period; label: MessageKey }[] = [
+  { id: "all", label: "urlPeriodAll" },
+  { id: "around", label: "urlPeriodAround" },
+  { id: "range", label: "urlPeriodRange" },
+];
+
+function periodOf(config: SearchConfig): Period {
+  if (config.rangeFilter) return "range";
+  return config.dateFilter ? "around" : "all";
+}
+
+export function DateFilters({ config, onChange, t }: DateFiltersProps) {
+  function setPeriod(period: Period) {
+    if (period !== "range") {
+      onChange({ dateFilter: period === "around", rangeFilter: false });
       return;
     }
     // 開始日が空なら、終了日は設定を作った日の「今日」のまま古くなっていることがある（直近の投稿が落ちる）ので今日に直す。
     // 開始日まで入れてあれば自分で決めた区間なので、そのまま戻す
     onChange({
+      dateFilter: false,
       rangeFilter: true,
       rangeEnd: config.rangeStart ? config.rangeEnd || todayIso() : todayIso(),
     });
   }
 
+  const period = periodOf(config);
   const issues = dateIssues(config);
   const startInvalid = issues.includes("rangeStartInvalid");
   const endInvalid = issues.includes("rangeEndInvalid");
@@ -113,30 +126,21 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
         onCheckedChange={(matchAll) => onChange({ matchAll })}
         testId="match-all"
       />
-      <div className="space-y-1">
-        <ToggleRow
-          id="date-filter"
-          label={t("dateFilter")}
-          checked={config.dateFilter}
-          onCheckedChange={setDateFilter}
-          testId="date-filter"
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("urlPeriod")}</p>
+        <Segmented<Period>
+          options={PERIOD_OPTIONS.map((option) => ({ id: option.id, label: t(option.label) }))}
+          value={period}
+          label={t("urlPeriod")}
+          onChange={setPeriod}
+          testId="period"
         />
-        {config.dateFilter ? (
+        {period === "around" ? (
           <Nested>
             <FilterPanel config={config} onChange={onChange} t={t} />
           </Nested>
         ) : null}
-      </div>
-
-      <div className="space-y-1">
-        <ToggleRow
-          id="range-filter"
-          label={t("rangeFilter")}
-          checked={config.rangeFilter}
-          onCheckedChange={setRangeFilter}
-          testId="range-filter"
-        />
-        {config.rangeFilter ? (
+        {period === "range" ? (
           <Nested>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -186,10 +190,6 @@ export function DateFilters({ config, onChange, t }: DateFiltersProps) {
           </Nested>
         ) : null}
       </div>
-
-      {issues.includes("noOverlap") ? (
-        <DateNote testId="date-no-overlap">{t("dateNoOverlap")}</DateNote>
-      ) : null}
 
       <div className="space-y-1">
         <ToggleRow

@@ -78,7 +78,7 @@ describe("share url", () => {
     expect(buildPostsQuery(on)).toContain("until:2026-09-29");
   });
 
-  it("intersects around-date and range filters into one since/until", () => {
+  it("keeps only the range when an old setup has both the around-date and the range on", () => {
     const both = hydrateConfig({
       keywords: ["ぬぬはらさん"],
       dateFilter: true,
@@ -88,9 +88,10 @@ describe("share url", () => {
       rangeStart: "2026-09-20",
       rangeEnd: "2026-09-25",
     });
+    expect(both.dateFilter).toBe(false);
+    expect(both.rangeFilter).toBe(true);
     expect(buildPostsQuery(both)).toContain("since:2026-09-20");
     expect(buildPostsQuery(both)).toContain("until:2026-09-25");
-    expect(buildPostsQuery(both)).not.toContain("until:2026-09-29");
   });
 
   it("round-trips muted accounts as repeated mute params", () => {

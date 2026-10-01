@@ -114,10 +114,13 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
   if (!parsed || typeof parsed !== "object") return defaults;
   const handles = readHandles(parsed);
   const sort = readSort(parsed);
-  // 「日付で絞り込む」がオフのあいだは、対象の日付を今日にしておく。
-  // 設定を作った日のまま残すと、後日オンにしたときに古い日付の前後を探してしまう
+  // 期間は「日付の前後」か「開始日〜終了日」のどちらか 1 つ。前の画面では両方をオンにでき、
+  // 重なった分だけを探していたので、両方オンで残っている設定は、日にちをはっきり決めた区間のほうを残す
+  const dateFilter = parsed.dateFilter === true && parsed.rangeFilter !== true;
+  // 「日付の前後」を選んでいないあいだは、対象の日付を今日にしておく。
+  // 設定を作った日のまま残すと、後日選んだときに古い日付の前後を探してしまう
   const aroundDate =
-    parsed.dateFilter === true && typeof parsed.aroundDate === "string" && isIsoDate(parsed.aroundDate)
+    dateFilter && typeof parsed.aroundDate === "string" && isIsoDate(parsed.aroundDate)
       ? parsed.aroundDate
       : defaults.aroundDate;
   const dateSpan = readSpan(parsed.dateSpan);
@@ -147,7 +150,7 @@ export function hydrateConfig(parsed: Partial<SearchConfig> | null | undefined):
     minFaves: readMinFaves(parsed.minFaves),
     aroundDate,
     dateSpan,
-    dateFilter: parsed.dateFilter === true,
+    dateFilter,
     rangeFilter: parsed.rangeFilter === true,
     rangeStart: typeof parsed.rangeStart === "string" && isIsoDate(parsed.rangeStart) ? parsed.rangeStart : "",
     rangeEnd:
