@@ -22,6 +22,7 @@ describe("share url", () => {
       minFaves: 100,
       mutedHandles: ["spam_bot", "noise_acc"],
       mutedKeywords: ["ad"],
+      excludeNegative: true,
     });
     const params = serializeSearchParams(config, "en");
     const parsed = parseSearchParams(params);

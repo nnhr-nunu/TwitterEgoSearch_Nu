@@ -40,6 +40,8 @@ export type SearchConfig = {
   mediaOnly: boolean;
   // オンなら検索名を OR ではなく AND でつなぐ（すべて含む投稿だけ）
   matchAll?: boolean;
+  // オンなら「嫌い」「うざい」などのネガティブワードを含む投稿を除外する（negative-words.ts）
+  excludeNegative?: boolean;
   latest: boolean;
   sort: ResultSort;
   minFaves: MinFaves;

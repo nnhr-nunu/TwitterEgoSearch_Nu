@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
+import { NEGATIVE_WORDS } from "@/lib/negative-words";
 
 export const metadata: Metadata = {
   title: "使い方 | エゴサ支援ツール(ぬ) — エゴサ・推しのパブサ",
@@ -134,6 +135,10 @@ const FIELDS: FieldHelp[] = [
   {
     name: "除外する（アカウント / キーワード）",
     body: "見たくない人や言葉を結果から外します。自分の @id、bot、「#pr」「プレゼント企画」などを入れておくと結果がすっきりします。",
+  },
+  {
+    name: "ネガティブワード",
+    body: `オンにすると、悪口でよく使われる言葉を含む投稿を除外します（初期はオフ）。対象は「${NEGATIVE_WORDS.join("」「")}」です。「嫌いじゃない」のような投稿も一緒に消えるなど、誤検知の可能性もあります。名前や「この言葉も含む投稿だけ」に入っている言葉は除外しません。`,
   },
   {
     name: "期間",

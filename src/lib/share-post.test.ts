@@ -19,6 +19,7 @@ const rich = hydrateConfig({
   mutedHandles: ["spam_bot"],
   mutedKeywords: ["#pr"],
   mediaOnly: true,
+  excludeNegative: true,
   sort: "likes",
   dateFilter: true,
   aroundDate: "2026-05-01",
@@ -42,6 +43,8 @@ describe("share post", () => {
     const params = buildShareParams(rich, "ja", { includeMutes: false });
     expect(params.has("mute")).toBe(false);
     expect(params.has("mk")).toBe(false);
+    // ネガティブワードは人名などを含まないので、除外設定を載せないときも載せる
+    expect(params.get("neg")).toBe("1");
     const query = buildPostsQuery(parseSearchParams(params).config);
     expect(query).not.toContain("spam_bot");
     expect(query).not.toContain("#pr");

@@ -16,7 +16,7 @@ function slots() {
       rangeStart: "2026-09-01",
       rangeEnd: "2026-09-30",
     }),
-    hydrateConfig({ handles: ["nnhr_nunu"], filterKeywords: ["告知"], matchAll: true, dateFilter: true, aroundDate: "2026-09-20", dateSpan: "14" }),
+    hydrateConfig({ handles: ["nnhr_nunu"], filterKeywords: ["告知"], matchAll: true, excludeNegative: true, dateFilter: true, aroundDate: "2026-09-20", dateSpan: "14" }),
     createDefaultConfig(),
   ];
 }

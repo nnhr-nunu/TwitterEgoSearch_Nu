@@ -1,6 +1,7 @@
 import { untilOperand } from "./dates";
 import { uniqueHandles } from "./handle";
 import { expandSearchTerms } from "./honorifics";
+import { negativeWordsFor } from "./negative-words";
 import type { ResultSort, SearchConfig } from "./types";
 
 export function searchTermsOf(config: SearchConfig): string[] {
@@ -74,6 +75,10 @@ export function buildPostsQuery(config: SearchConfig, extra: QueryExtra = {}): s
   for (const muted of config.mutedKeywords ?? []) {
     const quoted = quoteTerm(muted, config.wrapQuotes);
     if (quoted) parts.push(`-${quoted}`);
+  }
+
+  for (const negative of negativeWordsFor(config)) {
+    parts.push(`-${quoteTerm(negative, config.wrapQuotes)}`);
   }
 
   if (config.mediaOnly) parts.push("filter:media");

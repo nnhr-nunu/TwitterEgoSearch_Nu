@@ -12,6 +12,7 @@ import { FormSection } from "@/components/form-section";
 import { KeywordEditor } from "@/components/keyword-editor";
 import { MuteAccounts } from "@/components/mute-accounts";
 import { MuteKeywords } from "@/components/mute-keywords";
+import { ToggleRow } from "@/components/toggle-row";
 import { NewOnlyToggle } from "@/components/new-only-toggle";
 import { ProfileFields } from "@/components/profile-fields";
 import { SearchCluster } from "@/components/search-cluster";
@@ -347,6 +348,7 @@ export function SearchApp() {
       {isQueryTooLong(postsQuery) ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}
+          {config.excludeNegative ? t("queryTooLongNegative") : null}
         </p>
       ) : null}
       {baseline !== null ? (
@@ -455,6 +457,14 @@ export function SearchApp() {
                 keywords={config.mutedKeywords}
                 onChange={(mutedKeywords) => patch({ mutedKeywords })}
                 t={t}
+              />
+              <ToggleRow
+                id="exclude-negative"
+                label={t("excludeNegative")}
+                help={t("excludeNegativeHelp")}
+                checked={config.excludeNegative === true}
+                onCheckedChange={(excludeNegative) => patch({ excludeNegative })}
+                testId="exclude-negative"
               />
             </FormSection>
             {/* タブに出す名前。空なら先頭の名前が出るので、入力例にそれを見せる */}

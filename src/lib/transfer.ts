@@ -27,6 +27,7 @@ function compactSlot(config: SearchConfig): Partial<SearchConfig> {
   if (config.displayName.trim()) out.displayName = config.displayName.trim();
   if (config.mediaOnly) out.mediaOnly = true;
   if (config.matchAll) out.matchAll = true;
+  if (config.excludeNegative) out.excludeNegative = true;
   if (config.sort !== defaults.sort) out.sort = config.sort;
   if (config.minFaves !== defaults.minFaves) out.minFaves = config.minFaves;
   if (config.dateFilter) {
