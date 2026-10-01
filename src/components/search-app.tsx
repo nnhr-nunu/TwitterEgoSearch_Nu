@@ -1,7 +1,7 @@
 "use client";
 
 import { BanIcon, BirdIcon, CopyIcon, FunnelIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
@@ -126,6 +126,8 @@ export function SearchApp() {
   const [shareKey, setShareKey] = useState(0);
 
   const t = (key: MessageKey) => translate(locale, key);
+  // 読み込みが終わったら名前の欄にカーソルを置くか（開いた設定が空で、マウスで使う画面のとき）
+  const focusNameOnReady = useRef(false);
 
   useEffect(() => {
     const parsed = parseSearchParams(window.location.search);
@@ -156,11 +158,26 @@ export function SearchApp() {
       setUrlView(legacy ? false : loadUrlView());
       setLocale(nextLocale);
       // 途中で切れたリンク（share=1 だけが残ったもの）では、探す言葉のない着地カードを出さない
-      if (parsed.shared && canSearchPosts(parsed.config)) setShared(cloneConfig(parsed.config));
+      const sharedLanding = parsed.shared && canSearchPosts(parsed.config);
+      if (sharedLanding) setShared(cloneConfig(parsed.config));
+      // スマホでは開いた途端にキーボードが出て画面が隠れるので、マウスで使う画面だけにする
+      focusNameOnReady.current =
+        !legacy &&
+        !sharedLanding &&
+        !incoming &&
+        !loadUrlView() &&
+        isBlankConfig(storedSlots[nextSlot]) &&
+        window.matchMedia("(pointer: fine)").matches;
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (!ready || !focusNameOnReady.current) return;
+    focusNameOnReady.current = false;
+    document.getElementById("keyword-input")?.focus({ preventScroll: true });
+  }, [ready]);
 
   // 変わったものをまとめて保存する（読み込みが終わるまでは既定値なので保存しない）
   useEffect(() => {
