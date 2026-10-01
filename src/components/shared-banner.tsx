@@ -90,7 +90,7 @@ export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedB
 
         <Button size="lg" className="h-12 w-full text-base shadow-sm" asChild>
           <a
-            href={buildLivePostsUrl(config)}
+            href={buildLivePostsUrl(config, locale)}
             target="_blank"
             rel="noopener noreferrer"
             data-testid="shared-open"

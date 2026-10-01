@@ -208,7 +208,10 @@ export function SearchApp() {
   const searchState = searchStates[slot];
   const baseline = baselineOf(searchState.mark, now);
   const sinceTime = sinceTimeOf(searchState, now);
-  const postsQuery = useMemo(() => buildPostsQuery(config, { sinceTime }), [config, sinceTime]);
+  const postsQuery = useMemo(
+    () => buildPostsQuery(config, { sinceTime, locale }),
+    [config, sinceTime, locale],
+  );
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
   const postsOk = canSearchPosts(config);
 

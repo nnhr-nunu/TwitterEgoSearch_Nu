@@ -9,6 +9,7 @@ import {
   canSearchPeople,
   canSearchPosts,
   isQueryTooLong,
+  NEGATIVE_FILL_LIMIT,
   orGroup,
   QUERY_LENGTH_LIMIT,
   quoteTerm,
@@ -240,43 +241,79 @@ describe("matchAll", () => {
 
 describe("excludeNegative", () => {
   const base = { ...createOwnerSampleConfig(), handles: [], handle: "", keywords: ["ぬぬはら"] };
+  const on = { ...base, excludeNegative: true };
+  // 除外アカウント（-from:）以外の「-」で始まる語。このブロックでは自分で除外した言葉を入れない限りネガティブワードだけ
+  const negativesOf = (query: string) =>
+    query.split(" ").filter((part) => part.startsWith("-") && !part.startsWith("-from:"));
+  const ja = (word: string) => `-"${word}"`;
+  const en = (word: string) => `-${word}`;
 
   it("既定はオフで、ネガティブワードを足さない", () => {
     expect(createOwnerSampleConfig().excludeNegative).toBe(false);
     expect(buildPostsQuery(base)).toBe('"ぬぬはら"');
   });
 
-  it("オンなら辞書の言葉を除外として足す", () => {
-    const query = buildPostsQuery({ ...base, excludeNegative: true });
-    expect(query.startsWith('"ぬぬはら" ')).toBe(true);
-    for (const word of NEGATIVE_WORDS) expect(query).toContain(`-"${word}"`);
+  it("余裕があるだけ足し、X で通ると確かめた長さを超えない", () => {
+    const query = buildPostsQuery(on);
+    expect(query.length).toBeLessThanOrEqual(NEGATIVE_FILL_LIMIT);
+    expect(query.length).toBeGreaterThan(NEGATIVE_FILL_LIMIT - 10);
+    expect(negativesOf(query).length).toBeGreaterThan(55);
+  });
+
+  it("日本語の名前なら、画面が英語でも日本語の言葉から入れる", () => {
+    const parts = negativesOf(buildPostsQuery(on, { locale: "en" }));
+    expect(parts.slice(0, NEGATIVE_WORDS.ja.length)).toEqual(NEGATIVE_WORDS.ja.map(ja));
+    expect(parts[NEGATIVE_WORDS.ja.length]).toBe(en("hate"));
+  });
+
+  it("英語の名前なら、画面が日本語でも英語の言葉から入れる（英数字の 1 語は引用符なし）", () => {
+    const parts = negativesOf(buildPostsQuery({ ...on, keywords: ["Nunu Hara"] }));
+    expect(parts.slice(0, NEGATIVE_WORDS.en.length)).toEqual(NEGATIVE_WORDS.en.map(en));
+    expect(parts[NEGATIVE_WORDS.en.length]).toBe(ja("嫌い"));
+  });
+
+  it("日本語と英語の名前が両方あれば、画面の言語から交互に入れる", () => {
+    const config = { ...on, keywords: ["ぬぬはら", "Nunu Hara"] };
+    expect(negativesOf(buildPostsQuery(config, { locale: "en" })).slice(0, 4)).toEqual([
+      en("hate"),
+      ja("嫌い"),
+      en("cringe"),
+      ja("うざい"),
+    ]);
+    expect(negativesOf(buildPostsQuery(config)).slice(0, 2)).toEqual([ja("嫌い"), en("hate")]);
+  });
+
+  it("名前から言語が分からないときは、画面の言語の言葉から入れる", () => {
+    const handleOnly = { ...on, keywords: [], handles: ["nnhr_nunu"] };
+    expect(negativesOf(buildPostsQuery(handleOnly, { locale: "en" }))[0]).toBe(en("hate"));
+    expect(negativesOf(buildPostsQuery(handleOnly))[0]).toBe(ja("嫌い"));
+    // 英数字だけのハッシュタグは英語の手がかりにしない
+    expect(negativesOf(buildPostsQuery({ ...on, keywords: ["#003_FA"] }))[0]).toBe(ja("嫌い"));
   });
 
   it("名前や絞り込みの言葉に入っている言葉は除外しない（結果が 0 件になるので）", () => {
-    const query = buildPostsQuery({
-      ...base,
-      keywords: ["パクリ検証ch"],
-      filterKeywords: ["Cringe集"],
-      excludeNegative: true,
-    });
-    expect(query).not.toContain('-"パクリ"');
-    expect(query).not.toContain('-"cringe"');
-    expect(query).toContain('-"嫌い"');
+    const parts = negativesOf(
+      buildPostsQuery({ ...on, keywords: ["パクリ検証ch"], filterKeywords: ["Cringe集"] }),
+    );
+    expect(parts).not.toContain(ja("パクリ"));
+    expect(parts).not.toContain(en("cringe"));
+    expect(parts).toContain(ja("嫌い"));
   });
 
   it("自分で除外した言葉と重ねない", () => {
-    const query = buildPostsQuery({ ...base, mutedKeywords: ["嫌い"], excludeNegative: true });
-    expect(query.split('-"嫌い"').length - 1).toBe(1);
+    const query = buildPostsQuery({ ...on, mutedKeywords: ["嫌い", "HATE"] });
+    expect(query.split(ja("嫌い")).length - 1).toBe(1);
+    expect(negativesOf(query)).not.toContain(en("hate"));
   });
 
-  it("上限に近いときは、収まる分だけ辞書の前から入れる", () => {
+  it("上限に近いときは、収まる分だけ優先順に入れる", () => {
     const mutedHandles = Array.from({ length: 18 }, (_, index) => `spam_account_${index}`);
     const without = buildPostsQuery({ ...base, mutedHandles, mediaOnly: true });
-    const query = buildPostsQuery({ ...base, mutedHandles, mediaOnly: true, excludeNegative: true });
-    expect(without.length).toBeLessThan(QUERY_LENGTH_LIMIT);
-    expect(query.length).toBeLessThanOrEqual(QUERY_LENGTH_LIMIT);
-    expect(query).toContain(`-"${NEGATIVE_WORDS[0]}"`);
-    expect(query).not.toContain(`-"${NEGATIVE_WORDS[NEGATIVE_WORDS.length - 1]}"`);
+    const query = buildPostsQuery({ ...on, mutedHandles, mediaOnly: true });
+    expect(without.length).toBeLessThan(NEGATIVE_FILL_LIMIT);
+    expect(query.length).toBeLessThanOrEqual(NEGATIVE_FILL_LIMIT);
+    expect(query).toContain(ja(NEGATIVE_WORDS.ja[0]));
+    expect(negativesOf(query).length).toBeLessThan(NEGATIVE_WORDS.ja.length);
     expect(query.endsWith(" filter:media")).toBe(true);
   });
 
@@ -284,11 +321,6 @@ describe("excludeNegative", () => {
     const mutedHandles = Array.from({ length: 30 }, (_, index) => `spam_account_${index}`);
     const without = buildPostsQuery({ ...base, mutedHandles });
     expect(without.length).toBeGreaterThan(QUERY_LENGTH_LIMIT);
-    expect(buildPostsQuery({ ...base, mutedHandles, excludeNegative: true })).toBe(without);
-  });
-
-  it("辞書だけで X の文字数上限の 4 割を超えない", () => {
-    const added = buildPostsQuery({ ...base, excludeNegative: true }).length - buildPostsQuery(base).length;
-    expect(added).toBeLessThan(QUERY_LENGTH_LIMIT * 0.4);
+    expect(buildPostsQuery({ ...on, mutedHandles })).toBe(without);
   });
 });

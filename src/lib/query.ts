@@ -2,7 +2,7 @@ import { untilOperand } from "./dates";
 import { uniqueHandles } from "./handle";
 import { expandSearchTerms } from "./honorifics";
 import { negativeWordsFor } from "./negative-words";
-import type { ResultSort, SearchConfig } from "./types";
+import type { Locale, ResultSort, SearchConfig } from "./types";
 
 export function searchTermsOf(config: SearchConfig): string[] {
   return expandSearchTerms(config.keywords, config.honorifics);
@@ -55,9 +55,17 @@ export function fromGroup(handles: string[]): string {
 // 除外するアカウントは 1 件で 20 文字前後使うので、増やしていくと届く
 export const QUERY_LENGTH_LIMIT = 500;
 
+// ネガティブワードで埋めるのは、X で通ると確かめた長さ（492 文字）より短いところまで
+export const NEGATIVE_FILL_LIMIT = 490;
+
+// 英数字だけの 1 語は引用符で囲んでも当たり方が変わらないので、囲まずに文字数を節約する
+const PLAIN_WORD = /^[a-z0-9]+$/i;
+
 export type QueryExtra = {
   // 「前回の検索より後の投稿だけ」の基準（UNIX 秒）。設定には保存せず、検索のたびに渡す
   sinceTime?: number;
+  // 画面の言語。名前から投稿の言語が分からないとき、どちらのネガティブワードを先に使うかに使う
+  locale?: Locale;
 };
 
 export function buildPostsQuery(config: SearchConfig, extra: QueryExtra = {}): string {
@@ -89,11 +97,11 @@ export function buildPostsQuery(config: SearchConfig, extra: QueryExtra = {}): s
   // いいね数で絞り込むは非表示中なので min_faves: を付けない
   // if (config.minFaves > 0) tail.push(`min_faves:${config.minFaves}`);
 
-  // ネガティブワードは誤検知もある補助なので、X の文字数上限に収まる分だけ辞書の前から入れる
+  // ネガティブワードは誤検知もある補助なので、ほかの条件を入れたあとの余りに、優先順に入る分だけ入れる
   let length = [...parts, ...tail].join(" ").length;
-  for (const negative of negativeWordsFor(config)) {
-    const term = `-${quoteTerm(negative, config.wrapQuotes)}`;
-    if (length + 1 + term.length > QUERY_LENGTH_LIMIT) break;
+  for (const negative of negativeWordsFor(config, extra.locale)) {
+    const term = `-${quoteTerm(negative, config.wrapQuotes && !PLAIN_WORD.test(negative))}`;
+    if (length + 1 + term.length > NEGATIVE_FILL_LIMIT) continue;
     parts.push(term);
     length += 1 + term.length;
   }
