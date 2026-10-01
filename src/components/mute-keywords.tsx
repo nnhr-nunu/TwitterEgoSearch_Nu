@@ -18,7 +18,6 @@ export function MuteKeywords({ keywords, onChange, t }: MuteKeywordsProps) {
       values={keywords}
       onChange={onChange}
       addLabel={t("addKeyword")}
-      savedToast={t("savedToast")}
       removeLabel={t("removeItem")}
       testId="mute-keyword"
     />

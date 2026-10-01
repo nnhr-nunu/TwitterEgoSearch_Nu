@@ -2,7 +2,6 @@
 
 import { PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ type ChipInputProps = {
   values: string[];
   onChange: (values: string[]) => void;
   addLabel: string;
-  savedToast: string;
   mode?: "text" | "handle";
   tokenize?: (raw: string) => string[];
   invalidMessage?: string;
@@ -32,7 +30,6 @@ export function ChipInput({
   values,
   onChange,
   addLabel,
-  savedToast,
   mode = "text",
   tokenize,
   invalidMessage,
@@ -53,7 +50,6 @@ export function ChipInput({
       setInvalid(false);
       onChange(uniqueHandles([...items, ...next]));
       setDraft("");
-      toast.success(savedToast);
       return;
     }
     const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
@@ -65,7 +61,6 @@ export function ChipInput({
     }
     onChange(next);
     setDraft("");
-    toast.success(savedToast);
   }
 
   return (
