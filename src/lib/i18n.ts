@@ -206,7 +206,7 @@ export const messages = {
     handle: "Only posts by these accounts",
     handlePlaceholder: "@id",
     keywords: "Names, nicknames & hashtags",
-    keywordPlaceholder: "e.g. Nunuhara, \"Nunu Hara\", #003_FA",
+    keywordPlaceholder: "e.g. \"Nunu Hara\", #003_FA",
     nameVariants: "Other spellings",
     hideVariants: "Hide suggestions",
     addKeyword: "Add",
