@@ -1,6 +1,6 @@
 "use client";
 
-import { XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -96,8 +96,17 @@ export function ChipInput({
             if (document.hasFocus()) add(event.currentTarget.value);
           }}
         />
-        <Button type="button" variant="secondary" className="h-10 shrink-0" onClick={() => add()}>
-          {addLabel}
+        {/* 「＋」だけで足すと分かるので文字は出さず、入力欄の幅を広く取る（読み上げとツールチップには残す） */}
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-10 shrink-0"
+          aria-label={addLabel}
+          title={addLabel}
+          onClick={() => add()}
+        >
+          <PlusIcon className="size-5" />
         </Button>
       </div>
       {invalid && invalidMessage ? (
