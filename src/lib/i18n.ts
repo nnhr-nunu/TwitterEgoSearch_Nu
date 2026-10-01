@@ -197,7 +197,6 @@ export const messages = {
     sharedImported: "{slot}に保存しました",
     sharedReplaced: "{slot}を置き換えて保存しました",
     undo: "元に戻す",
-    sharedNote: "エゴサ支援ツール(ぬ)は、名前や愛称をまとめて X で検索できる無料ツールです。ログインも不要。",
     close: "閉じる",
   },
   en: {
@@ -397,7 +396,6 @@ export const messages = {
     sharedImported: "Saved to {slot}",
     sharedReplaced: "Replaced {slot} with this setup",
     undo: "Undo",
-    sharedNote: "Self-Search Helper searches X for all your names and nicknames at once. Free, no login.",
     close: "Close",
   },
 } as const;

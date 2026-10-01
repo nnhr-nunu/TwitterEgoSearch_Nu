@@ -18,9 +18,13 @@ type SharedBannerProps = {
   t: (key: MessageKey) => string;
 };
 
+const HEADING_SUBJECTS = 2;
+
 /** シェア投稿から来た人の着地カード。まず結果を見せ、そのあと自分のエゴサへ誘う */
 export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedBannerProps) {
   const subjects = shareSubjects(config);
+  // 見出しに入りきらない（「ほか◯件」になる）ときだけ、名前を全部チップで並べる。入りきるなら見出しと同じものが並ぶだけになる
+  const listSubjects = subjects.length > HEADING_SUBJECTS;
   const hasKeywords = config.keywords.some((keyword) => keyword.trim());
   const handles = hasKeywords ? uniqueHandles(config.handles) : [];
   const conditions: string[] = [];
@@ -53,34 +57,36 @@ export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedB
 
         <h2 className="font-heading text-2xl leading-snug font-bold tracking-tight break-words">
           {t("sharedHeadingPrefix")}
-          {shareSubjectLabel(config, locale)}
+          {shareSubjectLabel(config, locale, HEADING_SUBJECTS)}
           {t("sharedHeadingSuffix")}
         </h2>
 
-        <ul className="flex flex-wrap gap-1.5">
-          {subjects.map((subject) => (
-            <li key={subject}>
-              <Badge variant="secondary" className="h-6 max-w-56 truncate text-xs">
-                {subject}
-              </Badge>
-            </li>
-          ))}
-          {handles.map((handle) => (
-            <li key={`from-${handle}`}>
-              <Badge variant="outline" className="h-6 text-xs">
-                @{handle}
-                {t("sharedFrom")}
-              </Badge>
-            </li>
-          ))}
-          {conditions.map((condition) => (
-            <li key={condition}>
-              <Badge variant="outline" className="h-6 text-xs text-muted-foreground">
-                {condition}
-              </Badge>
-            </li>
-          ))}
-        </ul>
+        {listSubjects || handles.length > 0 || conditions.length > 0 ? (
+          <ul className="flex flex-wrap gap-1.5">
+            {(listSubjects ? subjects : []).map((subject) => (
+              <li key={subject}>
+                <Badge variant="secondary" className="h-6 max-w-56 truncate text-xs">
+                  {subject}
+                </Badge>
+              </li>
+            ))}
+            {handles.map((handle) => (
+              <li key={`from-${handle}`}>
+                <Badge variant="outline" className="h-6 text-xs">
+                  @{handle}
+                  {t("sharedFrom")}
+                </Badge>
+              </li>
+            ))}
+            {conditions.map((condition) => (
+              <li key={condition}>
+                <Badge variant="outline" className="h-6 text-xs text-muted-foreground">
+                  {condition}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         <Button size="lg" className="h-12 w-full text-base shadow-sm" asChild>
           <a
@@ -104,8 +110,6 @@ export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedB
             {t("sharedStart")}
           </Button>
         </div>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">{t("sharedNote")}</p>
       </div>
     </section>
   );
