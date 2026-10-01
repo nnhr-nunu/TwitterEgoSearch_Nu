@@ -1,5 +1,6 @@
 // 一度取った YouTube の情報をブラウザに残し、同じチャンネル・動画で API を呼び直さないようにする。
 // 容量を増やしすぎないよう、チャンネルは新しく使った順に 5 件、動画 1 本の情報は 100 件まで。
+// YouTube API の規約（Developer Policies III.E.4）で、取った情報は 30 日までしか持てないので、それより古いものは捨てる。
 
 import type { ChannelData, VideoInfo } from "./youtube";
 
@@ -10,6 +11,18 @@ export const YOUTUBE_VIDEO_INFO_CACHE_KEY = "egosearch-nu:youtube-video-info";
 
 const MAX_CHANNELS = 5;
 const MAX_VIDEO_INFOS = 100;
+export const MAX_CACHE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+// 日時が読めないものも古いとみなす
+function isFresh(savedAt: unknown, now: number): boolean {
+  const time = typeof savedAt === "string" ? Date.parse(savedAt) : Number.NaN;
+  return !Number.isNaN(time) && now - time < MAX_CACHE_AGE_MS;
+}
+
+// 一覧をまるごと取ってから 30 日を過ぎたら、新着だけの取り直しではなく全部取り直す
+export function isExpiredChannel(data: ChannelData, now = Date.now()): boolean {
+  return !isFresh(data.listedAt ?? data.fetchedAt, now);
+}
 
 function sameRef(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -34,12 +47,12 @@ function readJson(key: string): unknown {
   return raw ? JSON.parse(raw) : null;
 }
 
-export function loadChannelCache(): ChannelData[] {
+export function loadChannelCache(now = Date.now()): ChannelData[] {
   try {
     const list = readJson(YOUTUBE_CHANNELS_CACHE_KEY);
-    if (Array.isArray(list)) return list.filter(isChannelData);
-    const legacy = readJson(LEGACY_CHANNEL_CACHE_KEY);
-    return isChannelData(legacy) ? [legacy] : [];
+    const legacy = Array.isArray(list) ? null : readJson(LEGACY_CHANNEL_CACHE_KEY);
+    const saved = Array.isArray(list) ? list : [legacy];
+    return saved.filter((data): data is ChannelData => isChannelData(data) && !isExpiredChannel(data, now));
   } catch {
     return [];
   }
@@ -58,9 +71,10 @@ export function isStaleChannel(data: ChannelData, now = Date.now()): boolean {
   return Number.isNaN(fetched) || now - fetched > STALE_MS;
 }
 
-export function saveChannelCache(channels: ChannelData[]): void {
+export function saveChannelCache(channels: ChannelData[], now = Date.now()): void {
   try {
-    window.localStorage.setItem(YOUTUBE_CHANNELS_CACHE_KEY, JSON.stringify(channels));
+    const fresh = channels.filter((data) => !isExpiredChannel(data, now));
+    window.localStorage.setItem(YOUTUBE_CHANNELS_CACHE_KEY, JSON.stringify(fresh));
     window.localStorage.removeItem(LEGACY_CHANNEL_CACHE_KEY);
   } catch {
     // 保存できなくても、その場では使える
@@ -84,22 +98,28 @@ export function findVideoInChannels(channels: ChannelData[], id: string): VideoI
   return null;
 }
 
-function loadVideoInfos(): VideoInfo[] {
+// 保存した日時を添えて持つ。日時の無い、前に保存した情報は古いとみなす
+type SavedVideoInfo = VideoInfo & { savedAt: string };
+
+function loadVideoInfos(now: number): SavedVideoInfo[] {
   try {
     const list = readJson(YOUTUBE_VIDEO_INFO_CACHE_KEY);
-    return Array.isArray(list) ? list.filter((item: VideoInfo) => typeof item?.id === "string") : [];
+    return Array.isArray(list)
+      ? list.filter((item: SavedVideoInfo) => typeof item?.id === "string" && isFresh(item.savedAt, now))
+      : [];
   } catch {
     return [];
   }
 }
 
-export function loadVideoInfo(id: string): VideoInfo | null {
-  return loadVideoInfos().find((item) => item.id === id) ?? null;
+export function loadVideoInfo(id: string, now = Date.now()): VideoInfo | null {
+  return loadVideoInfos(now).find((item) => item.id === id) ?? null;
 }
 
-export function saveVideoInfo(info: VideoInfo): void {
+export function saveVideoInfo(info: VideoInfo, now = Date.now()): void {
   try {
-    const next = [info, ...loadVideoInfos().filter((item) => item.id !== info.id)].slice(0, MAX_VIDEO_INFOS);
+    const saved: SavedVideoInfo = { ...info, savedAt: new Date(now).toISOString() };
+    const next = [saved, ...loadVideoInfos(now).filter((item) => item.id !== info.id)].slice(0, MAX_VIDEO_INFOS);
     window.localStorage.setItem(YOUTUBE_VIDEO_INFO_CACHE_KEY, JSON.stringify(next));
   } catch {
     // 保存できなくても、その場では使える

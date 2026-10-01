@@ -49,6 +49,7 @@ import {
 import {
   channelMatches,
   findChannel,
+  isExpiredChannel,
   isStaleChannel,
   loadChannelCache,
   saveChannelCache,
@@ -207,11 +208,12 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
     return data ? channelMatches(data, current.token) : current.token.toLowerCase() === ref.toLowerCase();
   };
 
-  // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルは一覧を全部取り、期間を合わせる
+  // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルと、一覧を取ってから 30 日を過ぎたチャンネルは
+  // 一覧を全部取り、期間を合わせる
   const loadChannel = async (ref: string, cached: ChannelData | null) => {
     setLoading(true);
     try {
-      if (cached) {
+      if (cached && !isExpiredChannel(cached)) {
         const result = await refreshChannelVideos(cached, apiKey);
         saveChannel(result.data, ref);
         if (!stillShowing(ref, result.data)) return;
