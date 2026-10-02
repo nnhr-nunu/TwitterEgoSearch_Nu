@@ -1,7 +1,9 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MessageKey } from "@/lib/i18n";
+import { switchesTabOnMouseDown } from "@/lib/tab-switch";
 import type { SlotIndex } from "@/lib/types";
 import { SLOT_COUNT } from "@/lib/types";
 
@@ -17,6 +19,14 @@ type SlotTabsProps = {
 };
 
 const SLOT_LABELS: MessageKey[] = ["slot1", "slot2", "slot3"];
+
+// 打ちかけの名前やアカウントは欄を離れたときに今の設定へ足す。Radix はマウスを押した時点で切り替え、
+// そのあとで欄が外れると切り替え先に入ってしまうので、切り替える前にこちらで欄を外しておく
+function leaveFieldBeforeSwitch(event: MouseEvent<HTMLButtonElement>) {
+  if (!switchesTabOnMouseDown(event)) return;
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) active.blur();
+}
 
 export function SlotTabs({ value, onChange, labels, t }: SlotTabsProps) {
   return (
@@ -39,12 +49,18 @@ export function SlotTabs({ value, onChange, labels, t }: SlotTabsProps) {
               title={label === slotName ? undefined : `${slotName}：${label}`}
               aria-label={label === slotName ? undefined : `${slotName}：${label}`}
               data-testid={`slot-tab-${index}`}
+              onMouseDown={leaveFieldBeforeSwitch}
             >
               <span className="truncate">{label}</span>
             </TabsTrigger>
           );
         })}
-        <TabsTrigger value="url" className="min-w-0 text-sm" data-testid="slot-tab-url">
+        <TabsTrigger
+          value="url"
+          className="min-w-0 text-sm"
+          data-testid="slot-tab-url"
+          onMouseDown={leaveFieldBeforeSwitch}
+        >
           {t("urlTab")}
         </TabsTrigger>
       </TabsList>
