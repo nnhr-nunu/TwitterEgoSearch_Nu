@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseHandleList, uniqueHandles } from "@/lib/handle";
-import { appendCaseless } from "@/lib/keywords";
+import { mergeChipValues } from "@/lib/drafts";
+import { uniqueHandles } from "@/lib/handle";
 
 type ChipInputProps = {
   id: string;
@@ -57,23 +57,15 @@ export function ChipInput({
   }
 
   function add(raw = draft) {
-    if (mode === "handle") {
-      const next = parseHandleList(raw);
-      if (next.length === 0) {
-        setInvalid(raw.trim().length > 0);
-        return;
-      }
-      setInvalid(false);
-      // もう入っているものだけなら、中身の同じ一覧で onChange を呼ばない（名前を変えたとして「前回より後だけ」が切れる）
-      const handles = uniqueHandles([...items, ...next]);
-      if (handles.length > items.length) onChange(handles);
-      changeDraft("");
+    const merged = mergeChipValues(values, raw, mode, tokenize);
+    if (!merged) {
+      // 読めないアカウントだけなら、打った文字は残して注意を出す
+      if (mode === "handle") setInvalid(raw.trim().length > 0);
       return;
     }
-    const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
-    if (tokens.length === 0) return;
-    const merged = appendCaseless(items, tokens);
-    if (merged.length > items.length) onChange(merged);
+    setInvalid(false);
+    // もう入っているものだけなら、中身の同じ一覧で onChange を呼ばない（名前を変えたとして「前回より後だけ」が切れる）
+    if (merged !== values) onChange(merged);
     changeDraft("");
   }
 
