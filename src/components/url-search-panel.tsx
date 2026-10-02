@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useYoutubeVideoInfo } from "@/components/use-youtube-video-info";
 import { YoutubeChannelVideos } from "@/components/youtube-channel-videos";
 import { PERIOD_LABELS, YoutubePeriod } from "@/components/youtube-period";
-import { type ScopeInfo, YoutubeScopeSummary } from "@/components/youtube-scope-summary";
+import { YoutubeScopeSummary } from "@/components/youtube-scope-summary";
 import { YoutubeSearchButton } from "@/components/youtube-search-button";
 import { LOAD_ERROR_MESSAGES, type Notice, YoutubeTarget } from "@/components/youtube-target";
 import { isLikelyHandle } from "@/lib/handle";
@@ -58,6 +58,7 @@ import {
   saveChannelCache,
   upsertChannel,
 } from "@/lib/youtube-cache";
+import type { ScopeInfo } from "@/lib/youtube-scope";
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
@@ -144,7 +145,15 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   if (target?.kind === "channel") {
     scope =
       channel && state.videoKind !== "channel"
-        ? { kind: "channel", count: matched.length, window: postWindow(state), videoKind: state.videoKind, batches }
+        ? {
+            kind: "channel",
+            count: matched.length,
+            window: postWindow(state),
+            videoKind: state.videoKind,
+            batches,
+            // 前に保存した一覧に無いときも、打ち切っていないものとして扱う
+            truncated: channel.truncated === true,
+          }
         : { kind: "channelOnly" };
   }
   const summary = <YoutubeScopeSummary t={t} info={scope} words={words} />;
