@@ -115,14 +115,16 @@ describe("missesOlderVideos", () => {
     expect(missesOlderVideos(false, videos, { since: "2010-01-01" })).toBe(false);
   });
 
-  it("is true when the period has no start or starts before the oldest loaded video", () => {
+  it("is true when the period has no start or starts on or before the oldest loaded video's day", () => {
     expect(missesOlderVideos(true, videos, { since: "" })).toBe(true);
     expect(missesOlderVideos(true, videos, { since: "2023-12-31" })).toBe(true);
+    // 読み込まなかった動画が、いちばん古い動画と同じ日に出ていることもある
+    expect(missesOlderVideos(true, videos, { since: "2024-01-10" })).toBe(true);
     expect(missesOlderVideos(true, [], { since: "2026-09-01" })).toBe(true);
   });
 
-  it("is false when the period starts on or after the oldest loaded video", () => {
-    expect(missesOlderVideos(true, videos, { since: "2024-01-10" })).toBe(false);
+  it("is false when the period starts after the oldest loaded video's day", () => {
+    expect(missesOlderVideos(true, videos, { since: "2024-01-11" })).toBe(false);
     expect(missesOlderVideos(true, videos, { since: "2026-09-21" })).toBe(false);
   });
 });
