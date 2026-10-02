@@ -1,7 +1,7 @@
 import { shiftIso, slashDate, todayIso } from "./dates";
 import type { MessageKey } from "./i18n";
 import type { DateWindow, SearchBatch, VideoKindFilter } from "./url-search";
-import { MAX_UPLOADS } from "./youtube";
+import { type ChannelVideo, MAX_UPLOADS, videoDate } from "./youtube";
 
 // 何を探すかを、期間や種類の切り替えのすぐ下で文章にして見せる
 export type ScopeInfo =
@@ -12,12 +12,24 @@ export type ScopeInfo =
       window: DateWindow;
       videoKind: VideoNoun;
       batches: SearchBatch[];
-      // 上限（MAX_UPLOADS）で古い動画を読み込まなかったとき true
-      truncated: boolean;
+      // 上限（MAX_UPLOADS）で古い動画を読み込まなかったチャンネルで、期間が読み込んだ動画より古いほうへはみ出すとき true。
+      // はみ出した分の動画は数に入っていない
+      missesOlder: boolean;
     }
   | { kind: "channelOnly" }
   | { kind: "video"; keyword: string; names: string[] }
   | { kind: "page" };
+
+// 期間が、読み込んだいちばん古い動画より前から始まるか（始まりの無い期間も含む）。打ち切っていないチャンネルは全部読んでいるので false
+export function missesOlderVideos(
+  truncated: boolean,
+  videos: Pick<ChannelVideo, "publishedAt">[],
+  window: Pick<DateWindow, "since">,
+): boolean {
+  if (!truncated) return false;
+  const dates = videos.map(videoDate).filter(Boolean).sort();
+  return !window.since || !dates.length || window.since < dates[0];
+}
 
 // 種類が「チャンネル」のときは動画を数えないので、名前は要らない
 type VideoNoun = Exclude<VideoKindFilter, "channel">;
@@ -34,8 +46,8 @@ function videosPhrase(t: (key: MessageKey) => string, info: Extract<ScopeInfo, {
   // until は終わりの日の翌日で持っているので、見せるときは前日にする。今日より先なら「以降」とだけ言う
   const end = until ? shiftIso(until, -1) : "";
   const last = end && end < todayIso() ? slashDate(end) : "";
-  // 打ち切ったチャンネルは古い動画が入っていないので、「すべて」ではなく「新しい」と言う
-  const all: MessageKey = info.truncated ? "urlSumAllTruncated" : "urlSumAll";
+  // 古い動画を読み込んでいないので「すべて」とは言わない。タイトルで絞ったときもあるので「新しい」とも言わない
+  const all: MessageKey = info.missesOlder ? "urlSumAllTruncated" : "urlSumAll";
   const key: MessageKey = since && last ? "urlSumRange" : since ? "urlSumSince" : last ? "urlSumUntil" : all;
   return t(key)
     .replace("{since}", slashDate(since))
@@ -61,8 +73,8 @@ export function scopeLines(t: (key: MessageKey) => string, info: ScopeInfo, word
   }
   if (info.kind === "channel") {
     const noun = t(NOUNS[info.videoKind]);
-    // 打ち切ったチャンネルで 0 本のときは、読み込んでいない古い動画にあるかもしれないので「ない」と言い切らない
-    const none = info.truncated ? t("urlSumNoVideosTruncated").replace("{max}", String(MAX_UPLOADS)) : t("urlSumNoVideos");
+    // 読み込んでいない古い動画にかかる期間で 0 本のときは、そこにあるかもしれないので「ない」と言い切らない
+    const none = info.missesOlder ? t("urlSumNoVideosTruncated").replace("{max}", String(MAX_UPLOADS)) : t("urlSumNoVideos");
     main = info.count ? t("urlSumChannel").replace("{videos}", videosPhrase(t, info)) : none.replace("{kind}", noun);
   }
   if (words.length) main = append(main, t("urlSumWords").replace("{words}", words.join("・")));
