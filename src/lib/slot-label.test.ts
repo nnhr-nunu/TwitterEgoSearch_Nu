@@ -27,7 +27,7 @@ describe("slotTitleOf", () => {
   it("puts the tab name next to 設定N", () => {
     const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
     expect(slotTitleOf(config, "設定1", "{slot}「{name}」")).toBe("設定1「ぬぬはら」");
-    expect(slotTitleOf({ ...config, displayName: "自分" }, "Setup 1", '{slot} ("{name}")')).toBe('Setup 1 ("自分")');
+    expect(slotTitleOf({ ...config, displayName: "自分" }, "Setup 1", "{slot} (“{name}”)")).toBe("Setup 1 (“自分”)");
   });
 
   it("keeps a $ in the name as it is", () => {
