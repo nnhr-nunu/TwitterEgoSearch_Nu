@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import type { UrlSearchState, VideoKindFilter } from "@/lib/url-search";
-import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "@/lib/youtube";
+import { type ChannelVideo, MAX_UPLOADS, VIDEO_KINDS, type VideoKind, videoDate } from "@/lib/youtube";
 
 type YoutubeChannelVideosProps = {
   t: (key: MessageKey) => string;
@@ -21,6 +21,8 @@ type YoutubeChannelVideosProps = {
   // 読み込んだ動画の総数と、チャンネルにある種類
   total: number;
   channelKinds: VideoKind[];
+  // 上限（MAX_UPLOADS）で古い動画を読み込まなかったとき true
+  truncated: boolean;
   // その動画 1 本だけの反応を探す X の検索 URL（上部の対象は変えずに、新しいタブで開く）
   searchUrlOf: (video: ChannelVideo) => string;
   // 何を探すかの説明。絞り込みのすぐ下、一覧の上に出す
@@ -136,6 +138,7 @@ export function YoutubeChannelVideos({
   matched,
   total,
   channelKinds,
+  truncated,
   searchUrlOf,
   summary,
 }: YoutubeChannelVideosProps) {
@@ -185,11 +188,19 @@ export function YoutubeChannelVideos({
 
       {channelOnly ? null : (
         <>
-          <div className="flex items-baseline justify-between gap-2 pt-1">
-            <p className="text-sm font-medium">{t("ytListTitle")}</p>
-            <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
-              {matched.length} / {total}
-            </p>
+          <div className="space-y-0.5 pt-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium">{t("ytListTitle")}</p>
+              <p className="text-xs tabular-nums text-muted-foreground" data-testid="yt-matched">
+                {matched.length} / {total}
+              </p>
+            </div>
+            {/* 上限より古い動画は対象に入らないので、黙って抜けないよう件数のすぐ下で伝える */}
+            {truncated ? (
+              <p className="text-xs text-muted-foreground" data-testid="yt-truncated">
+                {t("ytTruncated").replace("{count}", String(MAX_UPLOADS))}
+              </p>
+            ) : null}
           </div>
           <VideoList key={listKey} t={t} videos={matched} showKind={kinds.length > 0} searchUrlOf={searchUrlOf} />
         </>

@@ -335,6 +335,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
                   matched={matched}
                   total={channel.videos.length}
                   channelKinds={VIDEO_KINDS.filter((kind) => channel.videos.some((video) => video.kind === kind))}
+                  // 前に保存した一覧に無いときも、打ち切っていないものとして扱う
+                  truncated={channel.truncated === true}
                   searchUrlOf={videoSearchUrl}
                   summary={summary}
                 />
