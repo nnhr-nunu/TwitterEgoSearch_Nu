@@ -32,6 +32,7 @@ import {
   pendingChannelKey,
   saveUrlSearch,
   type SearchBatch,
+  stopsSearch,
   type UrlSearchState,
   type UrlTarget,
   postWindow,
@@ -97,6 +98,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const target = parseTargetUrl(state.url);
   const channel = target?.kind === "channel" ? findChannel(channels, target.token) : null;
   const cardError = cardLoadError(loadError, target, channel !== null);
+  // 見つからなかったチャンネル（@ハンドルか ID の URL）は、検索ボタンも要約も止める
+  const stopped = stopsSearch(cardError, target);
   const videoInfo = useYoutubeVideoInfo(target?.kind === "video" ? target.token : null, channels);
   // 動画のときも、その動画のチャンネルを読み込んであれば本人のアカウントなどを使う
   const ownerChannel =
@@ -133,8 +136,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   if (channel) {
     const links = [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""];
     batches = buildChannelBatches(view, { links, owners, videoIds: matched.map((video) => video.id) });
-  } else if (cardError !== "notFound") {
-    // 見つからなかったチャンネルは、リンクを貼った投稿も無いので探さない
+  } else if (!stopped) {
     const query = buildMainQuery(view, { owners, keyword, names });
     if (query) batches = [{ query, from: 1, to: 0 }];
   }
@@ -156,7 +158,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
           }
         : { kind: "channelOnly" };
   }
-  const summary = <YoutubeScopeSummary t={t} info={scope} words={words} />;
+  // 検索を止めているあいだは、何を探すかの文も出さない
+  const summary = stopped ? null : <YoutubeScopeSummary t={t} info={scope} words={words} />;
 
   const lowerWords = new Set(words.map((word) => word.toLowerCase()));
   const wordSuggestions = uniqueCaseless([...(ownerChannel?.channel.hashtags ?? []), ...nameWords]).filter(
@@ -200,8 +203,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   // 一覧を全部取り、期間を合わせる
   const loadChannel = async (ref: string, cached: ChannelData | null) => {
     setLoading(true);
-    // 読み込みを始めたら（やり直しも含めて）前の失敗は消す。成功すればそのまま消えた状態になる
-    setLoadError(null);
+    // 前の失敗は、読み込みを始めたときではなく成功したときに消す（やり直しのあいだも「もう一度読み込む」をカードに残す）
     try {
       if (cached && !isExpiredChannel(cached)) {
         const result = await refreshChannelVideos(cached, apiKey);
@@ -214,6 +216,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         const data = await fetchChannelVideos(ref, apiKey);
         saveChannel(data, ref);
         if (!stillShowing(ref, data)) return;
+        setLoadError(null);
         // 期間は読み込みを始めたときではなく、いまの期間から広げる（待つあいだに変えていることがある）
         const widened = widenPeriod(data.videos, latest.current);
         if (widened) setNotice({ tone: "info", text: widened });
@@ -286,7 +289,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         t={t}
         testId="url-search"
         label={t("urlSearch")}
-        emptyHint={cardError === "notFound" ? t("ytNotFoundHint") : t("urlIntro")}
+        emptyHint={stopped ? t("ytNotFoundHint") : t("urlIntro")}
         action={
           <YoutubeSearchButton
             // 条件が変わったら、何回目まで開いたかを最初に戻す
@@ -325,6 +328,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
               void loadChannel(channel.ref, channel);
             }}
             onRetry={() => {
+              // 読み込み中のボタンは aria-disabled（フォーカスを残すため disabled にしない）なので、押されてもここで止める
               if (target?.kind !== "channel" || loading) return;
               setNotice(null);
               void loadChannel(target.token, null);

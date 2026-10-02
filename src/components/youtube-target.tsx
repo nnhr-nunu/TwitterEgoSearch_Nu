@@ -147,15 +147,16 @@ function TargetCard({
           {t("ytRefresh")}
         </Button>
       );
-    } else if (loadError && loadError !== "notFound" && canLoad) {
-      // 見つからなかったチャンネルは何度読んでも同じなので、やり直しは上限と通信の失敗などのときだけ
+    } else if (loadError === "other" && canLoad) {
+      // やり直しは通信の失敗などのときだけ。見つからなかったチャンネルは何度読んでも同じで、上限は明日まで待つしかない。
+      // 押してもボタンが消えたり disabled になったりするとフォーカスが外れるので、読み込み中も同じ場所に残して押せない見た目にする
       action = (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="-ml-2 text-primary"
-          disabled={loading}
+          className="-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent"
+          aria-disabled={loading || undefined}
           onClick={onRetry}
           data-testid="yt-retry"
         >
@@ -166,17 +167,24 @@ function TargetCard({
     }
   }
 
+  // やり直しの読み込み中はわけを隠す（また失敗したら出し直すので、もう一度読み上げられる）
+  const shownError = loading ? null : loadError;
+
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-border bg-background p-3" data-testid="url-target">
+    <div
+      // 読み込めなかったあいだは白地に赤みのある枠にして、読み込めたカードと見分けられるようにする（白地なら赤い字も 4.5:1 に届く）
+      className={`flex items-start gap-3 rounded-lg border p-3 ${shownError ? "border-destructive/40 bg-card" : "border-border bg-background"}`}
+      data-testid="url-target"
+    >
       {media}
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="line-clamp-2 text-sm font-medium leading-snug break-words" data-testid="url-target-title">
           {title}
         </p>
         <p className="truncate text-xs text-muted-foreground">{sub}</p>
-        {loadError ? (
+        {shownError ? (
           <p className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
-            {t(LOAD_ERROR_MESSAGES[loadError])}
+            {t(LOAD_ERROR_MESSAGES[shownError])}
           </p>
         ) : null}
         {action}

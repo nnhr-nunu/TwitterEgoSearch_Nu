@@ -10,6 +10,7 @@ import {
   parseTargetUrl,
   loadUrlSearch,
   postWindow,
+  stopsSearch,
   URL_SEARCH_STORAGE_KEY,
   videosInScope,
   widerPeriod,
@@ -349,6 +350,28 @@ describe("cardLoadError", () => {
     expect(cardLoadError({ ref: "dQw4w9WgXcQ", kind: "other" }, parseTargetUrl("https://youtu.be/dQw4w9WgXcQ"), false)).toBeNull();
     expect(cardLoadError({ ref: "nnhr_nunu", kind: "other" }, null, false)).toBeNull();
     expect(cardLoadError(null, channel, false)).toBeNull();
+  });
+});
+
+describe("stopsSearch", () => {
+  it("stops the search for a missing channel given by handle or channel ID", () => {
+    expect(stopsSearch("notFound", parseTargetUrl("https://www.youtube.com/@nnhr_nunu"))).toBe(true);
+    expect(stopsSearch("notFound", parseTargetUrl("https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv"))).toBe(true);
+  });
+
+  it("keeps searching old /c/ and /user/ URLs the API cannot look up", () => {
+    // 古いカスタム URL は API で引けなくても、URL 自体は正しいことがある
+    expect(stopsSearch("notFound", parseTargetUrl("https://www.youtube.com/c/nunu"))).toBe(false);
+    expect(stopsSearch("notFound", parseTargetUrl("https://www.youtube.com/user/nunu"))).toBe(false);
+  });
+
+  it("keeps searching when the channel may still exist", () => {
+    const channel = parseTargetUrl("https://www.youtube.com/@nnhr_nunu");
+    expect(stopsSearch("quota", channel)).toBe(false);
+    expect(stopsSearch("other", channel)).toBe(false);
+    expect(stopsSearch(null, channel)).toBe(false);
+    expect(stopsSearch("notFound", parseTargetUrl("https://youtu.be/dQw4w9WgXcQ"))).toBe(false);
+    expect(stopsSearch("notFound", null)).toBe(false);
   });
 });
 

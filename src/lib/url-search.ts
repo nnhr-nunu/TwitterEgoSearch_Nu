@@ -347,6 +347,13 @@ export function cardLoadError(error: ChannelLoadError | null, target: UrlTarget 
   return target.token.toLowerCase() === error.ref.toLowerCase() ? error.kind : null;
 }
 
+// 見つからなかったチャンネルは、リンクを貼った投稿も無いので検索を止める。止めるのは @ハンドルか UC… の ID の URL だけで、
+// 古い /c/・/user/ の URL は API で引けなくても URL 自体は正しいことがあるので、今までどおりリンクを探す
+export function stopsSearch(error: LoadErrorKind | null, target: UrlTarget | null): boolean {
+  if (error !== "notFound" || target?.kind !== "channel") return false;
+  return target.link.startsWith("youtube.com/@") || CHANNEL_ID_RE.test(target.link);
+}
+
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
