@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { UrlSearchPanel } from "@/components/url-search-panel";
 import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
+import { type SearchDrafts, withDrafts } from "@/lib/drafts";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
 import {
@@ -125,6 +126,9 @@ export function SearchApp() {
   const [urlPanelKey, setUrlPanelKey] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareKey, setShareKey] = useState(0);
+  // 名前とアカウントの欄に打っただけで、まだ追加していない文字。検索ボタンは押すと欄を離れて追加されるので、
+  // 打った時点で押せる見た目にし、その言葉を含む式にしておく。保存・シェアには使わない
+  const [drafts, setDrafts] = useState<SearchDrafts>({});
 
   const t = (key: MessageKey) => translate(locale, key);
   // 読み込みが終わったら名前の欄にカーソルを置くか（開いた設定が空で、マウスで使う画面のとき）
@@ -208,14 +212,20 @@ export function SearchApp() {
   const searchState = searchStates[slot];
   const baseline = baselineOf(searchState.mark, now);
   const sinceTime = sinceTimeOf(searchState, now);
+  // 検索ボタンに渡す式と押せるかどうかだけ、打ちかけの文字を足した設定から作る
+  const searchConfig = useMemo(() => withDrafts(config, drafts), [config, drafts]);
   const postsQuery = useMemo(
-    () => buildPostsQuery(config, { sinceTime, locale }),
-    [config, sinceTime, locale],
+    () => buildPostsQuery(searchConfig, { sinceTime, locale }),
+    [searchConfig, sinceTime, locale],
   );
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
-  const postsOk = canSearchPosts(config);
+  const postsOk = canSearchPosts(searchConfig);
 
   const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
+
+  function changeDraft(field: keyof SearchDrafts, value: string) {
+    setDrafts((current) => ((current[field] ?? "") === value ? current : { ...current, [field]: value }));
+  }
 
   function patchSearchState(index: number, next: Partial<SlotSearchState>) {
     setSearchStates((current) => current.map((item, i) => (i === index ? { ...item, ...next } : item)));
@@ -444,10 +454,16 @@ export function SearchApp() {
               onChange={(keywords) => patch({ keywords })}
               onHonorificsChange={(honorifics) => patch({ honorifics })}
               onMatchAllChange={(matchAll) => patch({ matchAll })}
+              onDraftChange={(draft) => changeDraft("keywords", draft)}
               t={t}
             />
             <FormSection icon={FunnelIcon} title={t("narrowSection")} testId="narrow-section">
-              <ProfileFields config={config} onChange={patch} t={t} />
+              <ProfileFields
+                config={config}
+                onChange={patch}
+                onHandleDraftChange={(draft) => changeDraft("handles", draft)}
+                t={t}
+              />
             </FormSection>
             <FormSection icon={BanIcon} title={t("excludeSection")} testId="exclude-section">
               <MuteAccounts

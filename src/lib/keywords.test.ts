@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { splitSearchNames } from "./keywords";
+import { appendCaseless, splitSearchNames } from "./keywords";
+
+describe("appendCaseless", () => {
+  it("adds new words after the current ones, skipping case-insensitive duplicates", () => {
+    expect(appendCaseless(["ABC", "ぬぬはら"], ["abc", "Nunu", "NUNU", "ぬぬさん"])).toEqual([
+      "ABC",
+      "ぬぬはら",
+      "Nunu",
+      "ぬぬさん",
+    ]);
+  });
+
+  it("does not change the given list", () => {
+    const values = ["ぬぬはら"];
+    expect(appendCaseless(values, ["ぬぬさん"])).toEqual(["ぬぬはら", "ぬぬさん"]);
+    expect(values).toEqual(["ぬぬはら"]);
+  });
+});
 
 describe("splitSearchNames", () => {
   it("splits on half-width spaces, full-width spaces, and commas", () => {
