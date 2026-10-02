@@ -105,11 +105,12 @@ export function SharedBanner({ config, locale, replaces, onImport, onDismiss, t 
         </Button>
 
         {/* 設定1〜3 が埋まっているときは、どの設定が消えるかを押す前に伝える。
-            区切りのない長い名前でもはみ出さないよう見出しと同じく折り返し、最後の行に 1 語だけ残さない（日本語には効かないので、文を短くして PC 幅では 1 行に収める） */}
+            区切りのない長い名前でもはみ出さないよう見出しと同じく折り返し、最後の行に 1 語だけ残さない。
+            日本語は text-pretty が効かないので、文節で折り返して「戻せ／ます。」と語の途中で切らない（auto-phrase は Chromium だけ） */}
         {replaces ? (
           <p
             id={REPLACE_NOTE_ID}
-            className="text-xs leading-relaxed text-pretty break-words text-muted-foreground"
+            className="text-xs leading-relaxed text-pretty break-words [word-break:auto-phrase] text-muted-foreground"
             data-testid="shared-replace-note"
           >
             {t("sharedReplaceNote").replace("{slot}", () => replaces)}
