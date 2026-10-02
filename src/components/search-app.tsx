@@ -42,7 +42,8 @@ import {
 } from "@/lib/last-search";
 import { buildPostsQuery, buildSearchUrl, canSearchPosts, isQueryTooLong } from "@/lib/query";
 import { parseSearchParams } from "@/lib/share-url";
-import { slotLabelOf } from "@/lib/slot-label";
+import { sharedImportTarget } from "@/lib/shared-import";
+import { slotLabelOf, slotTitleOf } from "@/lib/slot-label";
 import {
   loadActiveSlot,
   loadLocale,
@@ -256,12 +257,14 @@ export function SearchApp() {
     window.history.replaceState(null, "", window.location.pathname);
   }
 
+  // 共有リンクの条件を保存する先。着地カードの注記もこれを見るので、予告と実際の置き換え先がずれない
+  const sharedTarget = sharedImportTarget(slots, slot);
+
   // 空いている設定に入れる。空きが無ければいま開いている設定を置き換える
   function importShared() {
     if (!shared) return;
-    const blank = slots.findIndex((item) => isBlankConfig(item));
-    const target = (blank >= 0 ? blank : slot) as SlotIndex;
-    const replaced = blank >= 0 ? null : slots[target];
+    const { target, replaces } = sharedTarget;
+    const replaced = replaces ? slots[target] : null;
     const replacedState = searchStates[target];
     setSlots(slots.map((item, i) => (i === target ? cloneConfig(shared) : item)));
     // 別の条件に入れ替わるので、前の条件で検索を開いた時刻は持ち越さない
@@ -428,7 +431,18 @@ export function SearchApp() {
           />
         ) : null}
         {shared ? (
-          <SharedBanner config={shared} locale={locale} onImport={importShared} onDismiss={startOwnSearch} t={t} />
+          <SharedBanner
+            config={shared}
+            locale={locale}
+            replaces={
+              sharedTarget.replaces
+                ? slotTitleOf(slots[sharedTarget.target], slotName(sharedTarget.target), t("sharedReplaceSlot"))
+                : null
+            }
+            onImport={importShared}
+            onDismiss={startOwnSearch}
+            t={t}
+          />
         ) : null}
         <SlotTabs
           value={urlView ? "url" : slot}

@@ -13,6 +13,8 @@ import type { Locale, SearchConfig } from "@/lib/types";
 type SharedBannerProps = {
   config: SearchConfig;
   locale: Locale;
+  // 保存すると置き換わる設定の名前（「設定1「ぬぬはら」」など）。空きがあって置き換えないときは null
+  replaces: string | null;
   onImport: () => void;
   onDismiss: () => void;
   t: (key: MessageKey) => string;
@@ -21,7 +23,7 @@ type SharedBannerProps = {
 const HEADING_SUBJECTS = 2;
 
 /** シェア投稿から来た人の着地カード。まず結果を見せ、そのあと自分のエゴサへ誘う */
-export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedBannerProps) {
+export function SharedBanner({ config, locale, replaces, onImport, onDismiss, t }: SharedBannerProps) {
   const subjects = shareSubjects(config);
   // 見出しに入りきらない（「ほか◯件」になる）ときだけ、名前を全部チップで並べる。入りきるなら見出しと同じものが並ぶだけになる
   const listSubjects = subjects.length > HEADING_SUBJECTS;
@@ -100,10 +102,17 @@ export function SharedBanner({ config, locale, onImport, onDismiss, t }: SharedB
           </a>
         </Button>
 
+        {/* 設定1〜3 が埋まっているときは、どの設定が消えるかを押す前に伝える */}
+        {replaces ? (
+          <p className="text-xs leading-relaxed text-muted-foreground" data-testid="shared-replace-note">
+            {t("sharedReplaceNote").replace("{slot}", () => replaces)}
+          </p>
+        ) : null}
+
         <div className="grid gap-2 sm:grid-cols-2">
           <Button type="button" variant="outline" onClick={onImport} data-testid="shared-import">
             <BookmarkPlusIcon data-icon="inline-start" />
-            {t("sharedImport")}
+            {t(replaces ? "sharedImportReplace" : "sharedImport")}
           </Button>
           <Button type="button" variant="ghost" onClick={onDismiss} data-testid="shared-start">
             <ArrowDownIcon data-icon="inline-start" />
