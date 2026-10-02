@@ -3,6 +3,7 @@
 import { ChipInput } from "@/components/chip-input";
 import { DateFilters } from "@/components/date-filters";
 import type { MessageKey } from "@/lib/i18n";
+import { ownHandlesPatch } from "@/lib/drafts";
 import type { SearchConfig } from "@/lib/types";
 
 type ProfileFieldsProps = {
@@ -21,7 +22,7 @@ export function ProfileFields({ config, onChange, onHandleDraftChange, t }: Prof
         label={t("handle")}
         placeholder={t("handlePlaceholder")}
         values={config.handles}
-        onChange={(handles) => onChange({ handles, handle: handles[0] ?? "" })}
+        onChange={(handles) => onChange(ownHandlesPatch(handles))}
         addLabel={t("addKeyword")}
         removeLabel={t("removeItem")}
         mode="handle"

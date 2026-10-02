@@ -1,20 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "./defaults";
-import { searchWithDrafts, withDrafts } from "./drafts";
+import { mergeChipValues, type SearchDrafts, withDrafts } from "./drafts";
+import { splitSearchNames } from "./keywords";
 import { buildPostsQuery, canSearchPosts } from "./query";
+
+// 打っていない欄は空のまま
+const drafts = (over: Partial<SearchDrafts>): SearchDrafts => ({ keywords: "", handles: "", ...over });
 
 describe("withDrafts", () => {
   it("returns the same config when nothing is typed", () => {
     const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
-    expect(withDrafts(config, {})).toBe(config);
-    expect(withDrafts(config, { keywords: "", handles: "" })).toBe(config);
-    expect(withDrafts(config, { keywords: "  　、", handles: " " })).toBe(config);
+    expect(withDrafts(config, drafts({}))).toBe(config);
+    expect(withDrafts(config, drafts({ keywords: "  　、", handles: " " }))).toBe(config);
   });
 
   it("makes a typed-only name searchable", () => {
     const config = createDefaultConfig();
     expect(canSearchPosts(config)).toBe(false);
-    const next = withDrafts(config, { keywords: "ぬぬはら" });
+    const next = withDrafts(config, drafts({ keywords: "ぬぬはら" }));
     expect(canSearchPosts(next)).toBe(true);
     expect(buildPostsQuery(next)).toContain('"ぬぬはら"');
     // 確定した設定には触らない
@@ -23,7 +26,7 @@ describe("withDrafts", () => {
 
   it("adds typed names the same way as the 「＋」 button", () => {
     const config = { ...createDefaultConfig(), keywords: ["ABC"] };
-    expect(withDrafts(config, { keywords: 'abc ぬぬはら、"Nunu Hara"' }).keywords).toEqual([
+    expect(withDrafts(config, drafts({ keywords: 'abc ぬぬはら、"Nunu Hara"' })).keywords).toEqual([
       "ABC",
       "ぬぬはら",
       "Nunu Hara",
@@ -32,12 +35,12 @@ describe("withDrafts", () => {
 
   it("returns the same config when every typed name is already there", () => {
     const config = { ...createDefaultConfig(), keywords: ["ABC", "ぬぬはら"] };
-    expect(withDrafts(config, { keywords: "abc ぬぬはら" })).toBe(config);
+    expect(withDrafts(config, drafts({ keywords: "abc ぬぬはら" }))).toBe(config);
   });
 
   it("adds a readable account and makes it searchable", () => {
     const config = createDefaultConfig();
-    const next = withDrafts(config, { handles: "@nnhr_nunu https://x.com/Other_1" });
+    const next = withDrafts(config, drafts({ handles: "@nnhr_nunu https://x.com/Other_1" }));
     expect(next.handles).toEqual(["nnhr_nunu", "Other_1"]);
     expect(next.handle).toBe("nnhr_nunu");
     expect(canSearchPosts(next)).toBe(true);
@@ -46,61 +49,51 @@ describe("withDrafts", () => {
 
   it("skips accounts already added, ignoring case", () => {
     const config = { ...createDefaultConfig(), handles: ["nnhr_nunu"], handle: "nnhr_nunu" };
-    expect(withDrafts(config, { handles: "@NNHR_NUNU" })).toBe(config);
-    expect(withDrafts(config, { handles: "NNHR_NUNU other" }).handles).toEqual(["nnhr_nunu", "other"]);
+    expect(withDrafts(config, drafts({ handles: "@NNHR_NUNU" }))).toBe(config);
+    expect(withDrafts(config, drafts({ handles: "NNHR_NUNU other" })).handles).toEqual(["nnhr_nunu", "other"]);
   });
 
   it("ignores an account that cannot be read", () => {
     const config = createDefaultConfig();
-    expect(withDrafts(config, { handles: "@" })).toBe(config);
-    expect(withDrafts(config, { handles: "ぬぬはら" })).toBe(config);
-    expect(canSearchPosts(withDrafts(config, { handles: "ぬぬはら" }))).toBe(false);
+    expect(withDrafts(config, drafts({ handles: "@" }))).toBe(config);
+    expect(withDrafts(config, drafts({ handles: "ぬぬはら" }))).toBe(config);
+    expect(canSearchPosts(withDrafts(config, drafts({ handles: "ぬぬはら" })))).toBe(false);
   });
 
   it("adds both names and accounts at once", () => {
-    const next = withDrafts(createDefaultConfig(), { keywords: "ぬぬはら", handles: "nnhr_nunu" });
+    const next = withDrafts(createDefaultConfig(), drafts({ keywords: "ぬぬはら", handles: "nnhr_nunu" }));
     expect(next.keywords).toEqual(["ぬぬはら"]);
     expect(next.handles).toEqual(["nnhr_nunu"]);
   });
 });
 
-describe("searchWithDrafts", () => {
-  const since = 1790380800;
-
-  it("keeps the since time when nothing is typed", () => {
-    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
-    const search = searchWithDrafts(config, { keywords: " " }, since);
-    expect(search.config).toBe(config);
-    expect(search.sinceTime).toBe(since);
+describe("mergeChipValues", () => {
+  it("returns null when nothing can be read", () => {
+    expect(mergeChipValues(["a"], "  ", "text")).toBeNull();
+    expect(mergeChipValues(["a"], "、 ,", "text", splitSearchNames)).toBeNull();
+    expect(mergeChipValues([], "ぬぬはら", "handle")).toBeNull();
+    expect(mergeChipValues([], "@", "handle")).toBeNull();
   });
 
-  it("drops the since time while a typed name is added", () => {
-    // 押すと欄を離れて追加され、名前を変えたときと同じく「前回より後だけ」が切れるので、押す前の式もそろえる
-    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
-    const search = searchWithDrafts(config, { keywords: "nnhr" }, since);
-    expect(search.config.keywords).toEqual(["ぬぬはら", "nnhr"]);
-    expect(search.sinceTime).toBeUndefined();
-    expect(buildPostsQuery(search.config, { sinceTime: search.sinceTime })).not.toContain("since_time:");
+  it("returns the same list when everything is already there", () => {
+    const names = ["ABC", "ぬぬはら"];
+    expect(mergeChipValues(names, "abc ぬぬはら", "text", splitSearchNames)).toBe(names);
+    const handles = ["nnhr_nunu", "NNHR_NUNU"];
+    // 前から重なっていた一覧でも、増えなければそのまま返す
+    expect(mergeChipValues(handles, "@nnhr_nunu", "handle")).toBe(handles);
   });
 
-  it("drops the since time while a typed account is added", () => {
-    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
-    const search = searchWithDrafts(config, { handles: "@nnhr_nunu" }, since);
-    expect(search.config.handles).toEqual(["nnhr_nunu"]);
-    expect(search.sinceTime).toBeUndefined();
+  it("adds new words without the ones already there", () => {
+    expect(mergeChipValues(["ABC"], 'abc ぬぬはら、"Nunu Hara"', "text", splitSearchNames)).toEqual([
+      "ABC",
+      "ぬぬはら",
+      "Nunu Hara",
+    ]);
+    // 区切り方を渡さない欄は、打った文字をまるごと 1 つにする
+    expect(mergeChipValues([], " 嫌い 苦手 ", "text")).toEqual(["嫌い 苦手"]);
   });
 
-  it("keeps the since time when the typed words add nothing", () => {
-    // すでにある名前と、読めないアカウントは足さないので、式も変わらない
-    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
-    const search = searchWithDrafts(config, { keywords: "ぬぬはら", handles: "ぬぬはら" }, since);
-    expect(search.config).toBe(config);
-    expect(search.sinceTime).toBe(since);
-  });
-
-  it("leaves the since time off when there was none", () => {
-    const search = searchWithDrafts(createDefaultConfig(), { keywords: "ぬぬはら" }, undefined);
-    expect(search.sinceTime).toBeUndefined();
-    expect(canSearchPosts(search.config)).toBe(true);
+  it("adds readable accounts and drops duplicates", () => {
+    expect(mergeChipValues(["nnhr_nunu"], "NNHR_NUNU https://x.com/Other_1", "handle")).toEqual(["nnhr_nunu", "Other_1"]);
   });
 });

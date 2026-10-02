@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { UrlSearchPanel } from "@/components/url-search-panel";
 import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
-import { type SearchDrafts, searchWithDrafts } from "@/lib/drafts";
+import { type SearchDrafts, withDrafts } from "@/lib/drafts";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
 import {
@@ -129,7 +129,7 @@ export function SearchApp() {
   const [shareKey, setShareKey] = useState(0);
   // 名前とアカウントの欄に打っただけで、まだ追加していない文字。検索ボタンは押すと欄を離れて追加されるので、
   // 打った時点で押せる見た目にし、その言葉を含む式にしておく。保存・シェアには使わない
-  const [drafts, setDrafts] = useState<SearchDrafts>({});
+  const [drafts, setDrafts] = useState<SearchDrafts>({ keywords: "", handles: "" });
 
   const t = (key: MessageKey) => translate(locale, key);
   // 読み込みが終わったら名前の欄にカーソルを置くか（開いた設定が空で、マウスで使う画面のとき）
@@ -213,28 +213,26 @@ export function SearchApp() {
   const searchState = searchStates[slot];
   const baseline = baselineOf(searchState.mark, now);
   const sinceTime = sinceTimeOf(searchState, now);
+  // 確定した設定の式。長すぎる注意はこちらで見る（打っている途中で出たり消えたりすると、読み上げられ、下の欄もずれる）
+  const savedQuery = useMemo(() => buildPostsQuery(config, { sinceTime, locale }), [config, sinceTime, locale]);
   // 検索ボタンに渡す式と押せるかどうかだけ、打ちかけの文字を足した設定から作る
-  const search = useMemo(() => searchWithDrafts(config, drafts, sinceTime), [config, drafts, sinceTime]);
+  const draftConfig = useMemo(() => withDrafts(config, drafts), [config, drafts]);
+  // 打った言葉で名前やアカウントが増えているか。押すと欄を離れて追加され、名前を変えたときと同じく
+  // 「前回より後だけ」が切れるので、マウスを乗せたときに見える URL や中クリックで開く式にも since を付けない
+  const draftAdds = draftConfig !== config;
   const postsQuery = useMemo(
-    () => buildPostsQuery(search.config, { sinceTime: search.sinceTime, locale }),
-    [search.config, search.sinceTime, locale],
+    () => (draftAdds ? buildPostsQuery(draftConfig, { locale }) : savedQuery),
+    [draftAdds, draftConfig, locale, savedQuery],
   );
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
-  const postsOk = canSearchPosts(search.config);
+  const postsOk = canSearchPosts(draftConfig);
   // 確定した設定だけで探せるか。シェアは確定した設定を渡すので、打っただけのあいだは出さない
   const savedOk = canSearchPosts(config);
-  // 打った言葉で名前やアカウントが増えているか（押すと「前回より後だけ」が切れる）
-  const draftAdds = search.config !== config;
-  // 長すぎる注意は確定した設定の式で見る。打っている途中で出たり消えたりすると、読み上げられ、下の欄もずれる
-  const savedQuery = useMemo(
-    () => (draftAdds ? buildPostsQuery(config, { sinceTime, locale }) : postsQuery),
-    [draftAdds, config, sinceTime, locale, postsQuery],
-  );
 
   const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
 
   function changeDraft(field: keyof SearchDrafts, value: string) {
-    setDrafts((current) => ((current[field] ?? "") === value ? current : { ...current, [field]: value }));
+    setDrafts((current) => (current[field] === value ? current : { ...current, [field]: value }));
   }
 
   function patchSearchState(index: number, next: Partial<SlotSearchState>) {
