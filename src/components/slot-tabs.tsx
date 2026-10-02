@@ -1,6 +1,7 @@
 "use client";
 
 import type { MouseEvent } from "react";
+import { flushSync } from "react-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MessageKey } from "@/lib/i18n";
 import { switchesTabOnMouseDown } from "@/lib/tab-switch";
@@ -21,11 +22,12 @@ type SlotTabsProps = {
 const SLOT_LABELS: MessageKey[] = ["slot1", "slot2", "slot3"];
 
 // 打ちかけの名前やアカウントは欄を離れたときに今の設定へ足す。Radix はマウスを押した時点で切り替え、
-// そのあとで欄が外れると切り替え先に入ってしまうので、切り替える前にこちらで欄を外しておく
+// そのあとで欄が外れると切り替え先に入ってしまうので、切り替える前にこちらで欄を外しておく。
+// YouTube タブの欄は切り替えでパネルごと外れるので、足した言葉の保存まで先に済ませる（flushSync）
 function leaveFieldBeforeSwitch(event: MouseEvent<HTMLButtonElement>) {
   if (!switchesTabOnMouseDown(event)) return;
   const active = document.activeElement;
-  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) active.blur();
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) flushSync(() => active.blur());
 }
 
 export function SlotTabs({ value, onChange, labels, t }: SlotTabsProps) {
