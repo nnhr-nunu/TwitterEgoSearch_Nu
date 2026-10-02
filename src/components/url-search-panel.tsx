@@ -22,8 +22,6 @@ import { channelNameWords, titleKeyword } from "@/lib/title-keywords";
 import {
   buildChannelBatches,
   buildMainQuery,
-  cardLoadError,
-  type ChannelLoadError,
   channelLink,
   channelWordsOf,
   loadUrlSearch,
@@ -44,6 +42,7 @@ import {
   type ChannelData,
   type ChannelVideo,
   fetchChannelVideos,
+  type LoadErrorKind,
   loadErrorKind,
   refreshChannelVideos,
   VIDEO_KINDS,
@@ -83,8 +82,9 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const [channels, setChannels] = useState<ChannelData[]>(loadChannelCache);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
-  // 一覧をまだ持っていないチャンネルの読み込みに失敗したとき、どのチャンネルがどんなわけで失敗したか（カードの中に出す）
-  const [loadError, setLoadError] = useState<ChannelLoadError | null>(null);
+  // 一覧をまだ持っていないチャンネルの読み込みに失敗したわけ（カードの中に出す）。対象を変えたときに消し、
+  // 待つあいだに切り替えた対象の失敗は記録しない（stillShowing）ので、いま見ているチャンネルのものだけが入る
+  const [loadError, setLoadError] = useState<LoadErrorKind | null>(null);
 
   // 一覧の読み込みは非同期なので、終わった時点の対象・期間を見られるよう最新の state も持っておく
   const latest = useRef(state);
@@ -97,7 +97,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const apiKey = youtubeApiKey();
   const target = parseTargetUrl(state.url);
   const channel = target?.kind === "channel" ? findChannel(channels, target.token) : null;
-  const cardError = cardLoadError(loadError, target, channel !== null);
+  // 一覧を持っているチャンネル（新着の確認の失敗）は、カードの中ではなく下のお知らせに出す
+  const cardError = target?.kind === "channel" && !channel ? loadError : null;
   // 見つからなかったチャンネル（@ハンドルか ID の URL）は、検索ボタンも要約も止める
   const stopped = stopsSearch(cardError, target);
   const videoInfo = useYoutubeVideoInfo(target?.kind === "video" ? target.token : null, channels);
@@ -226,7 +227,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
       const kind = loadErrorKind(caught);
       // 一覧を持っているチャンネル（新着の確認の失敗）はカードの下に、持っていなければカードの中に出す
       if (cached) setNotice({ tone: "error", text: t(LOAD_ERROR_MESSAGES[kind]) });
-      else setLoadError({ ref, kind });
+      else setLoadError(kind);
     } finally {
       setLoading(false);
     }

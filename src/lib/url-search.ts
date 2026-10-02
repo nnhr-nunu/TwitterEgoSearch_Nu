@@ -337,21 +337,12 @@ export function moveChannelWords(map: Record<string, string[]>, from: string, to
   return withChannelWords(withChannelWords(map, from, []), to, uniqueCaseless([...channelWordsOf(map, to), ...moving]));
 }
 
-// どのチャンネル（入力 URL から読んだ値）の読み込みが、どんなわけで失敗したか
-export type ChannelLoadError = { ref: string; kind: LoadErrorKind };
-
-// 一覧をまだ持っていないチャンネルの読み込みに失敗したら、そのカードの中で知らせる。
-// 一覧を持っているチャンネル（新着の確認の失敗）や、別の対象を見ているときは null
-export function cardLoadError(error: ChannelLoadError | null, target: UrlTarget | null, loaded: boolean): LoadErrorKind | null {
-  if (!error || loaded || target?.kind !== "channel") return null;
-  return target.token.toLowerCase() === error.ref.toLowerCase() ? error.kind : null;
-}
-
 // 見つからなかったチャンネルは、リンクを貼った投稿も無いので検索を止める。止めるのは @ハンドルか UC… の ID の URL だけで、
 // 古い /c/・/user/ の URL は API で引けなくても URL 自体は正しいことがあるので、今までどおりリンクを探す
 export function stopsSearch(error: LoadErrorKind | null, target: UrlTarget | null): boolean {
   if (error !== "notFound" || target?.kind !== "channel") return false;
-  return target.link.startsWith("youtube.com/@") || CHANNEL_ID_RE.test(target.link);
+  // @ハンドルと ID の URL は channelLink と同じ形のリンクになる（/c/・/user/ は youtube.com/c/… のまま）
+  return target.link === channelLink(target.token);
 }
 
 function strings(value: unknown): string[] {
