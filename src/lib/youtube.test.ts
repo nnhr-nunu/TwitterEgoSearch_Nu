@@ -230,6 +230,61 @@ describe("refreshChannelVideos", () => {
   });
 });
 
+describe("upload limit", () => {
+  // 新しい順に並んだ n 本のアップロード。番号が小さいほど新しい
+  const uploadIds = (n: number) => Array.from({ length: n }, (_, i) => `v${String(i).padStart(10, "0")}`);
+  const publishedOf = (id: string) =>
+    id.startsWith("new") ? "2026-02-01T00:00:00Z" : new Date(Date.UTC(2026, 0, 1) - Number(id.slice(1)) * 3_600_000).toISOString();
+
+  // アップロード一覧を API と同じく 50 本ずつのページで返す
+  function pagedRoutes(uploads: string[]): Record<string, Route> {
+    return {
+      ...channelRoutes({}),
+      playlistItems: (params) => {
+        if (params.get("playlistId") !== `UU${SUFFIX}`) return notFound;
+        const start = Number(params.get("pageToken") || 0);
+        const items = uploads.slice(start, start + 50).map((videoId) => ({ contentDetails: { videoId } }));
+        return { body: { items, nextPageToken: start + 50 < uploads.length ? String(start + 50) : undefined } };
+      },
+      videos: (params) => ({
+        body: { items: (params.get("id") ?? "").split(",").map((id) => video(id, publishedOf(id), "PT10M")) },
+      }),
+    };
+  }
+
+  it("is not truncated when the channel has exactly the limit", async () => {
+    const { impl } = fakeFetch(pagedRoutes(uploadIds(1000)));
+    const data = await fetchChannelVideos(CHANNEL_ID, "KEY", impl);
+    expect(data.videos).toHaveLength(1000);
+    expect(data.truncated).toBe(false);
+  });
+
+  it("keeps the newest videos and marks the list truncated past the limit", async () => {
+    const { impl } = fakeFetch(pagedRoutes(uploadIds(1001)));
+    const data = await fetchChannelVideos(CHANNEL_ID, "KEY", impl);
+    expect(data.videos).toHaveLength(1000);
+    expect(data.videos.at(-1)?.id).toBe("v0000000999");
+    expect(data.truncated).toBe(true);
+  });
+
+  it("marks the list truncated when new uploads push old ones out", async () => {
+    const full = await fetchChannelVideos(CHANNEL_ID, "KEY", fakeFetch(pagedRoutes(uploadIds(1000).slice(1))).impl);
+    expect(full.truncated).toBe(false);
+    // 前は 999 本。新着 2 本で上限を超え、いちばん古い 1 本が抜ける
+    const { data, added } = await refreshChannelVideos(full, "KEY", fakeFetch(pagedRoutes(["new00000001", ...uploadIds(1000)])).impl);
+    expect(added).toBe(2);
+    expect(data.videos).toHaveLength(1000);
+    expect(data.videos.some((v) => v.id === "v0000000999")).toBe(false);
+    expect(data.truncated).toBe(true);
+  });
+
+  it("stays truncated when nothing is new", async () => {
+    const full = await fetchChannelVideos(CHANNEL_ID, "KEY", fakeFetch(pagedRoutes(uploadIds(1001))).impl);
+    const { data } = await refreshChannelVideos(full, "KEY", fakeFetch(pagedRoutes(uploadIds(1001))).impl);
+    expect(data.truncated).toBe(true);
+  });
+});
+
 describe("fetchVideoInfo", () => {
   it("reads the title and channel of one video", async () => {
     const { impl, calls } = fakeFetch({
