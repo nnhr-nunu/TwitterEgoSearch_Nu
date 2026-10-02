@@ -59,7 +59,7 @@ import {
   saveChannelCache,
   upsertChannel,
 } from "@/lib/youtube-cache";
-import type { ScopeInfo } from "@/lib/youtube-scope";
+import { missesOlderVideos, type ScopeInfo } from "@/lib/youtube-scope";
 
 type UrlSearchPanelProps = {
   t: (key: MessageKey) => string;
@@ -153,8 +153,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
             window: postWindow(state),
             videoKind: state.videoKind,
             batches,
-            // 前に保存した一覧に無いときも、打ち切っていないものとして扱う
-            truncated: channel.truncated === true,
+            missesOlder: missesOlderVideos(channel.truncated, channel.videos, postWindow(state)),
           }
         : { kind: "channelOnly" };
   }
@@ -361,8 +360,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
                   matched={matched}
                   total={channel.videos.length}
                   channelKinds={VIDEO_KINDS.filter((kind) => channel.videos.some((video) => video.kind === kind))}
-                  // 前に保存した一覧に無いときも、打ち切っていないものとして扱う
-                  truncated={channel.truncated === true}
+                  truncated={channel.truncated}
                   searchUrlOf={videoSearchUrl}
                   summary={summary}
                 />
