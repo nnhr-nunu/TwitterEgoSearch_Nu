@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { UrlSearchPanel } from "@/components/url-search-panel";
 import { cloneConfig, createDefaultConfig, isBlankConfig } from "@/lib/defaults";
 import { resolveQueryWindow } from "@/lib/dates";
-import { type SearchDrafts, withDrafts } from "@/lib/drafts";
+import { type SearchDrafts, searchWithDrafts } from "@/lib/drafts";
 import { uniqueHandles } from "@/lib/handle";
 import { t as translate, type MessageKey } from "@/lib/i18n";
 import {
@@ -214,13 +214,15 @@ export function SearchApp() {
   const baseline = baselineOf(searchState.mark, now);
   const sinceTime = sinceTimeOf(searchState, now);
   // 検索ボタンに渡す式と押せるかどうかだけ、打ちかけの文字を足した設定から作る
-  const searchConfig = useMemo(() => withDrafts(config, drafts), [config, drafts]);
+  const search = useMemo(() => searchWithDrafts(config, drafts, sinceTime), [config, drafts, sinceTime]);
   const postsQuery = useMemo(
-    () => buildPostsQuery(searchConfig, { sinceTime, locale }),
-    [searchConfig, sinceTime, locale],
+    () => buildPostsQuery(search.config, { sinceTime: search.sinceTime, locale }),
+    [search, locale],
   );
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
-  const postsOk = canSearchPosts(searchConfig);
+  const postsOk = canSearchPosts(search.config);
+  // 確定した設定だけで探せるか。シェアは確定した設定を渡すので、打っただけのあいだは出さない
+  const savedOk = canSearchPosts(config);
 
   const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
 
@@ -356,11 +358,18 @@ export function SearchApp() {
       onSort={(sort: ResultSort) => patch({ sort })}
       onMinFaves={(minFaves) => patch({ minFaves })}
       onMedia={(mediaOnly) => patch({ mediaOnly })}
-      onShare={openShare}
+      onShare={savedOk ? openShare : undefined}
       onOpen={recordOpen}
       t={t}
       testId={testId}
     >
+      {/* 打っただけで押せるようになったら、消えた案内（emptyKeywords）の代わりに同じ長さの文を出す。
+          行数が変わると、打っている欄の位置が 1 文字目でずれる */}
+      {savedOk ? null : (
+        <p className="text-sm text-muted-foreground" data-testid={`${testId}-draft-hint`}>
+          {t("draftSearchHint")}
+        </p>
+      )}
       {isQueryTooLong(postsQuery) ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}

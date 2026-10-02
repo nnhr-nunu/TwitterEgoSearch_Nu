@@ -77,6 +77,7 @@ export const messages = {
     copyQuery: "クエリをコピー",
     clearForm: "入力を消す",
     emptyKeywords: "下の欄に名前かアカウントを入れると検索できます。",
+    draftSearchHint: "このまま押せば、打った言葉を追加して検索します。",
     queryTooLong: "条件が多すぎて（{count}文字）、X で検索に失敗することがあります。X の検索は約500文字までなので、名前や除外するアカウントを減らしてください。",
     loading: "読み込み中…",
     copied: "コピーしました",
@@ -282,6 +283,7 @@ export const messages = {
     copyQuery: "Copy query",
     clearForm: "Clear what I entered",
     emptyKeywords: "Enter a name or an account below to search.",
+    draftSearchHint: "Press to add what you've typed, then search.",
     queryTooLong:
       "This search is too long ({count} characters) and may fail on X, which accepts about 500. Remove some names or excluded accounts.",
     loading: "Loading…",

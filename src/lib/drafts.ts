@@ -25,3 +25,15 @@ export function withDrafts(config: SearchConfig, drafts: SearchDrafts): SearchCo
     ...(addsHandles ? { handles, handle: handles[0] ?? "" } : {}),
   };
 }
+
+// 検索ボタンに渡す設定と「前回の検索より後」の時刻。打ちかけの文字を足したときは時刻を付けない。
+// 押すと欄を離れて追加され、名前やアカウントを変えたときと同じく「前回より後だけ」が切れるので、
+// マウスを乗せたときに見える URL や中クリックで開く URL も、押したあとに開く式とそろえる
+export function searchWithDrafts(
+  config: SearchConfig,
+  drafts: SearchDrafts,
+  sinceTime: number | undefined,
+): { config: SearchConfig; sinceTime: number | undefined } {
+  const next = withDrafts(config, drafts);
+  return { config: next, sinceTime: next === config ? sinceTime : undefined };
+}

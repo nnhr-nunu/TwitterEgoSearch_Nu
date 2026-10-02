@@ -47,6 +47,8 @@ export function FloatingSearch({ url, label, watchTestId, onOpen }: FloatingSear
       });
     document.addEventListener("focusin", update);
     document.addEventListener("focusout", update);
+    // 空の設定で 1 文字目を打ったときのように、欄に打っている最中に作られることもあるので、作った時点でも見る
+    update();
     return () => {
       document.removeEventListener("focusin", update);
       document.removeEventListener("focusout", update);
