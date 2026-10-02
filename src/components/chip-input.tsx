@@ -64,13 +64,16 @@ export function ChipInput({
         return;
       }
       setInvalid(false);
-      onChange(uniqueHandles([...items, ...next]));
+      // もう入っているものだけなら、中身の同じ一覧で onChange を呼ばない（名前を変えたとして「前回より後だけ」が切れる）
+      const handles = uniqueHandles([...items, ...next]);
+      if (handles.length > items.length) onChange(handles);
       changeDraft("");
       return;
     }
     const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
     if (tokens.length === 0) return;
-    onChange(appendCaseless(items, tokens));
+    const merged = appendCaseless(items, tokens);
+    if (merged.length > items.length) onChange(merged);
     changeDraft("");
   }
 

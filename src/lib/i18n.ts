@@ -285,7 +285,7 @@ export const messages = {
     copyQuery: "Copy query",
     clearForm: "Clear what I entered",
     emptyKeywords: "Enter a name or an account below to search.",
-    draftSearchHint: "Press to add what you've typed, then search.",
+    draftSearchHint: "Press to search with what you've typed.",
     queryTooLong:
       "This search is too long ({count} characters) and may fail on X, which accepts about 500. Remove some names or excluded accounts.",
     loading: "Loading…",
