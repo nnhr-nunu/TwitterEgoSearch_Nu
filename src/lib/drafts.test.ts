@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "./defaults";
-import { withDrafts } from "./drafts";
+import { searchWithDrafts, withDrafts } from "./drafts";
 import { buildPostsQuery, canSearchPosts } from "./query";
 
 describe("withDrafts", () => {
@@ -61,5 +61,46 @@ describe("withDrafts", () => {
     const next = withDrafts(createDefaultConfig(), { keywords: "ぬぬはら", handles: "nnhr_nunu" });
     expect(next.keywords).toEqual(["ぬぬはら"]);
     expect(next.handles).toEqual(["nnhr_nunu"]);
+  });
+});
+
+describe("searchWithDrafts", () => {
+  const since = 1790380800;
+
+  it("keeps the since time when nothing is typed", () => {
+    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
+    const search = searchWithDrafts(config, { keywords: " " }, since);
+    expect(search.config).toBe(config);
+    expect(search.sinceTime).toBe(since);
+  });
+
+  it("drops the since time while a typed name is added", () => {
+    // 押すと欄を離れて追加され、名前を変えたときと同じく「前回より後だけ」が切れるので、押す前の式もそろえる
+    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
+    const search = searchWithDrafts(config, { keywords: "nnhr" }, since);
+    expect(search.config.keywords).toEqual(["ぬぬはら", "nnhr"]);
+    expect(search.sinceTime).toBeUndefined();
+    expect(buildPostsQuery(search.config, { sinceTime: search.sinceTime })).not.toContain("since_time:");
+  });
+
+  it("drops the since time while a typed account is added", () => {
+    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
+    const search = searchWithDrafts(config, { handles: "@nnhr_nunu" }, since);
+    expect(search.config.handles).toEqual(["nnhr_nunu"]);
+    expect(search.sinceTime).toBeUndefined();
+  });
+
+  it("keeps the since time when the typed words add nothing", () => {
+    // すでにある名前と、読めないアカウントは足さないので、式も変わらない
+    const config = { ...createDefaultConfig(), keywords: ["ぬぬはら"] };
+    const search = searchWithDrafts(config, { keywords: "ぬぬはら", handles: "ぬぬはら" }, since);
+    expect(search.config).toBe(config);
+    expect(search.sinceTime).toBe(since);
+  });
+
+  it("leaves the since time off when there was none", () => {
+    const search = searchWithDrafts(createDefaultConfig(), { keywords: "ぬぬはら" }, undefined);
+    expect(search.sinceTime).toBeUndefined();
+    expect(canSearchPosts(search.config)).toBe(true);
   });
 });
