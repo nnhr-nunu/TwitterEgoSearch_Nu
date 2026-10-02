@@ -27,9 +27,12 @@ export function missesOlderVideos(
   videos: Pick<ChannelVideo, "publishedAt">[],
   window: Pick<DateWindow, "since">,
 ): boolean {
-  if (!truncated) return false;
-  const dates = videos.map(videoDate).filter(Boolean).sort();
-  return !window.since || !dates.length || window.since <= dates[0];
+  if (!truncated || !window.since) return truncated;
+  // 一覧を並べ替えずに、いちばん古い公開日だけを探す（API の publishedAt は同じ形の ISO なので文字列で比べられる）
+  let oldest = "";
+  for (const video of videos) if (video.publishedAt && (!oldest || video.publishedAt < oldest)) oldest = video.publishedAt;
+  const date = oldest ? videoDate({ publishedAt: oldest }) : "";
+  return !date || window.since <= date;
 }
 
 // 種類が「チャンネル」のときは動画を数えないので、名前は要らない
