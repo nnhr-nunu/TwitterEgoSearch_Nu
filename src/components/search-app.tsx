@@ -217,12 +217,14 @@ export function SearchApp() {
   const search = useMemo(() => searchWithDrafts(config, drafts, sinceTime), [config, drafts, sinceTime]);
   const postsQuery = useMemo(
     () => buildPostsQuery(search.config, { sinceTime: search.sinceTime, locale }),
-    [search, locale],
+    [search.config, search.sinceTime, locale],
   );
   const liveUrl = buildSearchUrl(postsQuery, "posts", config.sort);
   const postsOk = canSearchPosts(search.config);
   // 確定した設定だけで探せるか。シェアは確定した設定を渡すので、打っただけのあいだは出さない
   const savedOk = canSearchPosts(config);
+  // 打った言葉で名前やアカウントが増えているか（押すと「前回より後だけ」が切れる）
+  const draftAdds = search.config !== config;
 
   const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
 
@@ -375,11 +377,13 @@ export function SearchApp() {
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}
         </p>
       ) : null}
-      {baseline !== null ? (
+      {/* 打っただけで押せるようになったあいだは出さない（1 文字目で枠が伸びて欄がずれる）。打った言葉で
+          名前が増えているあいだは、押すと切れて式にも since が入らないので、オフとして見せる */}
+      {baseline !== null && savedOk ? (
         <NewOnlyToggle
           baseline={baseline}
           now={now}
-          checked={searchState.newOnly}
+          checked={searchState.newOnly && !draftAdds}
           onChange={(newOnly) => patchSearchState(slot, { newOnly })}
           t={t}
         />

@@ -10,7 +10,7 @@ export type SearchDrafts = {
 
 // 打ちかけの文字を、追加したときと同じ規則で足した設定を返す。検索ボタンは押すと欄を離れて追加されるので、
 // 押す前から押せる見た目にし、押したときと同じ式にしておくのに使う。読めないアカウントは足さない。
-// 足すものが無ければ同じ設定をそのまま返す（useMemo で式を作り直さないように）
+// 足すものが無ければ同じ設定をそのまま返す（足したかどうかを、呼び出し側が同じかどうかで見分けられるように）
 export function withDrafts(config: SearchConfig, drafts: SearchDrafts): SearchConfig {
   const keywords = appendCaseless(config.keywords, splitSearchNames(drafts.keywords ?? ""));
   const current = uniqueHandles(config.handles);
