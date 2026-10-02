@@ -50,11 +50,6 @@ const KIND_LABELS: Record<UrlTargetKind, MessageKey> = {
   page: "urlKindPage",
 };
 
-// 「新着を確認」と「もう一度読み込む」。押したあとの読み込み中も disabled にせず（disabled にするとフォーカスが外れる）、
-// aria-disabled で押せない見た目にする。文字とアイコンだけを薄くする（ボタンごと薄くするとフォーカスの枠も薄くなって見失う）
-const LOAD_BUTTON_CLASS =
-  "-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:text-primary/50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary/50 aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent";
-
 function formatFetchedAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -101,13 +96,14 @@ function TargetCard({
   | "onOpenChannel"
 > & { target: UrlTarget }) {
   const errorText = useRef<HTMLParagraphElement>(null);
-  // やり直しボタンにフォーカスがあったか。やり直した結果が上限や「見つからない」でボタンが消えると、
+  // 読み込みのボタンにフォーカスがあったか。やり直した結果が上限や「見つからない」でボタンが消えると、
   // フォーカスが行き場を失うので、わけの文へ移す（✕ へ移すと、続けて押した Enter で対象が消える）
-  const retryFocused = useRef(false);
-  const showRetry = target.kind === "channel" && !channel && loadError === "other" && canLoad;
+  const loadButtonFocused = useRef(false);
+  // やり直しは通信の失敗などのときだけ。見つからなかったチャンネルは何度読んでも同じで、上限は明日まで待つしかない
+  const showRetry = loadError === "other" && canLoad;
   useEffect(() => {
-    if (showRetry || !retryFocused.current) return;
-    retryFocused.current = false;
+    if (showRetry || !loadButtonFocused.current) return;
+    loadButtonFocused.current = false;
     // 読み込めて「新着を確認」に替わったときは同じボタンにフォーカスが残っているので、動かさない
     if (document.activeElement === document.body || !document.activeElement) errorText.current?.focus();
   }, [showRetry]);
@@ -149,42 +145,34 @@ function TargetCard({
         ? t("ytLoaded").replace("{count}", String(channel.videos.length)).replace("{date}", formatFetchedAt(channel.fetchedAt))
         : t("urlKindChannel");
     media = <Avatar src={channel?.channel.thumbnail} className="size-12" />;
-    if (channel && canLoad) {
+    // 一覧を持っていれば「新着を確認」、読み込めなかったら「もう一度読み込む」。同じ場所の同じボタンにして、やり直しが読み込めて
+    // 「新着を確認」に替わってもフォーカスが残るようにする。押したあとの読み込み中も disabled にせず（フォーカスが外れる）、
+    // aria-disabled で押せない見た目にする。文字とアイコンだけを薄くする（ボタンごと薄くするとフォーカスの枠も薄くなって見失う）
+    const load =
+      channel && canLoad
+        ? { label: t("ytRefresh"), onClick: onRefresh, testId: "yt-refresh" }
+        : showRetry
+          ? { label: t("ytRetry"), onClick: onRetry, testId: "yt-retry" }
+          : null;
+    if (load) {
       action = (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className={LOAD_BUTTON_CLASS}
+          className="-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:text-primary/50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary/50 aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent"
           aria-disabled={loading || undefined}
-          onClick={onRefresh}
-          data-testid="yt-refresh"
-        >
-          <RefreshCwIcon data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
-          {t("ytRefresh")}
-        </Button>
-      );
-    } else if (showRetry) {
-      // やり直しは通信の失敗などのときだけ。見つからなかったチャンネルは何度読んでも同じで、上限は明日まで待つしかない。
-      // 押してもボタンが消えるとフォーカスが外れるので、読み込み中も同じ場所に残す
-      action = (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={LOAD_BUTTON_CLASS}
-          aria-disabled={loading || undefined}
-          onClick={onRetry}
+          onClick={load.onClick}
           onFocus={() => {
-            retryFocused.current = true;
+            loadButtonFocused.current = true;
           }}
           onBlur={() => {
-            retryFocused.current = false;
+            loadButtonFocused.current = false;
           }}
-          data-testid="yt-retry"
+          data-testid={load.testId}
         >
           <RefreshCwIcon data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
-          {t("ytRetry")}
+          {load.label}
         </Button>
       );
     }
