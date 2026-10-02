@@ -29,6 +29,8 @@ type SearchClusterProps = {
   // ボタンの文言と、押せないときの説明。省略すると設定1〜3 の文言
   label?: string;
   emptyHint?: string;
+  // 打っただけ（まだ追加していない）の言葉で押せるあいだに、押せないときの説明の代わりに出す文
+  draftHint?: string;
   // ボタンの下に出す補足（何を探すか）
   children?: ReactNode;
   // 検索ボタンの代わりに置くもの（YouTube タブの、何回かに分けて開くボタン）
@@ -57,10 +59,12 @@ export function SearchCluster({
   testId,
   label,
   emptyHint,
+  draftHint,
   children,
   action,
 }: SearchClusterProps) {
   const buttonLabel = label ?? t("searchPosts");
+  const emptyText = emptyHint ?? t("emptyKeywords");
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" data-testid={testId}>
       <div className="space-y-2">
@@ -88,7 +92,24 @@ export function SearchCluster({
           </a>
         </Button>
         )}
-        {!postsOk ? <p className="text-sm text-muted-foreground">{emptyHint ?? t("emptyKeywords")}</p> : null}
+        {/* 打ちかけで押せるようになったら説明を差し替える。2 つの文を同じ場所に重ねて高さを長いほうにそろえ、
+            文の長さや画面の幅で行数が変わっても、1 文字目で下の入力欄がずれないようにする */}
+        {draftHint !== undefined ? (
+          <div className="grid text-sm text-muted-foreground">
+            <p className={`col-start-1 row-start-1 ${postsOk ? "invisible" : ""}`} aria-hidden={postsOk || undefined}>
+              {emptyText}
+            </p>
+            <p
+              className={`col-start-1 row-start-1 ${postsOk ? "" : "invisible"}`}
+              aria-hidden={!postsOk || undefined}
+              data-testid={`${testId}-draft-hint`}
+            >
+              {draftHint}
+            </p>
+          </div>
+        ) : !postsOk ? (
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
+        ) : null}
         {postsOk ? children : null}
       </div>
 
