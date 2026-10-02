@@ -14,6 +14,15 @@ export function uniqueCaseless(values: string[]): string[] {
   });
 }
 
+// 今ある言葉の後ろに足す。X の検索は大文字小文字を区別しないので、「ABC」のあとの「abc」は同じ言葉として足さない
+export function appendCaseless(values: string[], tokens: string[]): string[] {
+  const next = [...values];
+  for (const token of tokens) {
+    if (!next.some((item) => item.toLowerCase() === token.toLowerCase())) next.push(token);
+  }
+  return next;
+}
+
 export function splitSearchNames(raw: string): string[] {
   const normalized = raw.normalize("NFC");
   const seen = new Set<string>();

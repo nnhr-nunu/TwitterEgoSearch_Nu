@@ -1,12 +1,13 @@
 "use client";
 
 import { PlusIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseHandleList, uniqueHandles } from "@/lib/handle";
+import { appendCaseless } from "@/lib/keywords";
 
 type ChipInputProps = {
   id: string;
@@ -21,6 +22,8 @@ type ChipInputProps = {
   // 消すボタンの読み上げ（例:「{item} を削除」）。{item} が入れた言葉に置き換わる
   removeLabel?: string;
   testId?: string;
+  // 打ちかけの文字が変わったとき（打った・追加して空になった・欄が外された）に呼ぶ
+  onDraftChange?: (draft: string) => void;
 };
 
 export function ChipInput({
@@ -35,10 +38,23 @@ export function ChipInput({
   invalidMessage,
   removeLabel = "{item}",
   testId,
+  onDraftChange,
 }: ChipInputProps) {
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
   const items = mode === "handle" ? uniqueHandles(values) : values;
+
+  // 欄が外されたとき（YouTube タブへ移ったときなど）に打ちかけが無くなったと伝えるので、最新の関数を持っておく
+  const draftListener = useRef(onDraftChange);
+  useEffect(() => {
+    draftListener.current = onDraftChange;
+  }, [onDraftChange]);
+  useEffect(() => () => draftListener.current?.(""), []);
+
+  function changeDraft(next: string) {
+    setDraft(next);
+    onDraftChange?.(next);
+  }
 
   function add(raw = draft) {
     if (mode === "handle") {
@@ -49,18 +65,13 @@ export function ChipInput({
       }
       setInvalid(false);
       onChange(uniqueHandles([...items, ...next]));
-      setDraft("");
+      changeDraft("");
       return;
     }
     const tokens = tokenize ? tokenize(raw) : [raw.trim()].filter(Boolean);
     if (tokens.length === 0) return;
-    // X の検索は大文字小文字を区別しないので、「ABC」のあとの「abc」は同じ言葉として足さない
-    const next = [...items];
-    for (const token of tokens) {
-      if (!next.some((item) => item.toLowerCase() === token.toLowerCase())) next.push(token);
-    }
-    onChange(next);
-    setDraft("");
+    onChange(appendCaseless(items, tokens));
+    changeDraft("");
   }
 
   return (
@@ -76,7 +87,7 @@ export function ChipInput({
           spellCheck={false}
           data-testid={testId ? `${testId}-input` : undefined}
           onChange={(event) => {
-            setDraft(event.target.value);
+            changeDraft(event.target.value);
             if (invalid) setInvalid(false);
           }}
           onKeyDown={(event) => {

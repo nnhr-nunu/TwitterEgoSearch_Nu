@@ -25,6 +25,8 @@ type KeywordEditorProps = {
   onChange: (keywords: string[]) => void;
   onHonorificsChange: (honorifics: HonorificId[]) => void;
   onMatchAllChange: (matchAll: boolean) => void;
+  // 名前の欄に打っただけで、まだ追加していない文字が変わったとき
+  onDraftChange?: (draft: string) => void;
   t: (key: MessageKey) => string;
 };
 
@@ -35,6 +37,7 @@ export function KeywordEditor({
   onChange,
   onHonorificsChange,
   onMatchAllChange,
+  onDraftChange,
   t,
 }: KeywordEditorProps) {
   const terms = expandSearchTerms(keywords, honorifics);
@@ -60,6 +63,7 @@ export function KeywordEditor({
         removeLabel={t("removeItem")}
         tokenize={splitSearchNames}
         testId="keyword"
+        onDraftChange={onDraftChange}
       />
       {/* ひらがな・カタカナ・半角カナ・空白なしの書き方を、押すだけで足せるようにする */}
       <SuggestionChips
