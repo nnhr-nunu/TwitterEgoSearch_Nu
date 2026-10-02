@@ -50,6 +50,11 @@ const KIND_LABELS: Record<UrlTargetKind, MessageKey> = {
   page: "urlKindPage",
 };
 
+// 「新着を確認」と「もう一度読み込む」。押したあとの読み込み中も disabled にせず（disabled にするとフォーカスが外れる）、
+// aria-disabled で押せない見た目にする。文字とアイコンだけを薄くする（ボタンごと薄くするとフォーカスの枠も薄くなって見失う）
+const LOAD_BUTTON_CLASS =
+  "-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:text-primary/50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary/50 aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent";
+
 function formatFetchedAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -95,16 +100,16 @@ function TargetCard({
   | "onRetry"
   | "onOpenChannel"
 > & { target: UrlTarget }) {
-  const clearButton = useRef<HTMLButtonElement>(null);
+  const errorText = useRef<HTMLParagraphElement>(null);
   // やり直しボタンにフォーカスがあったか。やり直した結果が上限や「見つからない」でボタンが消えると、
-  // フォーカスが行き場を失うので、カードの ✕ へ移す
+  // フォーカスが行き場を失うので、わけの文へ移す（✕ へ移すと、続けて押した Enter で対象が消える）
   const retryFocused = useRef(false);
   const showRetry = target.kind === "channel" && !channel && loadError === "other" && canLoad;
   useEffect(() => {
     if (showRetry || !retryFocused.current) return;
     retryFocused.current = false;
     // 読み込めて「新着を確認」に替わったときは同じボタンにフォーカスが残っているので、動かさない
-    if (document.activeElement === document.body || !document.activeElement) clearButton.current?.focus();
+    if (document.activeElement === document.body || !document.activeElement) errorText.current?.focus();
   }, [showRetry]);
 
   let title = target.token;
@@ -150,8 +155,8 @@ function TargetCard({
           type="button"
           variant="ghost"
           size="sm"
-          className="-ml-2 text-primary"
-          disabled={loading}
+          className={LOAD_BUTTON_CLASS}
+          aria-disabled={loading || undefined}
           onClick={onRefresh}
           data-testid="yt-refresh"
         >
@@ -161,14 +166,13 @@ function TargetCard({
       );
     } else if (showRetry) {
       // やり直しは通信の失敗などのときだけ。見つからなかったチャンネルは何度読んでも同じで、上限は明日まで待つしかない。
-      // 押してもボタンが消えたり disabled になったりするとフォーカスが外れるので、読み込み中も同じ場所に残して押せない見た目にする
+      // 押してもボタンが消えるとフォーカスが外れるので、読み込み中も同じ場所に残す
       action = (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          // 押せないあいだは文字とアイコンだけを薄くする（ボタンごと薄くするとフォーカスの枠も薄くなって見失う）
-          className="-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:text-primary/50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary/50 aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent"
+          className={LOAD_BUTTON_CLASS}
           aria-disabled={loading || undefined}
           onClick={onRetry}
           onFocus={() => {
@@ -206,7 +210,7 @@ function TargetCard({
               {t(LOAD_ERROR_MESSAGES[loadError])}
             </p>
           ) : (
-            <p key="alert" className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
+            <p key="alert" ref={errorText} tabIndex={-1} className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
               {t(LOAD_ERROR_MESSAGES[loadError])}
             </p>
           )
@@ -214,7 +218,6 @@ function TargetCard({
         {action}
       </div>
       <Button
-        ref={clearButton}
         type="button"
         variant="ghost"
         size="icon-sm"
