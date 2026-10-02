@@ -21,6 +21,8 @@ type SharedBannerProps = {
 };
 
 const HEADING_SUBJECTS = 2;
+// 置き換えの注記。保存ボタンの aria-describedby からも指す
+const REPLACE_NOTE_ID = "shared-replace-note";
 
 /** シェア投稿から来た人の着地カード。まず結果を見せ、そのあと自分のエゴサへ誘う */
 export function SharedBanner({ config, locale, replaces, onImport, onDismiss, t }: SharedBannerProps) {
@@ -102,15 +104,27 @@ export function SharedBanner({ config, locale, replaces, onImport, onDismiss, t 
           </a>
         </Button>
 
-        {/* 設定1〜3 が埋まっているときは、どの設定が消えるかを押す前に伝える */}
+        {/* 設定1〜3 が埋まっているときは、どの設定が消えるかを押す前に伝える。
+            区切りのない長い名前でもはみ出さないよう見出しと同じく折り返し、最後の行に 1 語だけ残さない（日本語には効かないので、文を短くして PC 幅では 1 行に収める） */}
         {replaces ? (
-          <p className="text-xs leading-relaxed text-muted-foreground" data-testid="shared-replace-note">
+          <p
+            id={REPLACE_NOTE_ID}
+            className="text-xs leading-relaxed text-pretty break-words text-muted-foreground"
+            data-testid="shared-replace-note"
+          >
             {t("sharedReplaceNote").replace("{slot}", () => replaces)}
           </p>
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button type="button" variant="outline" onClick={onImport} data-testid="shared-import">
+          {/* 読み上げでもボタンに注記をつなぎ、どの設定が置き換わるかを伝える */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onImport}
+            aria-describedby={replaces ? REPLACE_NOTE_ID : undefined}
+            data-testid="shared-import"
+          >
             <BookmarkPlusIcon data-icon="inline-start" />
             {t(replaces ? "sharedImportReplace" : "sharedImport")}
           </Button>
