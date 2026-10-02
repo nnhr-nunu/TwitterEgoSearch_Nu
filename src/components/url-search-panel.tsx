@@ -145,15 +145,16 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   let scope: ScopeInfo = { kind: "page" };
   if (target?.kind === "video") scope = { kind: "video", keyword, names };
   if (target?.kind === "channel") {
+    const period = postWindow(state);
     scope =
       channel && state.videoKind !== "channel"
         ? {
             kind: "channel",
             count: matched.length,
-            window: postWindow(state),
+            window: period,
             videoKind: state.videoKind,
             batches,
-            missesOlder: missesOlderVideos(channel.truncated, channel.videos, postWindow(state)),
+            missesOlder: missesOlderVideos(channel.truncated, channel.videos, period),
           }
         : { kind: "channelOnly" };
   }

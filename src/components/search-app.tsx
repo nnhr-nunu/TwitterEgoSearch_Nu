@@ -225,6 +225,11 @@ export function SearchApp() {
   const savedOk = canSearchPosts(config);
   // 打った言葉で名前やアカウントが増えているか（押すと「前回より後だけ」が切れる）
   const draftAdds = search.config !== config;
+  // 長すぎる注意は確定した設定の式で見る。打っている途中で出たり消えたりすると、読み上げられ、下の欄もずれる
+  const savedQuery = useMemo(
+    () => (draftAdds ? buildPostsQuery(config, { sinceTime, locale }) : postsQuery),
+    [draftAdds, config, sinceTime, locale, postsQuery],
+  );
 
   const slotName = (index: number) => t(`slot${index + 1}` as MessageKey);
 
@@ -367,9 +372,9 @@ export function SearchApp() {
       // 確定した設定では探せないあいだだけ渡す（打っただけで押せるようになったら、案内を差し替える）
       draftHint={savedOk ? undefined : t("draftSearchHint")}
     >
-      {isQueryTooLong(postsQuery) ? (
+      {isQueryTooLong(savedQuery) ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
-          {t("queryTooLong").replace("{count}", String(postsQuery.length))}
+          {t("queryTooLong").replace("{count}", String(savedQuery.length))}
         </p>
       ) : null}
       {/* 打っただけで押せるようになったあいだは出さない（1 文字目で枠が伸びて欄がずれる）。打った言葉で
