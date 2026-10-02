@@ -1,7 +1,7 @@
 "use client";
 
 import { GlobeIcon, ListVideoIcon, RefreshCwIcon, TvIcon, XIcon } from "lucide-react";
-import { type ClipboardEvent, type FormEvent, useState } from "react";
+import { type ClipboardEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,6 +95,18 @@ function TargetCard({
   | "onRetry"
   | "onOpenChannel"
 > & { target: UrlTarget }) {
+  const clearButton = useRef<HTMLButtonElement>(null);
+  // やり直しボタンにフォーカスがあったか。やり直した結果が上限や「見つからない」でボタンが消えると、
+  // フォーカスが行き場を失うので、カードの ✕ へ移す
+  const retryFocused = useRef(false);
+  const showRetry = target.kind === "channel" && !channel && loadError === "other" && canLoad;
+  useEffect(() => {
+    if (showRetry || !retryFocused.current) return;
+    retryFocused.current = false;
+    // 読み込めて「新着を確認」に替わったときは同じボタンにフォーカスが残っているので、動かさない
+    if (document.activeElement === document.body || !document.activeElement) clearButton.current?.focus();
+  }, [showRetry]);
+
   let title = target.token;
   let sub = t(KIND_LABELS[target.kind]);
   let media = (
@@ -147,7 +159,7 @@ function TargetCard({
           {t("ytRefresh")}
         </Button>
       );
-    } else if (loadError === "other" && canLoad) {
+    } else if (showRetry) {
       // やり直しは通信の失敗などのときだけ。見つからなかったチャンネルは何度読んでも同じで、上限は明日まで待つしかない。
       // 押してもボタンが消えたり disabled になったりするとフォーカスが外れるので、読み込み中も同じ場所に残して押せない見た目にする
       action = (
@@ -155,9 +167,16 @@ function TargetCard({
           type="button"
           variant="ghost"
           size="sm"
-          className="-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent"
+          // 押せないあいだは文字とアイコンだけを薄くする（ボタンごと薄くするとフォーカスの枠も薄くなって見失う）
+          className="-ml-2 text-primary aria-disabled:cursor-not-allowed aria-disabled:text-primary/50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-primary/50 aria-disabled:active:translate-y-0 dark:aria-disabled:hover:bg-transparent"
           aria-disabled={loading || undefined}
           onClick={onRetry}
+          onFocus={() => {
+            retryFocused.current = true;
+          }}
+          onBlur={() => {
+            retryFocused.current = false;
+          }}
           data-testid="yt-retry"
         >
           <RefreshCwIcon data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
@@ -167,13 +186,10 @@ function TargetCard({
     }
   }
 
-  // やり直しの読み込み中はわけを隠す（また失敗したら出し直すので、もう一度読み上げられる）
-  const shownError = loading ? null : loadError;
-
   return (
     <div
       // 読み込めなかったあいだは白地に赤みのある枠にして、読み込めたカードと見分けられるようにする（白地なら赤い字も 4.5:1 に届く）
-      className={`flex items-start gap-3 rounded-lg border p-3 ${shownError ? "border-destructive/40 bg-card" : "border-border bg-background"}`}
+      className={`flex items-start gap-3 rounded-lg border p-3 ${loadError ? "border-destructive/40 bg-card" : "border-border bg-background"}`}
       data-testid="url-target"
     >
       {media}
@@ -182,14 +198,23 @@ function TargetCard({
           {title}
         </p>
         <p className="truncate text-xs text-muted-foreground">{sub}</p>
-        {shownError ? (
-          <p className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
-            {t(LOAD_ERROR_MESSAGES[shownError])}
-          </p>
+        {/* やり直しの読み込み中は、わけを見えなくするだけで場所は残す（カードが縮んで、押したボタンが上へ逃げないように）。
+            また失敗したら alert の要素を入れ直すので、もう一度読み上げられる */}
+        {loadError ? (
+          loading ? (
+            <p key="pending" className="invisible text-sm" aria-hidden>
+              {t(LOAD_ERROR_MESSAGES[loadError])}
+            </p>
+          ) : (
+            <p key="alert" className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
+              {t(LOAD_ERROR_MESSAGES[loadError])}
+            </p>
+          )
         ) : null}
         {action}
       </div>
       <Button
+        ref={clearButton}
         type="button"
         variant="ghost"
         size="icon-sm"

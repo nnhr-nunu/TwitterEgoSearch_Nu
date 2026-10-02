@@ -186,8 +186,12 @@ describe("fetchChannelVideos", () => {
 });
 
 describe("loadErrorKind", () => {
-  it.each(["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"])("treats %s as the daily limit", (reason) => {
+  it.each(["quotaExceeded", "dailyLimitExceeded"])("treats %s as the daily limit", (reason) => {
     expect(loadErrorKind(new YoutubeApiError("limit", reason))).toBe("quota");
+  });
+
+  it("treats a short rate limit as a failure that can be retried soon", () => {
+    expect(loadErrorKind(new YoutubeApiError("rate limit", "rateLimitExceeded"))).toBe("other");
   });
 
   it("tells a missing channel apart", () => {
