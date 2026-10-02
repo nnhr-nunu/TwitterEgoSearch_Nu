@@ -40,16 +40,20 @@ export function FloatingSearch({ url, label, watchTestId, onOpen }: FloatingSear
     // キーボードが画面に出るのはタッチの端末だけなので、マウスで使う画面では打っているあいだも出しておく
     if (!window.matchMedia("(pointer: coarse)").matches) return;
     // focusout の時点ではまだ次の欄にフォーカスが移っていないので、移ったあとで見る
-    const update = () =>
-      requestAnimationFrame(() => {
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
         const active = document.activeElement;
         setTyping(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
       });
+    };
     document.addEventListener("focusin", update);
     document.addEventListener("focusout", update);
     // 空の設定で 1 文字目を打ったときのように、欄に打っている最中に作られることもあるので、作った時点でも見る
     update();
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("focusin", update);
       document.removeEventListener("focusout", update);
     };
