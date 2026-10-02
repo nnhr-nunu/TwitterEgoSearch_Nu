@@ -8,9 +8,15 @@ import { Label } from "@/components/ui/label";
 import { slashDate } from "@/lib/dates";
 import type { MessageKey } from "@/lib/i18n";
 import { parseTargetUrl, type UrlTarget, type UrlTargetKind } from "@/lib/url-search";
-import { type ChannelData, type VideoInfo, videoDate } from "@/lib/youtube";
+import { type ChannelData, type LoadErrorKind, type VideoInfo, videoDate } from "@/lib/youtube";
 
 export type Notice = { tone: "info" | "error"; text: string };
+
+export const LOAD_ERROR_MESSAGES: Record<LoadErrorKind, MessageKey> = {
+  quota: "ytErrorQuota",
+  notFound: "ytErrorNotFound",
+  other: "ytErrorOther",
+};
 
 type YoutubeTargetProps = {
   t: (key: MessageKey) => string;
@@ -20,6 +26,8 @@ type YoutubeTargetProps = {
   video: VideoInfo | null;
   loading: boolean;
   notice: Notice | null;
+  // 一覧をまだ持っていないチャンネルの読み込みに失敗したわけ。カードの中に出す
+  loadError: LoadErrorKind | null;
   // 対象以外の保存済みチャンネル。押すと API を呼ばずに切り替わる
   recent: ChannelData[];
   // この環境で YouTube の API を呼べるか
@@ -30,6 +38,7 @@ type YoutubeTargetProps = {
   onSubmit: (raw: string) => boolean;
   onClear: () => void;
   onRefresh: () => void;
+  onRetry: () => void;
   onPickChannel: (data: ChannelData) => void;
   onOpenChannel: (channelId: string) => void;
 };
@@ -65,14 +74,26 @@ function TargetCard({
   channel,
   video,
   loading,
+  loadError,
   canLoad,
   canOpenChannel,
   onClear,
   onRefresh,
+  onRetry,
   onOpenChannel,
 }: Pick<
   YoutubeTargetProps,
-  "t" | "channel" | "video" | "loading" | "canLoad" | "canOpenChannel" | "onClear" | "onRefresh" | "onOpenChannel"
+  | "t"
+  | "channel"
+  | "video"
+  | "loading"
+  | "loadError"
+  | "canLoad"
+  | "canOpenChannel"
+  | "onClear"
+  | "onRefresh"
+  | "onRetry"
+  | "onOpenChannel"
 > & { target: UrlTarget }) {
   let title = target.token;
   let sub = t(KIND_LABELS[target.kind]);
@@ -126,6 +147,22 @@ function TargetCard({
           {t("ytRefresh")}
         </Button>
       );
+    } else if (loadError && loadError !== "notFound" && canLoad) {
+      // 見つからなかったチャンネルは何度読んでも同じなので、やり直しは上限と通信の失敗などのときだけ
+      action = (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ml-2 text-primary"
+          disabled={loading}
+          onClick={onRetry}
+          data-testid="yt-retry"
+        >
+          <RefreshCwIcon data-icon="inline-start" className={loading ? "animate-spin" : undefined} />
+          {t("ytRetry")}
+        </Button>
+      );
     }
   }
 
@@ -137,6 +174,11 @@ function TargetCard({
           {title}
         </p>
         <p className="truncate text-xs text-muted-foreground">{sub}</p>
+        {loadError ? (
+          <p className="text-sm text-destructive" role="alert" data-testid="yt-load-error">
+            {t(LOAD_ERROR_MESSAGES[loadError])}
+          </p>
+        ) : null}
         {action}
       </div>
       <Button
@@ -221,7 +263,7 @@ export function YoutubeTarget(props: YoutubeTargetProps) {
       {target ? <TargetCard {...props} target={target} /> : null}
       {notice ? (
         <p
-          className={`text-xs ${notice.tone === "error" ? "text-destructive" : "text-muted-foreground"}`}
+          className={notice.tone === "error" ? "text-sm text-destructive" : "text-xs text-muted-foreground"}
           role={notice.tone === "error" ? "alert" : "status"}
           data-testid="url-search-notice"
         >

@@ -61,6 +61,18 @@ export class YoutubeApiError extends Error {
   }
 }
 
+// 読み込みに失敗したわけ。上限（翌日まで待つ）・見つからない（URL の間違い）・それ以外（通信の失敗など）で案内を変える
+export type LoadErrorKind = "quota" | "notFound" | "other";
+
+const QUOTA_REASONS = new Set(["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"]);
+
+export function loadErrorKind(error: unknown): LoadErrorKind {
+  if (!(error instanceof YoutubeApiError)) return "other";
+  if (QUOTA_REASONS.has(error.reason)) return "quota";
+  if (error.reason === "channelNotFound") return "notFound";
+  return "other";
+}
+
 type FetchLike = (url: string) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 type ApiItem = Record<string, unknown>;

@@ -3,7 +3,7 @@ import { uniqueHandles } from "./handle";
 import { uniqueCaseless } from "./keywords";
 import { orGroup, quoteTerm } from "./query";
 import { type DateSpanId, isDateSpanId, type ResultSort } from "./types";
-import { type ChannelVideo, VIDEO_KINDS, type VideoKind, videoDate } from "./youtube";
+import { type ChannelVideo, type LoadErrorKind, VIDEO_KINDS, type VideoKind, videoDate } from "./youtube";
 
 // YouTube タブ（旧 URL検索）の条件と、X の検索クエリの組み立て。
 // X で実際に検索して分かったこと（2026-09-28, @nnhr_nunu）:
@@ -335,6 +335,16 @@ export function moveChannelWords(map: Record<string, string[]>, from: string, to
   const moving = channelWordsOf(map, from);
   if (!moving.length || from === to) return map;
   return withChannelWords(withChannelWords(map, from, []), to, uniqueCaseless([...channelWordsOf(map, to), ...moving]));
+}
+
+// どのチャンネル（入力 URL から読んだ値）の読み込みが、どんなわけで失敗したか
+export type ChannelLoadError = { ref: string; kind: LoadErrorKind };
+
+// 一覧をまだ持っていないチャンネルの読み込みに失敗したら、そのカードの中で知らせる。
+// 一覧を持っているチャンネル（新着の確認の失敗）や、別の対象を見ているときは null
+export function cardLoadError(error: ChannelLoadError | null, target: UrlTarget | null, loaded: boolean): LoadErrorKind | null {
+  if (!error || loaded || target?.kind !== "channel") return null;
+  return target.token.toLowerCase() === error.ref.toLowerCase() ? error.kind : null;
 }
 
 function strings(value: unknown): string[] {

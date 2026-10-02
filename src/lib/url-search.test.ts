@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildChannelBatches,
   buildMainQuery,
+  cardLoadError,
   channelWordsOf,
   createDefaultUrlSearch,
   linkTerm,
@@ -326,6 +327,28 @@ describe("channel words", () => {
     expect(channelWordsOf({}, "constructor")).toEqual([]);
     expect(channelWordsOf({ constructor: ["#a"] }, "constructor")).toEqual(["#a"]);
     expect(moveChannelWords({}, "constructor", "UCa")).toEqual({});
+  });
+});
+
+describe("cardLoadError", () => {
+  const channel = parseTargetUrl("https://www.youtube.com/@nnhr_nunu");
+
+  it("shows the failure on the card of the channel that failed", () => {
+    expect(cardLoadError({ ref: "nnhr_nunu", kind: "quota" }, channel, false)).toBe("quota");
+    // ハンドルの大文字小文字は区別しない
+    expect(cardLoadError({ ref: "NNHR_NUNU", kind: "notFound" }, channel, false)).toBe("notFound");
+  });
+
+  it("leaves it out once the channel has its videos", () => {
+    // 一覧を持っているチャンネルの新着の確認の失敗は、カードの下のお知らせに出す
+    expect(cardLoadError({ ref: "nnhr_nunu", kind: "other" }, channel, true)).toBeNull();
+  });
+
+  it("leaves it out for other targets", () => {
+    expect(cardLoadError({ ref: "someone_else", kind: "other" }, channel, false)).toBeNull();
+    expect(cardLoadError({ ref: "dQw4w9WgXcQ", kind: "other" }, parseTargetUrl("https://youtu.be/dQw4w9WgXcQ"), false)).toBeNull();
+    expect(cardLoadError({ ref: "nnhr_nunu", kind: "other" }, null, false)).toBeNull();
+    expect(cardLoadError(null, channel, false)).toBeNull();
   });
 });
 

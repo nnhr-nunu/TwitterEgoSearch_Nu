@@ -5,6 +5,7 @@ import {
   classifyVideo,
   fetchChannelVideos,
   fetchVideoInfo,
+  loadErrorKind,
   parseIsoDuration,
   refreshChannelVideos,
   YoutubeApiError,
@@ -181,6 +182,23 @@ describe("fetchChannelVideos", () => {
     const error = await fetchChannelVideos("nobody", "KEY", impl).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(YoutubeApiError);
     expect((error as YoutubeApiError).reason).toBe("channelNotFound");
+  });
+});
+
+describe("loadErrorKind", () => {
+  it.each(["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"])("treats %s as the daily limit", (reason) => {
+    expect(loadErrorKind(new YoutubeApiError("limit", reason))).toBe("quota");
+  });
+
+  it("tells a missing channel apart", () => {
+    expect(loadErrorKind(new YoutubeApiError("channel not found", "channelNotFound"))).toBe("notFound");
+  });
+
+  it("treats other api errors and network failures as other", () => {
+    expect(loadErrorKind(new YoutubeApiError("forbidden", "forbidden"))).toBe("other");
+    expect(loadErrorKind(new YoutubeApiError("HTTP 500", "500"))).toBe("other");
+    expect(loadErrorKind(new TypeError("Failed to fetch"))).toBe("other");
+    expect(loadErrorKind("oops")).toBe("other");
   });
 });
 

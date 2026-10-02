@@ -13,7 +13,7 @@ import { YoutubeChannelVideos } from "@/components/youtube-channel-videos";
 import { PERIOD_LABELS, YoutubePeriod } from "@/components/youtube-period";
 import { type ScopeInfo, YoutubeScopeSummary } from "@/components/youtube-scope-summary";
 import { YoutubeSearchButton } from "@/components/youtube-search-button";
-import { type Notice, YoutubeTarget } from "@/components/youtube-target";
+import { LOAD_ERROR_MESSAGES, type Notice, YoutubeTarget } from "@/components/youtube-target";
 import { isLikelyHandle } from "@/lib/handle";
 import type { MessageKey } from "@/lib/i18n";
 import { uniqueCaseless } from "@/lib/keywords";
@@ -22,6 +22,8 @@ import { channelNameWords, titleKeyword } from "@/lib/title-keywords";
 import {
   buildChannelBatches,
   buildMainQuery,
+  cardLoadError,
+  type ChannelLoadError,
   channelLink,
   channelWordsOf,
   loadUrlSearch,
@@ -41,10 +43,10 @@ import {
   type ChannelData,
   type ChannelVideo,
   fetchChannelVideos,
+  loadErrorKind,
   refreshChannelVideos,
   VIDEO_KINDS,
   videoDate,
-  YoutubeApiError,
   youtubeApiKey,
 } from "@/lib/youtube";
 import {
@@ -63,13 +65,6 @@ type UrlSearchPanelProps = {
   note: ReactNode;
 };
 
-function errorMessage(error: unknown): MessageKey {
-  if (!(error instanceof YoutubeApiError)) return "ytErrorOther";
-  if (["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"].includes(error.reason)) return "ytErrorQuota";
-  if (error.reason === "channelNotFound") return "ytErrorNotFound";
-  return "ytErrorOther";
-}
-
 function sameTarget(a: UrlTarget | null, b: UrlTarget | null): boolean {
   return Boolean(a && b && a.kind === b.kind && a.token.toLowerCase() === b.token.toLowerCase());
 }
@@ -86,6 +81,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const [channels, setChannels] = useState<ChannelData[]>(loadChannelCache);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  // 一覧をまだ持っていないチャンネルの読み込みに失敗したとき、どのチャンネルがどんなわけで失敗したか（カードの中に出す）
+  const [loadError, setLoadError] = useState<ChannelLoadError | null>(null);
 
   // 一覧の読み込みは非同期なので、終わった時点の対象・期間を見られるよう最新の state も持っておく
   const latest = useRef(state);
@@ -98,6 +95,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const apiKey = youtubeApiKey();
   const target = parseTargetUrl(state.url);
   const channel = target?.kind === "channel" ? findChannel(channels, target.token) : null;
+  const cardError = cardLoadError(loadError, target, channel !== null);
   const videoInfo = useYoutubeVideoInfo(target?.kind === "video" ? target.token : null, channels);
   // 動画のときも、その動画のチャンネルを読み込んであれば本人のアカウントなどを使う
   const ownerChannel =
@@ -134,7 +132,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   if (channel) {
     const links = [channel.channel.id, channel.channel.handle ? channelLink(channel.channel.handle) : ""];
     batches = buildChannelBatches(view, { links, owners, videoIds: matched.map((video) => video.id) });
-  } else {
+  } else if (cardError !== "notFound") {
+    // 見つからなかったチャンネルは、リンクを貼った投稿も無いので探さない
     const query = buildMainQuery(view, { owners, keyword, names });
     if (query) batches = [{ query, from: 1, to: 0 }];
   }
@@ -192,6 +191,8 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   // 一覧を全部取り、期間を合わせる
   const loadChannel = async (ref: string, cached: ChannelData | null) => {
     setLoading(true);
+    // 読み込みを始めたら（やり直しも含めて）前の失敗は消す。成功すればそのまま消えた状態になる
+    setLoadError(null);
     try {
       if (cached && !isExpiredChannel(cached)) {
         const result = await refreshChannelVideos(cached, apiKey);
@@ -209,7 +210,11 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         if (widened) setNotice({ tone: "info", text: widened });
       }
     } catch (caught) {
-      if (stillShowing(ref, cached)) setNotice({ tone: "error", text: t(errorMessage(caught)) });
+      if (!stillShowing(ref, cached)) return;
+      const kind = loadErrorKind(caught);
+      // 一覧を持っているチャンネル（新着の確認の失敗）はカードの下に、持っていなければカードの中に出す
+      if (cached) setNotice({ tone: "error", text: t(LOAD_ERROR_MESSAGES[kind]) });
+      else setLoadError({ ref, kind });
     } finally {
       setLoading(false);
     }
@@ -235,6 +240,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
     const next = parseTargetUrl(url);
     if (!next) return null;
     setNotice(null);
+    setLoadError(null);
     const changed = !sameTarget(next, target);
     patch({ url: url.trim(), ...carryWords(), ...(changed && !keep ? { words: [], videoKind: "all", videoTitle: "" } : {}) });
     if (next.kind !== "channel") return next;
@@ -271,7 +277,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         t={t}
         testId="url-search"
         label={t("urlSearch")}
-        emptyHint={t("urlIntro")}
+        emptyHint={cardError === "notFound" ? t("ytNotFoundHint") : t("urlIntro")}
         action={
           <YoutubeSearchButton
             // 条件が変わったら、何回目まで開いたかを最初に戻す
@@ -294,18 +300,25 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
             video={videoInfo}
             loading={loading}
             notice={notice}
+            loadError={cardError}
             recent={channels.filter((data) => data !== channel).slice(0, 4)}
             canLoad={Boolean(apiKey)}
             canOpenChannel={Boolean(apiKey) || ownerChannel !== null}
             onSubmit={(raw) => selectUrl(raw) !== null}
             onClear={() => {
               setNotice(null);
+              setLoadError(null);
               patch({ ...carryWords(), url: "", words: [], videoKind: "all", videoTitle: "" });
             }}
             onRefresh={() => {
               if (!channel || loading) return;
               setNotice(null);
               void loadChannel(channel.ref, channel);
+            }}
+            onRetry={() => {
+              if (target?.kind !== "channel" || loading) return;
+              setNotice(null);
+              void loadChannel(target.token, null);
             }}
             onPickChannel={(data) => selectUrl(channelUrl(data))}
             onOpenChannel={(channelId) => {
