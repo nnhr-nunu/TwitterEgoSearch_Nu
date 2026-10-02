@@ -364,14 +364,9 @@ export function SearchApp() {
       onOpen={recordOpen}
       t={t}
       testId={testId}
+      // 確定した設定では探せないあいだだけ渡す（打っただけで押せるようになったら、案内を差し替える）
+      draftHint={savedOk ? undefined : t("draftSearchHint")}
     >
-      {/* 打っただけで押せるようになったら、消えた案内（emptyKeywords）の代わりに同じ長さの文を出す。
-          行数が変わると、打っている欄の位置が 1 文字目でずれる */}
-      {savedOk ? null : (
-        <p className="text-sm text-muted-foreground" data-testid={`${testId}-draft-hint`}>
-          {t("draftSearchHint")}
-        </p>
-      )}
       {isQueryTooLong(postsQuery) ? (
         <p className="text-sm text-destructive" role="alert" data-testid={`${testId}-too-long`}>
           {t("queryTooLong").replace("{count}", String(postsQuery.length))}
