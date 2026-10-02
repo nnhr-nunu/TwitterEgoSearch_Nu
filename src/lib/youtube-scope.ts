@@ -20,7 +20,8 @@ export type ScopeInfo =
   | { kind: "video"; keyword: string; names: string[] }
   | { kind: "page" };
 
-// 期間が、読み込んだいちばん古い動画より前から始まるか（始まりの無い期間も含む）。打ち切っていないチャンネルは全部読んでいるので false
+// 期間が、読み込んだいちばん古い動画の日かそれより前から始まるか（始まりの無い期間も含む）。その日にも読み込まなかった
+// 動画があるかもしれないので、同じ日も含める。打ち切っていないチャンネルは全部読んでいるので false
 export function missesOlderVideos(
   truncated: boolean,
   videos: Pick<ChannelVideo, "publishedAt">[],
@@ -28,7 +29,7 @@ export function missesOlderVideos(
 ): boolean {
   if (!truncated) return false;
   const dates = videos.map(videoDate).filter(Boolean).sort();
-  return !window.since || !dates.length || window.since < dates[0];
+  return !window.since || !dates.length || window.since <= dates[0];
 }
 
 // 種類が「チャンネル」のときは動画を数えないので、名前は要らない
