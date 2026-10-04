@@ -1,10 +1,10 @@
 "use client";
 
-import { BanIcon, BirdIcon, CopyIcon, FunnelIcon } from "lucide-react";
+import { BanIcon, CopyIcon, FunnelIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import Link from "next/link";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
+import { AppHeader } from "@/components/app-header";
 import { DeveloperInfo } from "@/components/developer-info";
 import { FilterPanel } from "@/components/filter-panel";
 import { FLOATING_SEARCH_SPACE, FloatingSearch } from "@/components/floating-search";
@@ -343,11 +343,17 @@ export function SearchApp() {
     return ok;
   }
 
+  const header = <AppHeader t={t} onToggleLocale={() => setLocale(locale === "ja" ? "en" : "ja")} />;
+
+  // 保存した設定を読むまでも、ヘッダーは初期 HTML に出す（検索ロボットやリンクのプレビューは JS を待たないことがある）
   if (!ready) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center p-6">
-        <p className="text-muted-foreground">{t("loading")}</p>
-      </main>
+      <div className="min-h-screen bg-background">
+        {header}
+        <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+          <p className="text-center text-sm text-muted-foreground">{t("loading")}</p>
+        </main>
+      </div>
     );
   }
 
@@ -394,40 +400,7 @@ export function SearchApp() {
 
   return (
     <div className={`min-h-screen bg-background ${floating ? FLOATING_SEARCH_SPACE : ""}`}>
-      <header className="border-b border-border bg-card">
-        {/* ボタンはロゴの行に置き、タイトルに横幅をまるごと使わせる（スマホで「ツー／ル」と折り返さないように） */}
-        <div className="mx-auto max-w-2xl space-y-2 px-4 py-6 sm:px-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-primary">
-              <BirdIcon className="size-7" aria-hidden />
-              <p className="text-xs font-semibold tracking-[0.18em] uppercase">{t("brand")}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/guide/" data-testid="guide-link">
-                  {t("guide")}
-                </Link>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLocale(locale === "ja" ? "en" : "ja")}
-              >
-                {t("language")}
-              </Button>
-            </div>
-          </div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {t("title")}
-          </h1>
-          {/* 初めて来た人に、何ができるサービスかを一言で伝える。狭い画面では文の切れ目で折り返す */}
-          <p className="text-sm text-muted-foreground" data-testid="tagline">
-            <span className="inline-block">{t("tagline")}</span>{" "}
-            <span className="inline-block">{t("taglineNote")}</span>
-          </p>
-        </div>
-      </header>
+      {header}
 
       <AdRailLayout label={t("sponsored")}>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6">
