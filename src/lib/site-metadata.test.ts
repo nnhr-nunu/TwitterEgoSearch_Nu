@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { pageMetadata } from "./site-metadata";
+import { pageMetadata, websiteJsonLd } from "./site-metadata";
+
+describe("websiteJsonLd", () => {
+  it("トップのサイト名・URL・説明を WebSite の構造化データにする", () => {
+    const data = JSON.parse(websiteJsonLd());
+    expect(data).toMatchObject({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "エゴサ支援ツール(ぬ)",
+      url: "https://self-search.oshilog.life/",
+    });
+    expect(data.description).toContain("エゴサーチ");
+  });
+
+  it("script タグを閉じてしまう < を含めない", () => {
+    expect(websiteJsonLd()).not.toContain("<");
+  });
+});
 
 describe("pageMetadata", () => {
   const meta = pageMetadata({ title: "使い方", description: "説明", path: "/guide/" });
