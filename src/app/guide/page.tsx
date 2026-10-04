@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
+import { DocCard, DocHeading, Field } from "@/components/doc-parts";
 import { NEGATIVE_WORDS } from "@/lib/negative-words";
 import { pageMetadata } from "@/lib/site-metadata";
 
@@ -11,27 +12,6 @@ export const metadata: Metadata = pageMetadata({
     "エゴサ支援ツール(ぬ)の使い方。自分の名前のエゴサはもちろん、推しのパブサ(パブリックサーチ)で話題やファンアート、推し本人の過去の投稿を探すときにも使えます。",
   path: "/guide/",
 });
-
-function Card({ children }: { children: ReactNode }) {
-  return (
-    <section className="space-y-3 rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
-      {children}
-    </section>
-  );
-}
-
-function Heading({ children }: { children: ReactNode }) {
-  return <h2 className="font-heading text-lg font-semibold tracking-tight">{children}</h2>;
-}
-
-/** 画面上の入力欄の名前。本文中で目立たせて、ツールの画面と見比べやすくする。 */
-function Field({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded bg-muted px-1.5 py-0.5 text-[0.95em] font-medium whitespace-nowrap">
-      {children}
-    </span>
-  );
-}
 
 type UseCase = {
   title: string;
@@ -208,8 +188,8 @@ export default function GuidePage() {
             </p>
           </div>
 
-          <Card>
-            <Heading>基本は3ステップ</Heading>
+          <DocCard>
+            <DocHeading>基本は3ステップ</DocHeading>
             <ol className="list-decimal space-y-2 pl-5">
               <li>
                 <Field>名前・愛称・ハッシュタグ</Field> に探したい名前を入れる（推しの名前でも OK）
@@ -225,10 +205,10 @@ export default function GuidePage() {
             <p className="text-muted-foreground">
               入力した内容はブラウザに自動保存されるので、次からは開いてボタンを押すだけです。
             </p>
-          </Card>
+          </DocCard>
 
-          <Card>
-            <Heading>こんなときに便利</Heading>
+          <DocCard>
+            <DocHeading>こんなときに便利</DocHeading>
             <div className="divide-y divide-border">
               {USE_CASES.map((item) => (
                 <div key={item.title} className="space-y-2 py-4 first:pt-1 last:pb-1">
@@ -242,10 +222,10 @@ export default function GuidePage() {
                 </div>
               ))}
             </div>
-          </Card>
+          </DocCard>
 
-          <Card>
-            <Heading>入力欄ごとの説明</Heading>
+          <DocCard>
+            <DocHeading>入力欄ごとの説明</DocHeading>
             <dl className="divide-y divide-border">
               {FIELDS.map((item) => (
                 <div key={item.name} className="space-y-1 py-3 first:pt-1 last:pb-1">
@@ -254,10 +234,10 @@ export default function GuidePage() {
                 </div>
               ))}
             </dl>
-          </Card>
+          </DocCard>
 
-          <Card>
-            <Heading>よくある質問</Heading>
+          <DocCard>
+            <DocHeading>よくある質問</DocHeading>
             <dl className="divide-y divide-border">
               {FAQS.map((item) => (
                 <div key={item.q} className="space-y-1 py-3 first:pt-1 last:pb-1">
@@ -266,7 +246,15 @@ export default function GuidePage() {
                 </div>
               ))}
             </dl>
-          </Card>
+          </DocCard>
+
+          <p className="px-1 text-sm text-muted-foreground">
+            X の検索窓にコマンドを直接書きたいときは、
+            <Link href="/guide/search-operators/" className="text-primary underline-offset-2 hover:underline">
+              検索コマンド一覧
+            </Link>
+            へ。
+          </p>
 
           <Link
             href="/"
