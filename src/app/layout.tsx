@@ -3,6 +3,7 @@ import { Noto_Sans_JP, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { adConfig, adScriptSrc } from "@/lib/ads";
 import { SITE_NAME, SITE_URL } from "@/lib/share-post";
+import { pageMetadata } from "@/lib/site-metadata";
 import "./globals.css";
 
 const notoSansJp = Noto_Sans_JP({
@@ -16,15 +17,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const OG_ALT = "エゴサ支援ツール(ぬ) — 名前も愛称も、まとめてエゴサ。";
-const TITLE = `${SITE_NAME} | X(Twitter)のエゴサ・推しのパブサをまとめて検索`;
-const description =
-  "名前・愛称・ハッシュタグを OR / AND でまとめて X(Twitter) 検索。エゴサーチはもちろん、推しのパブサ(パブリックサーチ)にも使えます。日付・画像で絞り込み、ミュートも可能。ログイン・アプリ連携不要の無料ツールです。";
-
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: TITLE,
-  description,
+  // シェア投稿を X に貼ったとき大きいカードで出す。画像は app/og.png/route.tsx
+  ...pageMetadata({
+    title: `${SITE_NAME} | X(Twitter)のエゴサ・推しのパブサをまとめて検索`,
+    description:
+      "名前・愛称・ハッシュタグを OR / AND でまとめて X(Twitter) 検索。エゴサーチはもちろん、推しのパブサ(パブリックサーチ)にも使えます。日付・画像で絞り込み、ミュートも可能。ログイン・アプリ連携不要の無料ツールです。",
+    path: "/",
+  }),
   keywords: [
     "エゴサ",
     "エゴサーチ",
@@ -36,23 +37,6 @@ export const metadata: Metadata = {
     "高度な検索",
     "検索コマンド",
   ],
-  alternates: { canonical: "/" },
-  // シェア投稿を X に貼ったとき大きいカードで出す。画像は app/og.png/route.tsx
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    title: TITLE,
-    description,
-    url: "/",
-    locale: "ja_JP",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: OG_ALT }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: TITLE,
-    description,
-    images: [{ url: "/og.png", alt: OG_ALT }],
-  },
   // AdSense のサイト所有確認用。ID 未設定なら出さない。
   ...(adConfig.client ? { other: { "google-adsense-account": adConfig.client } } : {}),
 };
