@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 // 使い方・検索コマンド一覧など、読み物のページで使う部品
@@ -20,5 +21,17 @@ export function Field({ children }: { children: ReactNode }) {
     <span className="rounded bg-muted px-1.5 py-0.5 text-[0.95em] font-medium whitespace-nowrap">
       {children}
     </span>
+  );
+}
+
+/** 読み物の最後に置く、ツールのトップへ戻る大きいボタン */
+export function DocCta({ children }: { children: ReactNode }) {
+  return (
+    <Link
+      href="/"
+      className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground transition-opacity hover:opacity-90"
+    >
+      {children}
+    </Link>
   );
 }

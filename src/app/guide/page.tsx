@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AdRailLayout, AdSlot } from "@/components/ad-slot";
-import { DocCard, DocHeading, Field } from "@/components/doc-parts";
+import { DocCard, DocCta, DocHeading, Field } from "@/components/doc-parts";
 import { NEGATIVE_WORDS } from "@/lib/negative-words";
 import { pageMetadata } from "@/lib/site-metadata";
 
@@ -256,12 +256,7 @@ export default function GuidePage() {
             へ。
           </p>
 
-          <Link
-            href="/"
-            className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            さっそく使ってみる
-          </Link>
+          <DocCta>さっそく使ってみる</DocCta>
 
           <AdSlot label="広告" />
 

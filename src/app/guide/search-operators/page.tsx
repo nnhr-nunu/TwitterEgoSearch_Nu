@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { AdRailLayout } from "@/components/ad-slot";
-import { DocCard, DocHeading, Field } from "@/components/doc-parts";
+import { DocCard, DocCta, DocHeading, Field } from "@/components/doc-parts";
 import { pageMetadata } from "@/lib/site-metadata";
 
 export const metadata: Metadata = pageMetadata({
@@ -282,12 +282,7 @@ export default function SearchOperatorsPage() {
           <p className="px-1 text-sm leading-relaxed text-muted-foreground">
             コマンドを覚えなくても、エゴサ支援ツール(ぬ)なら欄に名前を入れて条件を選ぶだけで、この検索を作れます。作った検索はブラウザに保存され、次からはボタン 1 つで開けます。
           </p>
-          <Link
-            href="/"
-            className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            ツールで検索を作る
-          </Link>
+          <DocCta>ツールで検索を作る</DocCta>
         </main>
       </AdRailLayout>
     </div>
