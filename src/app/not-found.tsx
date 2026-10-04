@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/share-post";
 
 // Next.js の既定の 404 は英語で戻るリンクもないので、日本語で置き換える（GitHub Pages は out/404.html を返す）
 export const metadata: Metadata = {
-  title: "ページが見つかりません | エゴサ支援ツール(ぬ)",
-  // layout の正規 URL（トップ）を引き継がない
+  title: `ページが見つかりません | ${SITE_NAME}`,
+  // layout のトップの説明・正規 URL・カードを引き継がない（間違った URL を貼ってもトップのカードにしない）
+  description: null,
   alternates: { canonical: null },
+  openGraph: null,
+  twitter: null,
 };
 
 export default function NotFound() {
