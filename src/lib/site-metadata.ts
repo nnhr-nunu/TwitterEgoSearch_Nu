@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { SITE_NAME } from "./share-post";
 
-const OG_ALT = "エゴサ支援ツール(ぬ) — 名前も愛称も、まとめてエゴサ。";
+const OG_ALT = `${SITE_NAME} — 名前も愛称も、まとめてエゴサ。`;
 
 /**
  * ページごとの title・description・正規 URL と、X や SNS に貼ったときのカード。
