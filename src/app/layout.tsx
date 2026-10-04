@@ -10,7 +10,7 @@ const notoSansJp = Noto_Sans_JP({
   variable: "--font-noto-sans-jp",
   subsets: ["latin"],
   // 太さを並べると、日本語の分割（約 120 個）ごとに @font-face が太さの数だけ増え、描画を止める CSS が重くなる。
-  // 可変フォント 1 つなら CSS は約 3 分の 1 で、読むフォントファイルは同じ（Google Fonts は太さを並べても可変フォントを返す）
+  // 可変フォント 1 つなら CSS は約 3 分の 1 で、読むフォントファイルはほぼ同じ（Google Fonts は太さを並べても可変フォントを返す）
   weight: "variable",
 });
 
