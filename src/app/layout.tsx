@@ -3,7 +3,7 @@ import { Noto_Sans_JP, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { adConfig, adScriptSrc } from "@/lib/ads";
 import { SITE_NAME, SITE_URL } from "@/lib/share-post";
-import { pageMetadata } from "@/lib/site-metadata";
+import { pageMetadata, SITE_DESCRIPTION } from "@/lib/site-metadata";
 import "./globals.css";
 
 const notoSansJp = Noto_Sans_JP({
@@ -24,8 +24,7 @@ export const metadata: Metadata = {
   // シェア投稿を X に貼ったとき大きいカードで出す。画像は app/og.png/route.tsx
   ...pageMetadata({
     title: `${SITE_NAME} | X(Twitter)のエゴサ・推しのパブサをまとめて検索`,
-    description:
-      "名前・愛称・ハッシュタグを OR / AND でまとめて X(Twitter) 検索。エゴサーチはもちろん、推しのパブサ(パブリックサーチ)にも使えます。日付・画像で絞り込み、ミュートも可能。ログイン・アプリ連携不要の無料ツールです。",
+    description: SITE_DESCRIPTION,
     path: "/",
   }),
   keywords: [

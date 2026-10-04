@@ -1,7 +1,28 @@
 import type { Metadata } from "next";
-import { SITE_NAME } from "./share-post";
+import { SITE_NAME, SITE_URL } from "./share-post";
 
 const OG_ALT = `${SITE_NAME} — 名前も愛称も、まとめてエゴサ。`;
+
+/** トップの説明。meta description・カード・構造化データで同じ文を使う */
+export const SITE_DESCRIPTION =
+  "名前・愛称・ハッシュタグを OR / AND でまとめて X(Twitter) 検索。エゴサーチはもちろん、推しのパブサ(パブリックサーチ)にも使えます。日付・画像で絞り込み、ミュートも可能。ログイン・アプリ連携不要の無料ツールです。";
+
+/**
+ * トップに置く WebSite の構造化データ（JSON-LD の文字列）。画面に文字を足さずに、
+ * 検索エンジンへサイト名と何のサイトかを伝える。< は script タグを閉じないよう < にする
+ */
+export function websiteJsonLd(): string {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    alternateName: "エゴサ支援ツール",
+    url: `${SITE_URL}/`,
+    description: SITE_DESCRIPTION,
+    inLanguage: "ja",
+  };
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
 
 /**
  * ページごとの title・description・正規 URL と、X や SNS に貼ったときのカード。
