@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
+// 指定しないとトップページ（layout の "/"）を正規 URL・カードの URL として出してしまう
+export const metadata: Metadata = pageMetadata({
   title: "プライバシーポリシー | エゴサ支援ツール(ぬ)",
   description: "エゴサ支援ツール(ぬ)の広告・Cookie・保存データの扱いについて。",
-  // 指定しないとトップページ（layout の "/"）を正規 URL として出してしまう
-  alternates: { canonical: "/privacy" },
-};
+  path: "/privacy/",
+});
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
