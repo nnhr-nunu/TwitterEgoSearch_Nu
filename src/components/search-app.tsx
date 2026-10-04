@@ -568,6 +568,7 @@ export function SearchApp() {
         title={t("developer")}
         privacyLabel={t("privacy")}
         guideLabel={t("guide")}
+        operatorsLabel={t("searchOperators")}
         unofficialNote={t("unofficial")}
       />
     </div>

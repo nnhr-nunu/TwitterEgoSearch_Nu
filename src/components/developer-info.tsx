@@ -44,10 +44,17 @@ type DeveloperInfoProps = {
   title: string;
   privacyLabel: string;
   guideLabel: string;
+  operatorsLabel: string;
   unofficialNote: string;
 };
 
-export function DeveloperInfo({ title, privacyLabel, guideLabel, unofficialNote }: DeveloperInfoProps) {
+export function DeveloperInfo({
+  title,
+  privacyLabel,
+  guideLabel,
+  operatorsLabel,
+  unofficialNote,
+}: DeveloperInfoProps) {
   return (
     <footer className="mx-auto max-w-2xl px-4 pb-10 sm:px-6" data-testid="developer">
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-foreground">
@@ -84,9 +91,15 @@ export function DeveloperInfo({ title, privacyLabel, guideLabel, unofficialNote 
           </ul>
         </div>
       </section>
-      <p className="mt-4 flex justify-center gap-4 text-xs">
+      <p className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
         <Link href="/guide/" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
           {guideLabel}
+        </Link>
+        <Link
+          href="/guide/search-operators/"
+          className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          {operatorsLabel}
         </Link>
         <Link href="/privacy/" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
           {privacyLabel}
