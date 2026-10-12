@@ -10,16 +10,17 @@ type RelatedLink = {
 const RELATED: RelatedLink[] = [
   { name: "推し活支援サービス：推しログ(ぬ)", href: "https://oshilog.life/" },
   {
-    name: "配信者向け写真表示ソフト：StreamMediaViewer(ぬ)",
-    href: "https://x.com/nnhr_nunu/status/2100926390078169405",
-  },
-  {
     name: "配信者向け雑談提供Webサービス：TopicStream(ぬ)",
     href: "https://topic-stream.oshilog.life/",
   },
+  { name: "性癖を可視化するWebサービス：性癖カルテ(ぬ)", href: "https://seiheki.net/" },
   {
     name: "心音配信に合わせて動く心臓ソフトウェア：StreamHeartbeat(ぬ)",
     href: "https://github.com/nnhr-nunu/StreamHeartbeat_Nu",
+  },
+  {
+    name: "配信者向け写真表示ソフト：StreamMediaViewer(ぬ)",
+    href: "https://x.com/nnhr_nunu/status/2100926390078169405",
   },
   {
     name: "Slay the Spire 2 催眠術師Mod",
