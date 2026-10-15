@@ -2,31 +2,7 @@
 
 import Link from "next/link";
 
-type RelatedLink = {
-  name: string;
-  href: string;
-};
-
-const RELATED: RelatedLink[] = [
-  { name: "推し活支援サービス：推しログ(ぬ)", href: "https://oshilog.life/" },
-  {
-    name: "配信者向け雑談提供Webサービス：TopicStream(ぬ)",
-    href: "https://topic-stream.oshilog.life/",
-  },
-  { name: "性癖を可視化するWebサービス：性癖カルテ(ぬ)", href: "https://seiheki.net/" },
-  {
-    name: "心音配信に合わせて動く心臓ソフトウェア：StreamHeartbeat(ぬ)",
-    href: "https://github.com/nnhr-nunu/StreamHeartbeat_Nu",
-  },
-  {
-    name: "配信者向け写真表示ソフト：StreamMediaViewer(ぬ)",
-    href: "https://x.com/nnhr_nunu/status/2100926390078169405",
-  },
-  {
-    name: "Slay the Spire 2 催眠術師Mod",
-    href: "https://x.com/nnhr_nunu/status/2083033452128207076",
-  },
-];
+import { RELATED_SERVICES } from "@/components/related-services";
 
 function ExternalLink({ href }: { href: string }) {
   return (
@@ -81,9 +57,9 @@ export function DeveloperInfo({
         <div className="mt-5 border-t border-border pt-5">
           <h3 className="font-medium">【開発した関連サービス】</h3>
           <ul className="mt-3 divide-y divide-border">
-            {RELATED.map((item) => (
+            {RELATED_SERVICES.map((item) => (
               <li key={item.href} className="space-y-0.5 py-3 first:pt-0 last:pb-0">
-                <p>・{item.name}</p>
+                <p>・{item.label}</p>
                 <p>
                   <ExternalLink href={item.href} />
                 </p>
