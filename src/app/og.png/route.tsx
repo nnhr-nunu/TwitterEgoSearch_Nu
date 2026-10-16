@@ -9,7 +9,7 @@ const OG_SIZE = { width: 1200, height: 630 };
 const TITLE = "エゴサ支援ツール(ぬ)";
 const TAGLINE = "名前も愛称も、まとめてエゴサ。";
 const SAMPLE = "“名前” OR “愛称” OR “#タグ”";
-const SUB = "ログイン不要・無料 / X の検索をワンタップで";
+const SUB = "登録・連携不要・無料 / X の検索をワンタップで";
 
 // 使う文字だけを Google Fonts から取り寄せる（日本語フォントを丸ごと抱えない）
 async function loadFont(text: string, weight: number): Promise<ArrayBuffer> {

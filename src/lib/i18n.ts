@@ -4,7 +4,7 @@ export const messages = {
   ja: {
     title: "エゴサ支援ツール(ぬ)",
     tagline: "名前も愛称もハッシュタグも、まとめて X で検索。",
-    taglineNote: "ログイン不要・無料。",
+    taglineNote: "登録・連携不要・無料。",
     brand: "TWITTER (X)",
     handle: "このアカウントの投稿だけ",
     handlePlaceholder: "@id",
@@ -215,7 +215,7 @@ export const messages = {
   en: {
     title: "Self-Search Helper",
     tagline: "Search X for every name and nickname at once.",
-    taglineNote: "Free, no login.",
+    taglineNote: "Free, no sign-up.",
     brand: "TWITTER (X)",
     handle: "Only posts by these accounts",
     handlePlaceholder: "@id",
