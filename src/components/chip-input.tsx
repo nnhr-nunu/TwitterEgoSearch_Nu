@@ -121,11 +121,12 @@ export function ChipInput({
             const shown = mode === "handle" ? `@${item}` : item;
             return (
               <li key={mode === "handle" ? item.toLowerCase() : item}>
-                <Badge variant="secondary" className="h-7 gap-1 pr-1 text-sm">
+                <Badge variant="secondary" className="h-7 gap-1 overflow-visible pr-1 text-sm">
                   <span className="max-w-48 truncate">{shown}</span>
                   <button
                     type="button"
-                    className="rounded-full p-0.5 hover:bg-foreground/10"
+                    // 見た目は小さいまま、押せる範囲だけ広げる（横は隣のチップとの隙間まで）
+                    className="relative rounded-full p-0.5 after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:bg-foreground/10"
                     aria-label={removeLabel.replace("{item}", shown)}
                     title={removeLabel.replace("{item}", shown)}
                     data-testid={testId ? `remove-${testId}` : undefined}
