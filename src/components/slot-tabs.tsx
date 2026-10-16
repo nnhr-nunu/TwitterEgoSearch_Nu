@@ -38,7 +38,8 @@ export function SlotTabs({ value, onChange, labels, t }: SlotTabsProps) {
       className="w-full gap-0"
       data-testid="slot-tabs"
     >
-      <TabsList className="grid h-11 w-full grid-cols-4">
+      {/* 既定の高さ（group-data-horizontal/tabs:h-8）を上書きする。毎日押すのでタブ 1 つが 40px 以上になる高さにする */}
+      <TabsList className="grid w-full grid-cols-4 group-data-horizontal/tabs:h-12">
         {SLOT_LABELS.slice(0, SLOT_COUNT).map((key, index) => {
           const slotName = t(key);
           const label = labels[index] || slotName;

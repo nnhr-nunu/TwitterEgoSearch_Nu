@@ -27,7 +27,7 @@ export function SuggestionChips({
         <button
           key={item}
           type="button"
-          className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs transition-colors hover:bg-muted"
+          className="inline-flex min-h-8 items-center gap-0.5 rounded-full border border-dashed border-border px-3 py-0.5 text-xs transition-colors hover:bg-muted"
           onClick={() => onAdd(item)}
         >
           <PlusIcon className="size-3" aria-hidden />
@@ -37,7 +37,7 @@ export function SuggestionChips({
       {onDismiss ? (
         <button
           type="button"
-          className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label={dismissLabel}
           title={dismissLabel}
           onClick={onDismiss}
