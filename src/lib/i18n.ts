@@ -343,7 +343,7 @@ export const messages = {
     urlSumTitle: "Also finds posts naming \"{title}\" together with {names}.",
     urlSumWords: "Also finds posts with \"{words}\".",
     ytLoading: "Loading…",
-    ytLoadingCount: "Loading {count} videos…",
+    ytLoadingCount: "Loading videos ({count})…",
     ytLoaded: "{count} videos as of {date}",
     ytRefresh: "Check for new",
     ytRefreshed: "Added {count} new videos.",

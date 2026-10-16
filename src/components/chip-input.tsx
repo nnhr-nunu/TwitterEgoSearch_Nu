@@ -129,8 +129,8 @@ export function ChipInput({
                   <span className="max-w-48 truncate">{shown}</span>
                   <button
                     type="button"
-                    // 見た目は小さいまま、押せる範囲だけ広げる（横は隣のチップとの隙間まで）
-                    className="relative rounded-full p-0.5 after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:bg-foreground/10"
+                    // 見た目は小さいまま、押せる範囲だけ広げる（右は隣のチップとの隙間まで。左は名前の文字にかからないところまで）
+                    className="relative rounded-full p-0.5 after:absolute after:-inset-y-3 after:-right-2 after:-left-1 after:content-[''] hover:bg-foreground/10"
                     aria-label={removeLabel.replace("{item}", shown)}
                     title={removeLabel.replace("{item}", shown)}
                     data-testid={testId ? `remove-${testId}` : undefined}
