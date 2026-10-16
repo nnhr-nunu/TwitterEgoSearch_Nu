@@ -83,6 +83,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   // 読み込み中のチャンネル。別の対象へ移ったり消したりしたら、前の読み込みは中断する（終わるまで次を読めなくしない）
   const [loadingRef, setLoadingRef] = useState<string | null>(null);
   const loadAbort = useRef<{ ref: string; controller: AbortController } | null>(null);
+  const [loadedCount, setLoadedCount] = useState(0);
   const [notice, setNotice] = useState<Notice | null>(null);
   // 一覧をまだ持っていないチャンネルの読み込みに失敗したわけ（カードの中に出す）。対象を変えたときに消し、
   // 待つあいだに切り替えた対象の失敗は記録しない（stillShowing）ので、いま見ているチャンネルのものだけが入る
@@ -215,6 +216,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
     loadAbort.current = { ref, controller };
     const fetchImpl = (url: string) => fetch(url, { signal: controller.signal });
     setLoadingRef(ref);
+    setLoadedCount(0);
     // 前の失敗は、読み込みを始めたときではなく成功したときに消す（やり直しのあいだも「もう一度読み込む」をカードに残す）
     try {
       if (cached && !isExpiredChannel(cached)) {
@@ -225,7 +227,9 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         // 期間を広げたお知らせが先に出ていれば、続けて見せる
         setNotice((prev) => ({ tone: "info", text: prev?.tone === "info" ? `${prev.text} ${text}` : text }));
       } else {
-        const data = await fetchChannelVideos(ref, apiKey, fetchImpl);
+        const data = await fetchChannelVideos(ref, apiKey, fetchImpl, (count) => {
+          if (loadAbort.current?.controller === controller) setLoadedCount(count);
+        });
         saveChannel(data, ref);
         if (!stillShowing(ref, data)) return;
         setLoadError(null);
@@ -330,6 +334,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
             channel={channel}
             video={videoInfo}
             loading={loading}
+            loadedCount={loadedCount}
             notice={notice}
             loadError={cardError}
             recent={channels.filter((data) => data !== channel).slice(0, 4)}

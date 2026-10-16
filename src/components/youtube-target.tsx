@@ -25,6 +25,8 @@ type YoutubeTargetProps = {
   channel: ChannelData | null;
   video: VideoInfo | null;
   loading: boolean;
+  // 初めての読み込みで、ここまでに見つけた動画の本数（0 なら本数を出さない）
+  loadedCount: number;
   notice: Notice | null;
   // 一覧をまだ持っていないチャンネルの読み込みに失敗したわけ。カードの中に出す
   loadError: LoadErrorKind | null;
@@ -74,6 +76,7 @@ function TargetCard({
   channel,
   video,
   loading,
+  loadedCount,
   loadError,
   canLoad,
   canOpenChannel,
@@ -87,6 +90,7 @@ function TargetCard({
   | "channel"
   | "video"
   | "loading"
+  | "loadedCount"
   | "loadError"
   | "canLoad"
   | "canOpenChannel"
@@ -140,7 +144,9 @@ function TargetCard({
   } else if (target.kind === "channel") {
     title = channel?.channel.title ?? (target.token.startsWith("UC") ? t("urlKindChannel") : `@${target.token}`);
     sub = loading
-      ? t("ytLoading")
+      ? loadedCount
+        ? t("ytLoadingCount").replace("{count}", String(loadedCount))
+        : t("ytLoading")
       : channel
         ? t("ytLoaded").replace("{count}", String(channel.videos.length)).replace("{date}", formatFetchedAt(channel.fetchedAt))
         : t("urlKindChannel");
