@@ -152,6 +152,13 @@ describe("fetchChannelVideos", () => {
     expect(data.videos[0].publishedAt).toBe("2026-03-10T12:00:00Z");
   });
 
+  it("reports how many videos it has found so far", async () => {
+    const { impl } = fakeFetch(channelRoutes({ [`UU${SUFFIX}`]: ids }));
+    const counts: number[] = [];
+    await fetchChannelVideos("nnhr_nunu", "KEY", impl, (count) => counts.push(count));
+    expect(counts.at(-1)).toBe(ids.length);
+  });
+
   it("looks up channel ids directly and falls back when playlists are missing", async () => {
     const { impl, calls } = fakeFetch(channelRoutes({ [`UU${SUFFIX}`]: ids }));
     const data = await fetchChannelVideos(CHANNEL_ID, "KEY", impl);

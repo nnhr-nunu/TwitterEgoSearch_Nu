@@ -159,6 +159,7 @@ async function fetchPlaylistIds(
   key: string,
   limit: number,
   stopAt?: Set<string>,
+  onProgress?: (count: number) => void,
 ) {
   const ids: string[] = [];
   let pageToken = "";
@@ -171,6 +172,7 @@ async function fetchPlaylistIds(
       if (id && stopAt?.has(id)) return { ids: ids.slice(0, limit), truncated: false };
       if (id) ids.push(id);
     }
+    onProgress?.(Math.min(ids.length, limit));
     pageToken = list.nextPageToken ?? "";
   } while (pageToken && ids.length < limit);
   return { ids: ids.slice(0, limit), truncated: Boolean(pageToken) || ids.length > limit };
@@ -234,9 +236,15 @@ function byNewest(a: ChannelVideo, b: ChannelVideo): number {
   return b.publishedAt.localeCompare(a.publishedAt);
 }
 
-export async function fetchChannelVideos(ref: string, key: string, fetchImpl: FetchLike = fetch): Promise<ChannelData> {
+// onProgress には、ここまでに見つけた動画の本数を渡す（初回は数十秒かかることがあるので、進み具合を見せる）
+export async function fetchChannelVideos(
+  ref: string,
+  key: string,
+  fetchImpl: FetchLike = fetch,
+  onProgress?: (count: number) => void,
+): Promise<ChannelData> {
   const { uploads: uploadsId, ...channel } = await fetchChannel(fetchImpl, ref, key);
-  const uploads = await fetchPlaylistIds(fetchImpl, uploadsId, key, MAX_UPLOADS);
+  const uploads = await fetchPlaylistIds(fetchImpl, uploadsId, key, MAX_UPLOADS, undefined, onProgress);
   const suffix = channel.id.slice(2);
   const [shorts, lives] = await Promise.all([
     tryPlaylistIdSet(fetchImpl, `UUSH${suffix}`, key),
