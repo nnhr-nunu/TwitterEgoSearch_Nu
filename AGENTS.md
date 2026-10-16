@@ -10,6 +10,8 @@ Cursor で開発するときの最短導線。全文読み込みを避け、触�
 | 共有 URL | [`share-url.ts`](./src/lib/share-url.ts) |
 | 画面 | [`search-app.tsx`](./src/components/search-app.tsx) |
 | 未完了タスク | [`task.md`](./task.md) |
+| 批評・改善の提案（判断待ち） | [`docs/critique.md`](./docs/critique.md) |
+| X の実検索での確認 | [`docs/x-check.md`](./docs/x-check.md)（`npm run x-check`） |
 | セットアップ | [`README.md`](./README.md) |
 
 ## 読まない（日常改修）
