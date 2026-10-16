@@ -80,7 +80,9 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const [state, setState] = useState<UrlSearchState>(loadUrlSearch);
   // 読み込んだチャンネルの動画一覧（新しく使った順に数件）。同じチャンネルは API を呼ばずに開ける
   const [channels, setChannels] = useState<ChannelData[]>(loadChannelCache);
-  const [loading, setLoading] = useState(false);
+  // 読み込み中のチャンネル。別の対象へ移ったり消したりしたら、前の読み込みは中断する（終わるまで次を読めなくしない）
+  const [loadingRef, setLoadingRef] = useState<string | null>(null);
+  const loadAbort = useRef<{ ref: string; controller: AbortController } | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   // 一覧をまだ持っていないチャンネルの読み込みに失敗したわけ（カードの中に出す）。対象を変えたときに消し、
   // 待つあいだに切り替えた対象の失敗は記録しない（stillShowing）ので、いま見ているチャンネルのものだけが入る
@@ -97,6 +99,11 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const apiKey = youtubeApiKey();
   const target = parseTargetUrl(state.url);
   const channel = target?.kind === "channel" ? findChannel(channels, target.token) : null;
+  // いま見ているチャンネルを読み込んでいるときだけ「読み込み中」にする（別のチャンネルの読み込み中に切り替えたときは出さない）
+  const loading =
+    loadingRef !== null &&
+    target?.kind === "channel" &&
+    (loadingRef.toLowerCase() === target.token.toLowerCase() || (channel !== null && channelMatches(channel, loadingRef)));
   // 一覧を持っているチャンネル（新着の確認の失敗）は、カードの中ではなく下のお知らせに出す
   const cardError = target?.kind === "channel" && !channel ? loadError : null;
   // 見つからなかったチャンネル（@ハンドルか ID の URL）は、検索ボタンも要約も止める
@@ -203,18 +210,22 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   // 保存済みなら新着分だけ取る（数ユニット）。初めてのチャンネルと、一覧を取ってから 30 日を過ぎたチャンネルは
   // 一覧を全部取り、期間を合わせる
   const loadChannel = async (ref: string, cached: ChannelData | null) => {
-    setLoading(true);
+    loadAbort.current?.controller.abort();
+    const controller = new AbortController();
+    loadAbort.current = { ref, controller };
+    const fetchImpl = (url: string) => fetch(url, { signal: controller.signal });
+    setLoadingRef(ref);
     // 前の失敗は、読み込みを始めたときではなく成功したときに消す（やり直しのあいだも「もう一度読み込む」をカードに残す）
     try {
       if (cached && !isExpiredChannel(cached)) {
-        const result = await refreshChannelVideos(cached, apiKey);
+        const result = await refreshChannelVideos(cached, apiKey, fetchImpl);
         saveChannel(result.data, ref);
         if (!stillShowing(ref, result.data)) return;
         const text = result.added ? t("ytRefreshed").replace("{count}", String(result.added)) : t("ytNoNew");
         // 期間を広げたお知らせが先に出ていれば、続けて見せる
         setNotice((prev) => ({ tone: "info", text: prev?.tone === "info" ? `${prev.text} ${text}` : text }));
       } else {
-        const data = await fetchChannelVideos(ref, apiKey);
+        const data = await fetchChannelVideos(ref, apiKey, fetchImpl);
         saveChannel(data, ref);
         if (!stillShowing(ref, data)) return;
         setLoadError(null);
@@ -223,15 +234,22 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
         if (widened) setNotice({ tone: "info", text: widened });
       }
     } catch (caught) {
-      if (!stillShowing(ref, cached)) return;
+      // 中断したのは別の対象へ移ったか消したときなので、何も出さない
+      if (controller.signal.aborted || !stillShowing(ref, cached)) return;
       const kind = loadErrorKind(caught);
       // 一覧を持っているチャンネル（新着の確認の失敗）はカードの下に、持っていなければカードの中に出す
       if (cached) setNotice({ tone: "error", text: t(LOAD_ERROR_MESSAGES[kind]) });
       else setLoadError(kind);
     } finally {
-      setLoading(false);
+      // 後から始めた読み込みがあれば、そちらの「読み込み中」を残す
+      if (loadAbort.current?.controller === controller) {
+        loadAbort.current = null;
+        setLoadingRef(null);
+      }
     }
   };
+  // 同じチャンネルを読み込んでいる最中なら、読み込み直さない
+  const isLoadingRef = (ref: string) => loadAbort.current?.ref.toLowerCase() === ref.toLowerCase();
 
   // 保存済みの対象がチャンネルなのに動画一覧を持っていないとき（引き継ぎ用リンクで取り込んだ直後の端末など）は、
   // 開いたときに読み込む。読み込まないと、チャンネル ID で覚えている言葉も出てこない
@@ -239,7 +257,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
   const loadMissing = useRef(() => {});
   useEffect(() => {
     loadMissing.current = () => {
-      if (missingChannel && !loading) void loadChannel(missingChannel, null);
+      if (missingChannel && !isLoadingRef(missingChannel)) void loadChannel(missingChannel, null);
     };
   });
   useEffect(() => {
@@ -266,7 +284,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
       if (!cached) setNotice({ tone: "info", text: t("ytUnavailable") });
       return next;
     }
-    if ((!cached || isStaleChannel(cached)) && !loading) void loadChannel(next.token, cached);
+    if ((!cached || isStaleChannel(cached)) && !isLoadingRef(next.token)) void loadChannel(next.token, cached);
     return next;
   };
 
@@ -319,6 +337,7 @@ export function UrlSearchPanel({ t, note }: UrlSearchPanelProps) {
             canOpenChannel={Boolean(apiKey) || ownerChannel !== null}
             onSubmit={(raw) => selectUrl(raw) !== null}
             onClear={() => {
+              loadAbort.current?.controller.abort();
               setNotice(null);
               setLoadError(null);
               patch({ ...carryWords(), url: "", words: [], videoKind: "all", videoTitle: "" });
