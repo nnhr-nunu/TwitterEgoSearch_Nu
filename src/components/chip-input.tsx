@@ -80,6 +80,10 @@ export function ChipInput({
           className="h-10 text-base md:text-sm"
           autoComplete="off"
           spellCheck={false}
+          // iPhone で @id の先頭が大文字にならないように。Enter は「追加」なので完了のキーを出す
+          autoCapitalize={mode === "handle" ? "none" : undefined}
+          autoCorrect={mode === "handle" ? "off" : undefined}
+          enterKeyHint="done"
           data-testid={testId ? `${testId}-input` : undefined}
           onChange={(event) => {
             changeDraft(event.target.value);

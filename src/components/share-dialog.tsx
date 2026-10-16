@@ -194,7 +194,7 @@ export function ShareDialog({ open, onOpenChange, config, locale, onCopy, t }: S
                 <textarea
                   ref={bodyRef}
                   data-testid="share-text"
-                  className="field-sizing-content min-h-24 w-full resize-none rounded-lg border border-dashed border-primary/50 bg-primary/5 px-2.5 py-2 text-[15px] leading-relaxed transition-colors outline-none placeholder:text-muted-foreground/80 focus:border-solid focus:border-primary focus:bg-transparent focus:ring-3 focus:ring-primary/15"
+                  className="field-sizing-content min-h-24 w-full resize-none rounded-lg border border-dashed border-primary/50 bg-primary/5 px-2.5 py-2 text-base leading-relaxed transition-colors outline-none placeholder:text-muted-foreground/80 focus:border-solid focus:border-primary focus:bg-transparent focus:ring-3 focus:ring-primary/15"
                   placeholder={t("shareBodyPlaceholder")}
                   value={body}
                   onChange={(event) => editBody(event.target.value)}
