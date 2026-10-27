@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP, Geist_Mono } from "next/font/google";
+import { AiNotice } from "@/components/ai-notice";
 import { Providers } from "@/components/providers";
 import { adConfig, adScriptSrc } from "@/lib/ads";
 import { SITE_NAME, SITE_URL } from "@/lib/share-post";
@@ -38,8 +39,12 @@ export const metadata: Metadata = {
     "高度な検索",
     "検索コマンド",
   ],
-  // AdSense のサイト所有確認用。ID 未設定なら出さない。
-  ...(adConfig.client ? { other: { "google-adsense-account": adConfig.client } } : {}),
+  other: {
+    // AI の学習への利用の予約（TDM Reservation Protocol）。GitHub Pages ではヘッダを足せないので HTML の meta で伝える
+    "tdm-reservation": "1",
+    // AdSense のサイト所有確認用。ID 未設定なら出さない。
+    ...(adConfig.client ? { "google-adsense-account": adConfig.client } : {}),
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -57,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       ) : null}
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        <AiNotice />
       </body>
     </html>
   );

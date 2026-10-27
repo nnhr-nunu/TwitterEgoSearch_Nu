@@ -10,6 +10,7 @@ Cursor で開発するときの最短導線。全文読み込みを避け、触�
 | 共有 URL | [`share-url.ts`](./src/lib/share-url.ts) |
 | 画面 | [`search-app.tsx`](./src/components/search-app.tsx) |
 | 未完了タスク | [`task.md`](./task.md) |
+| AI の学習・取り込みへの守り | [`aiGuard.ts`](./src/lib/aiGuard.ts)（全サービス共通・自動生成なので直さない。正本は `~/.claude/skills/new-cf-service/templates/project/shared/`）→ [`app/robots.txt/route.ts`](./src/app/robots.txt/route.ts) / [`ai-notice.tsx`](./src/components/ai-notice.tsx)（layout の最後に置く案内）。GitHub Pages はヘッダを足せないので、TDM の予約は layout の `<meta name="tdm-reservation">` と `public/.well-known/tdmrep.json`。`public/llms.txt`・`public/_archive/` も自動生成 |
 | 批評・改善の提案（判断待ち） | [`docs/critique.md`](./docs/critique.md) |
 | X の実検索での確認 | [`docs/x-check.md`](./docs/x-check.md)（`npm run x-check`） |
 | セットアップ | [`README.md`](./README.md) |
