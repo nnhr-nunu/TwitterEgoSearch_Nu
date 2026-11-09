@@ -40,3 +40,8 @@ Windows の既定ターミナルは PowerShell（[`.vscode/settings.json`](./.vs
 - 完了タスク → `task.md` から削除（履歴は `git log`）
 - README は起動手順のみ。製品補足が必要なら `docs/product/`
 - 800 行を超えるファイルは責務単位で分割する
+
+## 層の決まり（どこを書き換えてよいか）
+- 事実（読み書きする）: task.md・AGENTS.md・docs/critique.md・docs/x-check.md。済んだ節は docs/history/ へ移す（入口の task.md と AGENTS.md は 20KB まで）
+- 原本（書き換えない）: docs/history/ の記録・docs/critique/ の批評記録
+- 成果物（手で直さない。元かスクリプトを直して作り直す）: `out/`・`graphify-out/`（git の外）、`src/lib/aiGuard.ts`・`public/llms.txt`・`public/_archive/`（自動生成。正本は new-cf-service のひな形）
